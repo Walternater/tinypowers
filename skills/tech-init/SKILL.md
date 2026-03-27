@@ -1,67 +1,178 @@
 ---
 name: tech:init
-description: 初始化项目AI开发环境，检查并创建必要的目录、配置文件和Agent定义，自动生成预设文档。
+description: 初始化项目AI开发环境，自动检测技术栈，按需加载规则，生成预设文档。
 license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "1.0"
+  version: "2.0"
 ---
 
 # /tech:init
 
 ## 功能
-初始化项目AI开发环境，在新项目或空项目中创建完整的工作流框架。
+在新项目或空项目中创建完整的工作流框架。
 
-## 执行步骤
+**核心特性：**
+- 自动检测技术栈（Java/Maven、Java/Gradle、Node/npm 等）
+- 按需加载规则（仅加载适用的技术栈规范）
+- 变量模板替换（`{{project_name}}` → 实际项目名）
+- 增量初始化（已存在的文件/目录跳过，不覆盖）
 
-### 1. 检查目录结构
-检查以下目录是否存在：
-- doc/guides/
-- doc/rules/
-- configs/rules/
-- configs/templates/
-- features/
-- .claude/
+## 执行流程
 
-如果目录不存在，自动创建。
+```
+┌─────────────────────────────────────────────────────┐
+│  1. 技术栈检测                                        │
+│  扫描根目录文件，判断项目类型                          │
+│  决定加载哪些规则集                                   │
+└────────────────────────┬────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────┐
+│  2. 已初始化检查                                      │
+│  项目根目录存在 CLAUDE.md？                           │
+│  - 不存在 → 继续初始化                                 │
+│  - 存在 → 询问策略（跳过/覆盖/仅更新规则）             │
+└────────────────────────┬────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────┐
+│  3. 目录结构创建                                      │
+│  按顺序创建必要目录                                   │
+└────────────────────────┬────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────┐
+│  4. 规则集加载                                        │
+│  根据检测到的技术栈，加载对应规则                       │
+│  通用规则始终加载                                     │
+└────────────────────────┬────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────┐
+│  5. 模板复制与变量替换                                │
+│  复制 CLAUDE.md 等模板                                │
+│  替换 {{project_name}} 等变量                         │
+└────────────────────────┬────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────┐
+│  6. 初始化验证                                        │
+│  检查目录完整性、文件存在性、链接正确性                 │
+└────────────────────────┬────────────────────────────┘
+                         ↓
+                    输出完成报告
+```
 
-### 2. 初始化配置文件
-从 `configs/templates/` 复制模板到项目根目录：
-- CLAUDE.md（如果不存在）
-- .claude/settings.json（如果不存在）
-- .claude/hooks.json（如果不存在）
+## 详细步骤
 
-### 3. 创建预设文档
-从 `configs/rules/` 和 `configs/templates/` 复制/创建预设文档：
+### Step 1: 技术栈检测
 
-| 文档路径 | 来源 | 说明 |
-|---------|------|------|
-| CLAUDE.md | configs/templates/CLAUDE.md | 项目宪法，定义入口职责和核心规则 |
-| configs/rules/* | 通用规则 | 安全、测试、编码等通用规范 |
-| configs/rules/java/* | Java规则 | Java特定规范（如适用） |
-| configs/rules/mysql/* | MySQL规则 | 数据库规范（如适用） |
-| doc/guides/development-spec.md | 预设内容 | 后端开发规范 |
-| doc/guides/workflow-guide.md | 预设内容 | 新需求完整工作流 |
-| doc/guides/prd-analysis-guide.md | 预设内容 | PRD分析与任务拆解指南 |
-| doc/guides/test-plan.md | 预设内容 | 测试计划规范 |
+调用 `stack-detection.md` 中的算法：
 
-### 4. 初始化Agent定义
-检查并创建：
-- agents/*.md（核心Agent定义）
+1. 扫描根目录构建文件（优先级：pom.xml → build.gradle → package.json → go.mod）
+2. 扫描包名结构（src/main/java/*.java → Java）
+3. 输出检测结果和技术栈列表
 
-### 5. 输出完成报告
-报告初始化结果和创建的文件列表。
+### Step 2: 已初始化检查
 
-## 预设模板来源
+```
+IF 项目根目录存在 CLAUDE.md THEN
+    输出："项目已初始化，选择操作："
+    选项：
+      1. 跳过（保持现状）
+      2. 覆盖（删除后重建）
+      3. 仅更新规则（不修改 CLAUDE.md）
+    用户选择后继续
+ELSE
+    继续初始化
+END
+```
 
-- `configs/templates/CLAUDE.md` — 项目入口模板
-- `configs/rules/` — 可插拔规则集
-- `doc/guides/*` — 开发指南预设内容
+### Step 3: 目录结构创建
 
-## 验证
+按顺序创建（详细见 `init-steps.md`）：
 
-初始化完成后，用户可以：
-- 使用 `/tech:feature` 开始新功能开发
-- 使用 `/tech:code` 进入代码开发流程
-- 使用 `/tech:commit` 进行文档复写和提交
+```
+doc/guides/           # 开发规范
+doc/                  # 文档目录（父级）
+configs/rules/         # 可插拔规则
+configs/templates/     # 模板文件
+features/             # 功能目录
+.claude/              # Claude 配置
+```
+
+### Step 4: 规则集加载
+
+根据 Step 1 的检测结果：
+
+| 检测到 | 加载规则 |
+|--------|----------|
+| pom.xml / build.gradle | `configs/rules/java/*` |
+| package.json | `configs/rules/javascript/*`（如有） |
+| go.mod | `configs/rules/golang/*`（如有） |
+| 任意项目 | `configs/rules/common-*`（始终加载） |
+
+### Step 5: 模板复制与变量替换
+
+从 `configs/templates/` 复制并替换变量：
+
+| 变量 | 替换为 |
+|------|--------|
+| `{{project_name}}` | 当前目录名 |
+| `{{date}}` | 当前日期 (YYYY-MM-DD) |
+| `{{author}}` | git user.name 或 "Unknown" |
+| `{{tech_stack}}` | 检测到的技术栈描述 |
+
+### Step 6: 初始化验证
+
+调用 `verification.md` 检查清单：
+
+- [ ] 目录结构完整
+- [ ] CLAUDE.md 存在且变量已替换
+- [ ] doc/guides/*.md 存在
+- [ ] configs/rules/ 已加载适用规则
+- [ ] 链接引用正确（无死链）
+
+## 输出报告
+
+```
+=== 初始化完成 ===
+
+项目类型: Java (Maven)
+加载规则:
+  ✓ configs/rules/common-coding-style.md
+  ✓ configs/rules/common-security.md
+  ✓ configs/rules/common-testing.md
+  ✓ configs/rules/java/java-coding-style.md
+  ✓ configs/rules/mysql/* (6个文档)
+
+创建目录:
+  ✓ doc/guides/
+  ✓ configs/rules/
+  ✓ configs/templates/
+  ✓ features/
+
+创建文件:
+  ✓ CLAUDE.md (变量已替换)
+  ✓ doc/guides/development-spec.md
+  ✓ doc/guides/workflow-guide.md
+  ...
+
+验证结果: 全部通过
+
+下一步：
+  /tech:feature — 开始新功能开发
+```
+
+## 忽略文件
+
+初始化时自动忽略以下文件（不复制）：
+- `.git/`
+- `node_modules/`
+- `target/`
+- `build/`
+- `*.class`
+- `*.log`
+
+## 参考文档
+
+- `init-steps.md` — 目录创建与模板复制细节
+- `stack-detection.md` — 技术栈检测算法
+- `verification.md` — 初始化验证清单
