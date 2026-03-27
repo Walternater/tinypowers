@@ -141,16 +141,44 @@ DETECTION_RULES = [
 {
   "primary_stack": "Java",
   "sub_stack": "Spring Boot",
+  "tech_stack": "Java (Maven)",
+  "tech_stack_short": "java",
   "build_tool": "Maven",
+  "build_command": "mvn checkstyleMain testClasses",
+  "service_port": "8080",
+  "branch_pattern": "feature/{id}-{short-desc}",
   "confidence": 0.95,
   "detected_files": ["pom.xml", "src/main/java"],
   "frameworks": ["Spring Boot", "MyBatis", "Dubbo", "Kafka"],
   "recommended_rules": [
+    "configs/rules/common-coding-style.md",
+    "configs/rules/common-security.md",
+    "configs/rules/common-testing.md",
     "configs/rules/java/java-coding-style.md",
     "configs/rules/mysql/*"
   ]
 }
 ```
+
+### 技术栈默认值
+
+根据检测结果，设置以下默认值：
+
+| 技术栈 | tech_stack | build_tool | build_command | service_port |
+|--------|-----------|-------------|---------------|--------------|
+| Java (Maven) | Java (Maven) | Maven | mvn checkstyleMain testClasses | 8080 |
+| Java (Gradle) | Java (Gradle) | Gradle | ./gradlew check | 8080 |
+| Node.js | Node.js | npm | npm run lint && npm test | 3000 |
+| Go | Go | Go | go build ./... | 8080 |
+| Python | Python | pip | pytest | 5000 |
+| 未知 | {{tech_stack}} | - | - | 8080 |
+
+### 分支模式默认值
+
+| 技术栈 | branch_pattern |
+|--------|----------------|
+| 通用 | feature/{id}-{short-desc} |
+| GitFlow | feature/{id}/{short-desc} |
 
 ### 置信度
 

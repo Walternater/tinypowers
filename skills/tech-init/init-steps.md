@@ -55,14 +55,19 @@ def copy_template(src, dest):
 
 | 变量格式 | 替换为 | 示例 |
 |----------|--------|------|
-| `{{project_name}}` | 当前目录名 | `my-project` |
-| `{{ProjectName}}` | 项目名（首字母大写） | `MyProject` |
+| `{{project_name}}` | 项目目录名 | `my-project` |
+| `{{ProjectName}}` | 首字母大写 | `MyProject` |
 | `{{PROJECT_NAME}}` | 全大写下划线 | `MY_PROJECT` |
+| `{{tech_stack}}` | 技术栈描述 | `Java (Maven)` |
+| `{{tech_stack_short}}` | 技术栈简称 | `java` |
+| `{{build_tool}}` | 构建工具 | `Maven` |
+| `{{build_command}}` | 构建命令 | `mvn checkstyleMain testClasses` |
+| `{{service_port}}` | 服务端口 | `8080` |
+| `{{branch_pattern}}` | 分支命名模式 | `feature/{id}-{short-desc}` |
 | `{{date}}` | 当前日期 | `2026-03-27` |
 | `{{datetime}}` | 当前日期时间 | `2026-03-27 14:30:00` |
-| `{{author}}` | git user.name | `John Doe` |
+| `{{author}}` | Git 用户名 | `John Doe` |
 | `{{year}}` | 当前年份 | `2026` |
-| `{{tech_stack}}` | 检测到的技术栈 | `Java (Maven)` |
 
 ### 变量替换实现
 
@@ -72,7 +77,7 @@ import re
 from datetime import datetime
 import subprocess
 
-def replace_variables(content):
+def replace_variables(content, tech_stack_info):
     project_name = os.path.basename(os.getcwd())
 
     # 尝试获取 git user.name
@@ -87,6 +92,12 @@ def replace_variables(content):
         '{{project_name}}': project_name,
         '{{ProjectName}}': project_name.title().replace('-', ''),
         '{{PROJECT_NAME}}': project_name.upper().replace('-', '_'),
+        '{{tech_stack}}': tech_stack_info.get('tech_stack', 'Unknown'),
+        '{{tech_stack_short}}': tech_stack_info.get('tech_stack_short', 'unknown'),
+        '{{build_tool}}': tech_stack_info.get('build_tool', 'Maven'),
+        '{{build_command}}': tech_stack_info.get('build_command', 'mvn checkstyleMain testClasses'),
+        '{{service_port}}': tech_stack_info.get('service_port', '8080'),
+        '{{branch_pattern}}': tech_stack_info.get('branch_pattern', 'feature/{id}-{short-desc}'),
         '{{date}}': datetime.now().strftime('%Y-%m-%d'),
         '{{datetime}}': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         '{{author}}': author,
