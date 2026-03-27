@@ -17,6 +17,16 @@
         "File matches deny patterns"
       ],
       "error": "此文件禁止读取，请检查是否包含敏感信息"
+    },
+    {
+      "matcher": "Bash|Edit|Write|MultiEdit|Agent|Task",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node \"{HOOKS_DIR}/gsd-context-monitor.js\"",
+          "timeout": 10
+        }
+      ]
     }
   ],
   "deny-patterns": {

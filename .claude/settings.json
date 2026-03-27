@@ -29,5 +29,19 @@
       "architecture design",
       "complex problems"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{HOOKS_DIR}/gsd-context-monitor.js\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }
