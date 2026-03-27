@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Bash",
+      "Glob",
+      "Grep",
+      "Edit",
+      "NotebookEdit"
+    ],
+    "deny": [
+      "ToolCreation"
+    ]
+  },
+  "tools": {
+    "useRelated": true,
+    "maxTurns": 50
+  },
+  "model": {
+    "default": "sonnet",
+    "haiku": [
+      "simple tasks under 5 minutes"
+    ],
+    "sonnet": [
+      "daily development"
+    ],
+    "opus": [
+      "architecture design",
+      "complex problems"
+    ]
+  }
+}

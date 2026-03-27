@@ -1,0 +1,34 @@
+{
+  "hooks": [
+    {
+      "trigger": "beforeToolUse",
+      "action": "check-permissions",
+      "conditions": [
+        "Tool=Bash",
+        "Command matches deny patterns"
+      ],
+      "error": "此命令被禁止执行，请检查是否包含敏感操作"
+    },
+    {
+      "trigger": "beforeToolUse",
+      "action": "check-file-access",
+      "conditions": [
+        "Tool=Read",
+        "File matches deny patterns"
+      ],
+      "error": "此文件禁止读取，请检查是否包含敏感信息"
+    }
+  ],
+  "deny-patterns": {
+    "bash": [
+      "rm -rf",
+      "sudo",
+      "curl.*external.*code"
+    ],
+    "file": [
+      "*.pem",
+      ".env*",
+      "application-local.yml"
+    ]
+  }
+}
