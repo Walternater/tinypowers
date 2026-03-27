@@ -61,7 +61,7 @@ PRD 需求文档
 
 | 步骤 | 操作 | 产出物 |
 |------|------|--------|
-| 1 | 按 `template/tech-design.md` 模板输出技术方案 | 技术方案文档 |
+| 1 | 按 `configs/templates/tech-design.md` 模板输出技术方案 | 技术方案文档 |
 | 2 | 按 `prd-analysis-guide.md` 执行任务拆解 | 任务拆解表 |
 
 **关键确认**：技术方案输出后暂停，等待确认后再进入开发阶段。
@@ -96,7 +96,7 @@ PRD 需求文档
 | 1 | 按 `test-plan.md` 规范编写测试计划 | 测试计划文档 |
 | 2 | 使用 `superpowers:test-driven-development` 编写单元测试 | 单元测试 |
 | 3 | 使用 `superpowers:test-driven-development` 进行集成测试 | 集成测试 |
-| 4 | 按 `template/test-report.md` 模板填写测试报告 | 测试报告 |
+| 4 | 按 `configs/templates/test-report.md` 模板填写测试报告 | 测试报告 |
 
 **关键确认**：测试报告输出后暂停，等待确认后再进入验证阶段。
 

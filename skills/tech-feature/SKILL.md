@@ -49,4 +49,4 @@ metadata:
 
 ## 参考文档
 - `docs/guides/prd-analysis-guide.md` - PRD分析与任务拆解指南
-- `docs/templates/tech-design.md` - 技术方案模板
+- `configs/templates/tech-design.md` - 技术方案模板

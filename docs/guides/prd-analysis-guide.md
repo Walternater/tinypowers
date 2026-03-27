@@ -206,7 +206,7 @@
 
 ### 5.1 技术方案模板
 
-详见：[./template/tech-design.md](template/tech-design.md)
+详见：[../configs/templates/tech-design.md](../configs/templates/tech-design.md)
 
 ### 5.2 技术方案检查
 

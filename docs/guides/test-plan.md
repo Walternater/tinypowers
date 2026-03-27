@@ -158,7 +158,7 @@ mvn test jacoco:report
 
 ## 八、测试报告
 
-提测前必须按照模板填写测试报告：`template/test-report.md`
+提测前必须按照模板填写测试报告：`configs/templates/test-report.md`
 
 测试报告必须包含：
 - 测试基本信息（需求名称、分支、测试环境、测试人员、时间）
