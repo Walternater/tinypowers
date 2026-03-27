@@ -19,6 +19,10 @@ Wave并行执行 + 三阶段验证循环
 - 质量门禁（Quality Gate）
 - Session 恢复（断点续传）
 
+**重要约束：**
+- ⚠️ 禁止在 tech-commit 之前自动执行 git commit
+- 所有代码变更仅标记为「待提交」，由 tech-commit 统一处理
+
 ## 输入
 
 - `features/{id}/任务拆解表.md`
@@ -188,8 +192,10 @@ END
 ```
 Task 完成时：
   1. 运行自测
-  2. 提交代码：git commit -m "feat({id}): {task-name}"
+  2. 标记为「待提交」（不执行 git commit）
   3. 更新状态文件
+
+⚠️ 禁止自动 git commit，统一由 tech-commit 处理
 ```
 
 ---
@@ -266,11 +272,13 @@ features/{id}/
 
 ```
 features/{id}/
-├── code/                      # 代码变更（已提交）
-├── code-review.md              # 审查报告
-├── 测试报告.md                 # 测试报告
+├── code/                      # 代码变更（待提交）
+├── code-review.md             # 审查报告
+├── 测试报告.md                # 测试报告
 └── VERIFICATION.md            # 验证报告
 ```
+
+**注意**：代码变更状态为「待提交」，由 tech-commit 统一执行 git commit
 
 ---
 
