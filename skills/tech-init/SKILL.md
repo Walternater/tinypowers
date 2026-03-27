@@ -19,31 +19,32 @@ metadata:
 检查以下目录是否存在：
 - doc/guides/
 - doc/rules/
-- doc/templates/
+- configs/rules/
+- configs/templates/
 - features/
 - .claude/
 
 如果目录不存在，自动创建。
 
 ### 2. 初始化配置文件
-检查并创建：
+从 `configs/templates/` 复制模板到项目根目录：
 - CLAUDE.md（如果不存在）
 - .claude/settings.json（如果不存在）
 - .claude/hooks.json（如果不存在）
 
 ### 3. 创建预设文档
-如果文档不存在，按下表创建预设文档：
+从 `configs/rules/` 和 `configs/templates/` 复制/创建预设文档：
 
-| 文档路径 | 说明 |
-|---------|------|
-| CLAUDE.md | 项目宪法，定义入口职责和核心规则 |
-| doc/guides/development-spec.md | 后端开发规范 |
-| doc/guides/workflow-guide.md | 新需求完整工作流 |
-| doc/guides/prd-analysis-guide.md | PRD分析与任务拆解指南 |
-| doc/guides/test-plan.md | 测试计划规范 |
-| doc/guides/code-review-checklist.md | 代码审查清单 |
-| doc/templates/tech-design.md | 技术方案模板 |
-| doc/templates/test-report.md | 测试报告模板 |
+| 文档路径 | 来源 | 说明 |
+|---------|------|------|
+| CLAUDE.md | configs/templates/CLAUDE.md | 项目宪法，定义入口职责和核心规则 |
+| configs/rules/* | 通用规则 | 安全、测试、编码等通用规范 |
+| configs/rules/java/* | Java规则 | Java特定规范（如适用） |
+| configs/rules/mysql/* | MySQL规则 | 数据库规范（如适用） |
+| doc/guides/development-spec.md | 预设内容 | 后端开发规范 |
+| doc/guides/workflow-guide.md | 预设内容 | 新需求完整工作流 |
+| doc/guides/prd-analysis-guide.md | 预设内容 | PRD分析与任务拆解指南 |
+| doc/guides/test-plan.md | 预设内容 | 测试计划规范 |
 
 ### 4. 初始化Agent定义
 检查并创建：
@@ -52,9 +53,11 @@ metadata:
 ### 5. 输出完成报告
 报告初始化结果和创建的文件列表。
 
-## 预设文档内容
+## 预设模板来源
 
-预设文档内容请参考 `docs/` 目录下的对应文件。
+- `configs/templates/CLAUDE.md` — 项目入口模板
+- `configs/rules/` — 可插拔规则集
+- `doc/guides/*` — 开发指南预设内容
 
 ## 验证
 
