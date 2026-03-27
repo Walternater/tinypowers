@@ -56,7 +56,7 @@ git clone https://github.com/Walternater/tinypowers.git ~/.claude/skills/tinypow
 这将创建：
 - `CLAUDE.md` — 项目入口配置
 - `doc/guides/` — 开发规范文档
-- `doc/templates/` — 文档模板
+- `configs/templates/` — 文档模板
 - `agents/` — Agent 定义
 
 ### 2. 开始新功能
