@@ -17,7 +17,7 @@
 |------|------|
 | `tech-init` | 初始化项目环境，创建目录结构和预设文档 |
 | `tech-feature` | 需求分析 → 技术方案 → 任务拆解 |
-| `tech-code` | 编码 → 审查 → 测试循环 |
+| `tech-code` | Wave并行执行 + 三阶段验证循环 |
 | `tech-commit` | 文档复写与代码提交 |
 
 ### Agents 智能体
@@ -27,6 +27,8 @@
 - `planner` — 任务规划
 - `code-reviewer` — 代码审查
 - `security-reviewer` — 安全审查
+- `tech-plan-checker` — 任务表验证
+- `tech-verifier` — 目标回溯验证
 
 #### 语言特定 Agent
 - `agents/java/java-reviewer` — Java 专用审查
