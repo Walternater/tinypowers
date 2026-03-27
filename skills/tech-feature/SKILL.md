@@ -213,6 +213,16 @@ PRD参考：@docs/guides/prd-analysis-guide.md
 
 ## Phase 3: 技术方案
 
+<HARD-GATE>
+在用户明确批准技术方案之前，禁止：
+- 调用任何编码命令
+- 写任何业务代码
+- 创建任何实现文件
+- 调用 tech-code 或其他实现类技能
+
+无论任务看起来多简单，不得例外。
+</HARD-GATE>
+
 调用 `tech-design-guide.md`：
 
 ### 3.1 技术方案模板

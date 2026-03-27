@@ -116,6 +116,15 @@ END
 
 ## Phase 2: Wave Execution
 
+<HARD-GATE>
+在 Phase 1 Plan Check 通过之前，禁止：
+- 执行任何 Task
+- 调用 Subagent
+- 启动任何 Wave
+
+Phase 1 必须完整通过验证才能进入 Wave Execution。
+</HARD-GATE>
+
 调用 `wave-execution.md`：
 
 ### 2.1 Wave 分解
