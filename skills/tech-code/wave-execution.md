@@ -108,9 +108,50 @@ END
 
 ---
 
-## Subagent 执行
+## 反浅层执行规则
 
-### Task 执行请求
+借鉴 GSD 的 Anti-Shallow Execution Rules，防止 AI 生成占位/Stub 代码。
+
+每个 Task 分配必须包含以下强制字段：
+
+<HARD-GATE>
+### 强制字段：read_first（先读再改）
+
+每个 Task 的 prompt 必须包含：
+```
+执行本 Task 前，必须先读取以下文件：
+- {涉及的目标文件}（如果已存在）
+- {相关的技术方案文件}
+- {依赖的接口/类定义}
+
+禁止在未读取现有代码的情况下直接写入新代码。
+```
+</HARD-GATE>
+
+<HARD-GATE>
+### 强制字段：acceptance_criteria（grep 可验证）
+
+每个 Task 的 prompt 必须包含：
+```
+验收标准必须满足以下条件：
+- 具体、可验证（不要用"功能正常"等主观描述）
+- 可用 grep/find 验证命令检查
+- 包含明确的预期值（如 HTTP 200、返回 {"status":"ok"})
+
+禁止使用主观验收标准（如"功能正常工作"、"用户体验良好"）。
+```
+</HARD-GATE>
+
+### 反浅层执行检查清单
+
+| # | 检查项 | 说明 | 不通过处理 |
+|---|--------|------|----------|
+| 1 | read_first 列 prompt 中列出了要读的文件 | 阻断任务 |
+| 2 | acceptance_criteria | 标准 grep 可验证 | 阻断任务 |
+| 3 | 无占位代码 | 无 TODO/FIXME/TBD/placeholder | 警告 |
+| 4 | 无空实现 | 方法体不是只 return true | 阻断任务 |
+
+### Task 执行请求（更新后）
 
 <HARD-GATE>
 执行 Task 前必须：
@@ -150,6 +191,30 @@ class TaskStatus:
     FAILED = "failed"
     BLOCKED = "blocked"  # 依赖未完成
 ```
+
+---
+
+## 失败熔断机制
+
+### 3 次失败 → 质疑架构
+
+执行 Task 或修复 Bug 时，同一问题连续失败 3 次，必须停止并质疑架构设计。
+
+```
+IF 同一问题修复失败 >= 3 次 THEN
+  停止当前 Task
+  执行架构质疑流程（详见 deviation-handling.md）
+  禁止继续相同方向的第 4 次尝试
+END
+```
+
+**适用场景：**
+- 同一个测试反复失败（3 次）
+- 同一个编译错误反复出现
+- Code Review 同一问题被反复指出
+- Task 分配多次仍生成占位代码
+
+详见 `deviation-handling.md` → 「3 次失败 → 质疑架构规则」
 
 ---
 

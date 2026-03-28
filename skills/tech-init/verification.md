@@ -10,7 +10,7 @@
 
 | 检查项 | 路径 | 验证方法 |
 |--------|------|----------|
-| [ ] 开发规范目录 | `doc/guides/` | `test -d doc/guides` |
+| [ ] 开发规范目录 | `docs/guides/` | `test -d docs/guides` |
 | [ ] 规则目录 | `configs/rules/` | `test -d configs/rules` |
 | [ ] 模板目录 | `configs/templates/` | `test -d configs/templates` |
 | [ ] 功能目录 | `features/` | `test -d features` |
@@ -31,10 +31,10 @@
 
 | 检查项 | 路径 | 验证方法 |
 |--------|------|----------|
-| [ ] 开发规范 | `doc/guides/development-spec.md` | 文件存在 |
-| [ ] 工作流指南 | `doc/guides/workflow-guide.md` | 文件存在 |
-| [ ] PRD 分析指南 | `doc/guides/prd-analysis-guide.md` | 文件存在 |
-| [ ] 测试计划 | `doc/guides/test-plan.md` | 文件存在 |
+| [ ] 开发规范 | `docs/guides/development-spec.md` | 文件存在 |
+| [ ] 工作流指南 | `docs/guides/workflow-guide.md` | 文件存在 |
+| [ ] PRD 分析指南 | `docs/guides/prd-analysis-guide.md` | 文件存在 |
+| [ ] 测试计划 | `docs/guides/test-plan.md` | 文件存在 |
 
 ### 规则文件
 
@@ -65,7 +65,7 @@ grep -E '\{\{project_name\}\}|\{\{date\}\}|\{\{author\}\}' CLAUDE.md
 ```bash
 # 检查 markdown 链接是否有效
 # 验证内部链接
-grep -oE '\[.*\]\((.*\.md)\)' doc/guides/*.md | while read link; do
+grep -oE '\[.*\]\((.*\.md)\)' docs/guides/*.md | while read link; do
     target=$(echo "$link" | sed 's/.*\](\(.*\))/\1/')
     # 解析相对路径并检查文件是否存在
 done
@@ -104,7 +104,7 @@ test -d skills/tech-commit || echo "WARN: skills/tech-commit 不存在"
 === 初始化验证报告 ===
 
 一、目录结构验证
-  ✓ doc/guides/           存在
+  ✓ docs/guides/          存在
   ✓ configs/rules/       存在
   ✓ configs/templates/    存在
   ✓ features/             存在
@@ -165,7 +165,7 @@ test -d skills/tech-commit || echo "WARN: skills/tech-commit 不存在"
 ```bash
 # 一键验证（期望全部 OK）
 (
-  test -d doc/guides && echo "✓ doc/guides" || echo "✗ doc/guides MISSING"
+  test -d docs/guides && echo "✓ docs/guides" || echo "✗ docs/guides MISSING"
   test -d configs/rules && echo "✓ configs/rules" || echo "✗ configs/rules MISSING"
   test -d configs/templates && echo "✓ configs/templates" || echo "✗ configs/templates MISSING"
   test -d features && echo "✓ features" || echo "✗ features MISSING"

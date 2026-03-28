@@ -134,18 +134,35 @@
 
 ---
 
-## 关键确认点
+## 关键确认点（物理 HARD-GATE）
 
-技术方案完成后，必须确认：
+技术方案完成后，**禁止用文字提示替代**，必须调用 `ask_followup_question` 工具：
 
-```
-★ 关键确认点
+<TOOL-REQUIREMENT>
+ask_followup_question({
+  title: "技术方案确认 — {需求ID}",
+  questions: [
+    {
+      id: "arch",
+      question: "架构设计与接口方案是否符合预期？",
+      options: ["✅ 通过", "❌ 需要修改"],
+      multiSelect: false
+    },
+    {
+      id: "db",
+      question: "数据库表结构设计是否合理？",
+      options: ["✅ 通过", "❌ 需要修改"],
+      multiSelect: false
+    },
+    {
+      id: "risk",
+      question: "风险评估与上线方案是否可行？",
+      options: ["✅ 通过", "❌ 需要修改"],
+      multiSelect: false
+    }
+  ]
+})
 
-1. 架构设计是否符合预期？
-2. 接口设计是否满足需求？
-3. 数据库设计是否合理？
-4. 风险是否可以接受？
-5. 上线方案是否可行？
-
-输入"确认"继续，或提出具体修改意见。
-```
+全部选择「✅ 通过」→ 继续执行决策锁定（update_memory）。
+任意选择「❌ 需要修改」→ 用户说明修改意见，修改方案后重新触发本确认流程。
+</TOOL-REQUIREMENT>

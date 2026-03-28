@@ -4,6 +4,8 @@
 
 上下文满或 `/clear` 后，自动保存状态，下次可从断点续传。
 
+**核心原则：STATE.md 是恢复主数据源，Snapshot 只是入口通知。**
+
 ---
 
 ## 生命周期
@@ -11,15 +13,23 @@
 ```
 SessionStart hook
        ↓
-  工作进行中
+  检测 Snapshot (/tmp)
+       ↓ 存在
+  注入询问 → 用户确认恢复
+       ↓
+  读取 STATE.md (features/{id}/) ← 主数据源
+       ↓
+  工作进行中（实时更新 STATE.md）
        ↓
    /compact
        ↓ (PreCompact hook 快照)
     压缩
        ↓
+  读取 STATE.md 恢复现场
+       ↓
   工作继续
        ↓
-SessionEnd hook (Stop hook 保存进度)
+SessionEnd hook (Stop hook 基于 STATE.md 保存 Snapshot)
 ```
 
 ---
@@ -53,21 +63,22 @@ SessionEnd hook (Stop hook 保存进度)
 
 ### SessionStart
 
-检测 `/tmp/tinypowers-session-{session_id}.json` 快照文件：
-- 存在 → 注入 `additionalContext` 询问是否恢复
-- 不存在 → 静默退出
+1. 检测 `/tmp/tinypowers-session-{session_id}.json` 快照文件
+2. 存在 → 注入 `additionalContext` 询问是否恢复
+3. 用户确认后 → **读取 `features/{id}/STATE.md`** 作为恢复依据
+4. 不存在 → 静默退出
 
 ### Stop（SessionEnd）
 
 会话结束时保存当前进度：
-- 查找 `features/{id}/SESSION.md`
-- 更新快照文件
+- 读取 `features/{id}/STATE.md`（主数据源）
+- 创建 `/tmp` Snapshot（入口通知）
 
 ### PreCompact
 
-压缩前快照关键上下文：
-- Feature ID、当前 Wave、已完成 Tasks
-- 供 SessionStart 恢复使用
+压缩前：
+- 快照关键上下文到 `/tmp`
+- **STATE.md 已在执行过程中实时更新，无需额外操作**
 
 ---
 
@@ -91,15 +102,17 @@ SessionEnd hook (Stop hook 保存进度)
 }
 ```
 
-### Feature SESSION.md
+### Feature STATE.md
 
 ```markdown
-# Session 状态
+# STATE: CSS-1234
 
-## 基本信息
-- Feature ID: CSS-1234
-- 当前 Wave: 3
-- 总 Wave 数: 5
+> 最后更新: 2026-03-27 15:30:00 | 当前阶段: Phase 2 - Wave Execution
+
+## 位置
+- 当前技能: tech-code
+- 当前阶段: Phase 2 - Wave Execution
+- 当前 Wave: 3 / 5
 
 ## 进度
 
@@ -121,11 +134,12 @@ SessionEnd hook (Stop hook 保存进度)
 ### Wave 5 ⏳ 待开始
 - T-008 集成测试
 
-## 偏差记录
+## 偏差
 - deviation-001.md: 依赖偏差（已自动修复）
 
-## 最后更新
-2026-03-27 15:30:00
+## 上次操作
+- Wave 2 完成，Gate 通过
+- T-005 开始执行
 ```
 
 ---
@@ -135,19 +149,21 @@ SessionEnd hook (Stop hook 保存进度)
 ```
 SessionStart hook 触发
        ↓
-检测到 /tmp/tinypowers-session-{id}.json
+检测到 /tmp/tinypowers-session-{id}.json (Snapshot)
        ↓
 注入询问：
 "检测到上次会话未完成，Feature: CSS-1234, Wave: 3/5"
        ↓
 用户输入"恢复"
        ↓
-读取快照
+读取 features/CSS-1234/STATE.md ← 主数据源
        ↓
 恢复工作现场：
-1. 读取 features/CSS-1234/SESSION.md
-2. 从断点继续（Wave 3）
-3. 跳过已完成 Tasks
+1. 解析 STATE.md 中的「位置」章节 → 确认当前阶段和 Wave
+2. 解析「进度」章节 → 确认已完成/未完成 Tasks
+3. 解析「阻塞」章节 → 确认是否有阻塞项
+4. 从断点继续，跳过已完成 Tasks
+5. 如果有阻塞项，先处理阻塞
 ```
 
 ---

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "2.0"
+  version: "3.0"
 ---
 
 # /tech:feature
@@ -64,6 +64,28 @@ metadata:
 ---
 
 ## Phase 0: 准备
+
+### 0.0 种子扫描
+
+```
+在开始新需求分析之前，扫描所有 features/*/seeds/ 目录：
+
+FOR each seed WHERE status == dormant:
+  比较 seed.trigger_when 与新需求描述/ID
+  IF 匹配 THEN
+    输出："发现相关种子：SEED-{NNN}: {简述}"
+    询问用户是否纳入本次需求
+    IF 纳入 THEN
+      更新 seed.status → triggered
+      种子内容合并到需求分析上下文中
+    END
+  END
+END
+
+IF 无匹配种子 THEN
+  静默跳过，不输出任何信息
+END
+```
 
 ### 0.1 解析需求
 
@@ -213,16 +235,6 @@ PRD参考：@docs/guides/prd-analysis-guide.md
 
 ## Phase 3: 技术方案
 
-<HARD-GATE>
-在用户明确批准技术方案之前，禁止：
-- 调用任何编码命令
-- 写任何业务代码
-- 创建任何实现文件
-- 调用 tech-code 或其他实现类技能
-
-无论任务看起来多简单，不得例外。
-</HARD-GATE>
-
 调用 `tech-design-guide.md`：
 
 ### 3.1 技术方案模板
@@ -242,17 +254,87 @@ PRD参考：@docs/guides/prd-analysis-guide.md
 - [ ] 依赖系统已识别
 - [ ] 风险点已评估
 
-### 3.3 关键确认
+### 3.3 关键确认（物理 HARD-GATE）
 
 ```
-技术方案输出后暂停，等待确认。
+技术方案输出后，必须调用原生的 ask_followup_question 工具弹出确认框，
+在用户明确点击批准之前，绝对不得进行任何后续操作。
+```
 
-★ 关键确认点：
-  - 架构设计是否符合预期？
-  - 接口设计是否满足需求？
-  - 风险是否可以接受？
+<TOOL-REQUIREMENT>
+必须使用原生 `ask_followup_question` 工具，不得用文字替代：
 
-输入"确认"继续，或提出具体修改意见。
+ask_followup_question({
+  title: "技术方案确认 — {需求ID}",
+  questions: [
+    {
+      id: "q1",
+      question: "架构设计与接口方案是否符合预期？",
+      options: ["✅ 确认通过，继续任务拆解", "❌ 需要修改，我来说明"],
+      multiSelect: false
+    }
+  ]
+})
+
+用户选择「✅ 确认通过」后，立即执行 3.4 决策锁定。
+用户选择「❌ 需要修改」后，根据反馈修改方案，再次触发本确认流程。
+</TOOL-REQUIREMENT>
+
+### 3.4 决策锁定（update_memory）
+
+用户确认技术方案后，**必须**将本次方案中的关键决策写入 Claude 的持久化记忆库，
+确保后续所有会话（包括 `/tech:code`）中这些决策都是不可推翻的约束。
+
+<TOOL-REQUIREMENT>
+方案确认后立即执行，对每个关键决策调用 update_memory 工具：
+
+# 架构选型决策
+update_memory({
+  action: "create",
+  title: "{需求ID} D-01 架构选型",
+  knowledge_to_store: "需求 {需求ID} 架构决策(D-01)：{决策内容}。
+    原因：{选择原因}。
+    约束：后续编码中禁止擅自更换，如需变更须人工确认。"
+})
+
+# 核心数据结构/表设计决策
+update_memory({
+  action: "create",
+  title: "{需求ID} D-02 数据库表设计",
+  knowledge_to_store: "需求 {需求ID} 数据库决策(D-02)：{核心表结构描述}。
+    约束：字段名、类型、索引设计不得擅自修改。"
+})
+
+# 接口契约决策（如有对外接口）
+update_memory({
+  action: "create",
+  title: "{需求ID} D-03 对外接口契约",
+  knowledge_to_store: "需求 {需求ID} 接口决策(D-03)：{核心接口路径/入参/出参}。
+    约束：接口路径、字段名、错误码不得擅自修改。"
+})
+
+# 根据方案实际内容追加更多决策（D-04、D-05...）
+</TOOL-REQUIREMENT>
+
+```
+决策 ID 规范：
+  D-01: 架构/框架选型
+  D-02: 数据库表结构
+  D-03: 对外接口契约
+  D-04: 中间件/依赖选型（如有）
+  D-05: 安全方案（如有特殊要求）
+  D-0N: 其他需要锁定的重要决策
+
+每条记忆写入后，在技术方案文档中追加记录：
+features/{id}/技术方案.md 末尾添加：
+
+## 已锁定决策
+
+| 决策ID | 内容摘要 | 约束说明 |
+|--------|---------|---------|
+| D-01   | {内容}   | 禁止擅自变更 |
+| D-02   | {内容}   | 禁止擅自变更 |
+...
 ```
 
 ---
@@ -304,6 +386,27 @@ Story 1.1: 用户名密码登录
 | Epic 1 | Story 1.1 | T-004 登录页面前端 | 前端 | 0.5d | T-003 |
 | ... | ... | ... | ... | ... | ... |
 
+### 4.4 任务拆解确认（物理 HARD-GATE）
+
+任务拆解表输出后，**禁止直接流入 `/tech:code`**，必须获得人工确认：
+
+<TOOL-REQUIREMENT>
+ask_followup_question({
+  title: "任务拆解确认 — {需求ID}",
+  questions: [
+    {
+      id: "q1",
+      question: "任务拆解是否完整，估时和依赖关系是否合理？",
+      options: ["✅ 确认通过，可以开始编码", "❌ 需要调整，我来说明"],
+      multiSelect: false
+    }
+  ]
+})
+
+用户选择「✅ 确认通过」→ /tech:feature 流程正式完成，可以启动 /tech:code。
+用户选择「❌ 需要调整」→ 根据反馈修改任务拆解表，再次触发本确认流程。
+</TOOL-REQUIREMENT>
+
 ---
 
 ## 输出清单
@@ -340,5 +443,6 @@ features/{id}/
 - `tech-design-guide.md` — 技术方案设计
 - `task-breakdown.md` — 任务拆解（Scope→Stories）
 - `verification.md` — 各阶段验证清单
+- `@agents/decision-guardian.md` — 决策锁定与守护
 - `@docs/guides/prd-analysis-guide.md` — PRD分析指南
 - `@configs/templates/tech-design.md` — 技术方案模板

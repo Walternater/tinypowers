@@ -74,6 +74,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{HOOKS_DIR}/config-protection.js\"",
+            "timeout": 5
+          }
+        ]
       }
     ]
   }

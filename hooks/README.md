@@ -1,76 +1,196 @@
-# Hooks 目录
+# Hooks
 
-本目录包含 tinypowers 的 hooks 实现。
+本目录存放 tinypowers 的运行期守护脚本。
 
-## Hook 级别控制
+这些 hook 不负责业务实现，而是负责在执行过程中“扶正流程”：
+- 防止危险命令和高风险读写
+- 监控上下文压力
+- 为会话恢复提供入口
+- 防止为了过检查去改配置
 
-通过环境变量 `TINYPOWERS_HOOK_LEVEL` 控制启用级别：
+## 设计目标
+
+hooks 解决的不是“怎么写代码”，而是“怎么不把流程写歪”。
+
+它们主要防护这几类问题：
+- 会话切换后忘了上次做到哪
+- 上下文快满了却没有及时压缩
+- 为了让检查通过去改 lint / tsconfig / hook 配置
+- 在不适合的场景运行额外检查，拖慢体验
+
+## Hook 级别
+
+通过环境变量 `TINYPOWERS_HOOK_LEVEL` 控制：
 
 ```bash
-export TINYPOWERS_HOOK_LEVEL=standard  # 默认
+export TINYPOWERS_HOOK_LEVEL=standard
 ```
 
-| 级别 | 说明 | 包含 |
+| 级别 | 用途 | 包含 |
 |------|------|------|
-| `minimal` | 安全拦截 | beforeToolUse 权限检查 |
-| `standard` | 标准配置 | 安全 + 上下文监控（默认） |
-| `strict` | 严格模式 | 安全 + 上下文监控 + 代码检查 |
+| `minimal` | 最轻量保护 | 安全拦截 |
+| `standard` | 默认开发体验 | 安全拦截 + 上下文监控 |
+| `strict` | 更强约束 | 安全拦截 + 上下文监控 + 代码检查 |
+
+推荐：
+- 日常开发：`standard`
+- 审查或关键迭代：`strict`
+- CI 或最小环境：`minimal`
 
 ## 文件说明
 
 | 文件 | 作用 |
 |------|------|
-| `gsd-context-monitor.js` | 上下文监控，≤35% 警告，≤25% 建议 /compact |
-| `gsd-session-manager.js` | Session 生命周期管理 |
-| `gsd-code-checker.js` | 代码质量检查（strict 模式） |
-| `hook-hierarchy.js` | 级别配置控制器 |
+| `hook-hierarchy.js` | 按级别输出对应 hook 配置 |
+| `gsd-context-monitor.js` | 监控上下文占用，提醒 `/compact` |
+| `gsd-session-manager.js` | SessionStart / Stop / PreCompact 生命周期管理 |
+| `gsd-code-checker.js` | 严格模式下触发额外代码检查 |
+| `config-protection.js` | 保护 lint / formatter / hook / CI 等关键配置 |
 
-## 配置方式
+## 核心行为
 
-### 全局配置（~/.claude/settings.json）
+### 1. 上下文监控
+
+`gsd-context-monitor.js` 在常见工具调用后运行：
+- 当上下文余量下降时发出警告
+- 在合适时机提醒压缩
+
+它的作用不是强制中断，而是让执行更平稳。
+
+### 2. 会话恢复
+
+`gsd-session-manager.js` 负责三类事件：
+- `SessionStart`
+- `Stop`
+- `PreCompact`
+
+当前约定：
+- `features/{id}/STATE.md` 是恢复主数据源
+- `/tmp/tinypowers-session-{session_id}.json` 是恢复入口快照
+
+恢复流程：
+
+```text
+SessionStart
+  -> 检测 /tmp 快照
+  -> 提示是否恢复
+  -> 用户确认后读取 features/{id}/STATE.md
+  -> 从断点继续
+```
+
+这意味着：
+- Snapshot 只负责“提醒有未完成工作”
+- `STATE.md` 才负责“告诉你具体做到哪了”
+
+### 3. 配置保护
+
+`config-protection.js` 会在修改关键配置文件后发出提醒，目标是防止这种行为：
+- 为了过 lint 改 `.eslintrc`
+- 为了过类型检查改 `tsconfig.json`
+- 为了绕过流程改 `.claude/` 或 `hooks/`
+
+默认保护范围包括：
+- lint / formatter 配置
+- TypeScript 配置
+- Java 构建与检查配置
+- CI 工作流
+- `.claude/`、`hooks/`、`.husky/`
+
+## 如何接到目标项目
+
+通常在目标项目的 `~/.claude/settings.json` 或项目级设置中挂接：
 
 ```json
 {
   "hooks": {
-    "SessionStart": [{
-      "type": "command",
-      "command": "node \"~/.claude/hooks/gsd-session-manager.js\" SessionStart"
-    }],
-    "Stop": [{
-      "type": "command",
-      "command": "node \"~/.claude/hooks/gsd-session-manager.js\" Stop"
-    }],
-    "PreCompact": [{
-      "type": "command",
-      "command": "node \"~/.claude/hooks/gsd-session-manager.js\" PreCompact"
-    }],
-    "PostToolUse": [{
-      "matcher": "Bash|Edit|Write|MultiEdit|Agent|Task",
-      "hooks": [{
-        "type": "command",
-        "command": "node \"~/.claude/hooks/gsd-context-monitor.js\"",
-        "timeout": 10
-      }]
-    }]
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{HOOKS_DIR}/gsd-session-manager.js\" SessionStart",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{HOOKS_DIR}/gsd-session-manager.js\" Stop",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{HOOKS_DIR}/gsd-session-manager.js\" PreCompact",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{HOOKS_DIR}/gsd-context-monitor.js\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{HOOKS_DIR}/config-protection.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
-### 设置 Hook 级别
+## 配置方式
+
+### 项目内
 
 ```bash
-# 在项目根目录创建 .env 文件
 echo "TINYPOWERS_HOOK_LEVEL=standard" > .env
+```
 
-# 或在 shell 配置中设置
+### 全局 shell
+
+```bash
 echo 'export TINYPOWERS_HOOK_LEVEL=strict' >> ~/.zshrc
 ```
 
-## 使用建议
+## 维护建议
 
-| 场景 | 推荐级别 |
-|------|----------|
-| 日常开发 | `standard` |
-| 代码审查时 | `strict` |
-| CI 环境 | `minimal` |
-| 新项目初始化 | `standard` |
+修改 hooks 时，优先遵守这些原则：
+- 文档和实现必须同步
+- 不要让 Snapshot 替代 `STATE.md`
+- 不要把“提醒型 hook”改成高频误报
+- 不要把“配置保护”做成无法维护框架自身
+
+特别注意：
+- 如果改了恢复逻辑，请同步检查 `skills/tech-code/session-recovery.md`
+- 如果改了上下文门槛，请同步检查用户提示文案
+- 如果新增受保护文件类型，请确认不会误伤正常维护动作
+
+## 相关文档
+
+- [tech-code session-recovery](/Users/wcf/personal/tinypowers/skills/tech-code/session-recovery.md)
+- [tech-code state-management](/Users/wcf/personal/tinypowers/skills/tech-code/state-management.md)
+- [README.md](/Users/wcf/personal/tinypowers/README.md)

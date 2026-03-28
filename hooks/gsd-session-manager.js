@@ -2,7 +2,7 @@
 // gsd-session-manager.js
 // Session lifecycle management: Stop / PreCompact / SessionStart
 //
-// Stop hook: Saves current feature progress to features/{id}/SESSION.md
+// Stop hook: Saves current feature progress to snapshot based on features/{id}/STATE.md
 // PreCompact hook: Snapshots critical context before compaction
 // SessionStart hook: Reads snapshot and restores work现场
 //
@@ -68,13 +68,39 @@ function handleSessionStart(data, snapshotPath, cwd) {
     process.exit(0);
   }
 
-  // Inject resume information
-  const message = `📋 检测到上次会话未完成：
-- Feature: ${snapshot.feature_id || '未知'}
-- Wave: ${snapshot.current_wave || '?'} / ${snapshot.total_waves || '?'}
-- 最后更新: ${new Date(snapshot.timestamp * 1000).toLocaleString()}
+  // Build enhanced resume message with summary
+  let message;
 
-输入"恢复"继续，或"新建"重新开始。`;
+  if (snapshot.summary && snapshot.summary.phase !== 'unknown') {
+    const s = snapshot.summary;
+    const progressPct = s.total_tasks > 0
+      ? Math.round((s.completed_tasks / s.total_tasks) * 100)
+      : 0;
+    const bar = buildProgressBar(progressPct);
+
+    message = '检测到上次会话未完成：\n' +
+      'Feature: ' + (snapshot.feature_id || '未知') + '\n' +
+      '阶段: ' + (s.phase || '未知') + '\n' +
+      '进度: ' + bar + ' ' + s.completed_tasks + '/' + s.total_tasks + ' Tasks\n' +
+      'Wave: ' + (s.wave || '?') + ' / ' + (s.total_waves || '?') + '\n' +
+      '最后操作: ' + (s.last_action || '无') + '\n' +
+      '最后更新: ' + new Date(snapshot.timestamp * 1000).toLocaleString() + '\n';
+
+    if (s.blockers && s.blockers.length > 0) {
+      message += '阻塞: ' + s.blockers.join(', ') + '\n';
+    }
+
+    message += '\n恢复方法：读取 features/' + (snapshot.feature_id || '?') + '/STATE.md 从断点继续。\n' +
+      '输入"恢复"继续，或"新建"重新开始。';
+  } else {
+    // Fallback to basic info if no summary
+    message = '检测到上次会话未完成：\n' +
+      '- Feature: ' + (snapshot.feature_id || '未知') + '\n' +
+      '- Wave: ' + (snapshot.current_wave || '?') + ' / ' + (snapshot.total_waves || '?') + '\n' +
+      '- 最后更新: ' + new Date(snapshot.timestamp * 1000).toLocaleString() + '\n' +
+      '\n恢复方法：读取 features/' + (snapshot.feature_id || '?') + '/STATE.md 从断点继续。\n' +
+      '输入"恢复"继续，或"新建"重新开始。';
+  }
 
   const output = {
     hookSpecificOutput: {
@@ -102,7 +128,7 @@ function handleStop(data, snapshotPath, cwd) {
   for (const entry of entries) {
     if (entry.isDirectory()) {
       const featurePath = path.join(featuresDir, entry.name);
-      const stateFile = path.join(featurePath, 'SESSION.md');
+      const stateFile = path.join(featurePath, 'STATE.md');
 
       if (fs.existsSync(stateFile)) {
         const stat = fs.statSync(stateFile);
@@ -118,14 +144,40 @@ function handleStop(data, snapshotPath, cwd) {
     }
   }
 
-  // Save current progress
+  const featureId = latestFeature?.id || detectCurrentFeature(cwd);
+  const stateMdPath = path.join(cwd, 'features', featureId, 'STATE.md');
+  const stateMdContent = fs.existsSync(stateMdPath)
+    ? fs.readFileSync(stateMdPath, 'utf8')
+    : null;
+
+  // Extract summary from STATE.md if available
+  const summary = stateMdContent ? extractSummaryFromState(stateMdContent) : {};
+
+  // Idempotent snapshot: read existing and merge (overwrite summary, keep metadata)
+  let existing = {};
+  if (fs.existsSync(snapshotPath)) {
+    try { existing = JSON.parse(fs.readFileSync(snapshotPath, 'utf8')); } catch (e) {}
+  }
+
+  // Build snapshot — summary fields are always overwritten (idempotent)
   const state = {
     session_id: data.session_id,
-    feature_id: latestFeature?.id || detectCurrentFeature(cwd),
-    feature_path: latestFeature?.path ? `features/${latestFeature.id}` : null,
+    feature_id: featureId,
+    feature_path: 'features/' + featureId,
     current_wave: detectCurrentWave(cwd),
     timestamp: Math.floor(Date.now() / 1000),
-    // Read existing SESSION.md if exists
+    // Idempotent summary section (overwritten each Stop)
+    summary: {
+      phase: summary.phase || 'unknown',
+      wave: summary.wave || '?',
+      total_waves: summary.total_waves || '?',
+      completed_tasks: summary.completed_tasks || 0,
+      total_tasks: summary.total_tasks || 0,
+      blockers: summary.blockers || [],
+      decisions: summary.decisions || [],
+      last_action: summary.last_action || ''
+    },
+    // Read existing STATE.md metadata if exists
     ...(latestFeature && fs.existsSync(latestFeature.stateFile)
       ? parseSessionFile(fs.readFileSync(latestFeature.stateFile, 'utf8'))
       : {})
@@ -174,11 +226,11 @@ function detectCurrentFeature(cwd) {
 }
 
 function detectCurrentWave(cwd) {
-  // Try to detect from SESSION.md
+  // Try to detect from STATE.md
   try {
-    const sessionFile = path.join(cwd, 'features', detectCurrentFeature(cwd), 'SESSION.md');
+    const sessionFile = path.join(cwd, 'features', detectCurrentFeature(cwd), 'STATE.md');
     if (fs.existsSync(sessionFile)) {
-      const match = fs.readFileSync(sessionFile, 'utf8').match(/current_wave:\s*(\d+)/);
+      const match = fs.readFileSync(sessionFile, 'utf8').match(/当前 Wave:\s*(\d+)/);
       if (match) return parseInt(match[1]);
     }
   } catch (e) {}
@@ -202,4 +254,55 @@ function parseSessionFile(content) {
 function execSync(cmd, cwd) {
   const { execSync } = require('child_process');
   return execSync(cmd, { cwd, encoding: 'utf8', timeout: 5000 });
+}
+
+// --- 幂等摘要辅助函数 ---
+
+function extractSummaryFromState(content) {
+  const result = { blockers: [], decisions: [] };
+
+  // Extract current phase from ## 位置 section (list item, not title line)
+  // Match "- 当前阶段: ..." list items specifically
+  const phaseMatch = content.match(/-\s*当前阶段:\s*(.+)/);
+  if (phaseMatch) result.phase = phaseMatch[1].trim();
+
+  // Extract wave info from list items
+  const waveMatch = content.match(/-\s*当前 Wave:\s*(\d+)\s*\/\s*(\d+)/);
+  if (waveMatch) {
+    result.wave = waveMatch[1];
+    result.total_waves = waveMatch[2];
+  }
+
+  // Count completed and total tasks
+  const completed = (content.match(/\[x\]/g) || []).length;
+  const pending = (content.match(/\[ \]/g) || []).length;
+  result.completed_tasks = completed;
+  result.total_tasks = completed + pending;
+
+  // Extract blockers
+  const blockerSection = content.match(/## 阻塞\s*\n([\s\S]*?)(?=\n##|\n$|$)/);
+  if (blockerSection) {
+    const lines = blockerSection[1].split('\n').filter(l => l.trim() && l.trim() !== '无');
+    result.blockers = lines.map(l => l.replace(/^-\s*/, '').trim()).filter(Boolean);
+  }
+
+  // Extract last action
+  const lastActionMatch = content.match(/## 上次操作\s*\n([\s\S]*?)(?=\n##|\n$|$)/);
+  if (lastActionMatch) {
+    const lines = lastActionMatch[1].split('\n').filter(l => l.trim().startsWith('-'));
+    if (lines.length > 0) {
+      result.last_action = lines[0].replace(/^-\s*/, '').trim();
+    }
+  }
+
+  // Extract decision IDs
+  const decisionMatches = content.match(/\| D-\d+ \|/g) || [];
+  result.decisions = decisionMatches.map(d => d.replace(/\|/g, '').trim());
+
+  return result;
+}
+
+function buildProgressBar(pct) {
+  const filled = Math.round(pct / 10);
+  return '[' + '#'.repeat(filled) + '.'.repeat(10 - filled) + '] ' + pct + '%';
 }

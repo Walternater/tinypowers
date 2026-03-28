@@ -66,13 +66,13 @@ def update_strategy(source_files, dest_files):
       - 规则集中的新规则（请手动添加）
 ```
 
-#### 场景2：doc/guides/development-spec.md 已存在
+#### 场景2：docs/guides/development-spec.md 已存在
 
 ```
-检测到 doc/guides/development-spec.md 已存在
+检测到 docs/guides/development-spec.md 已存在
   - 内容与模板不同
   → 跳过，不修改
-  → 添加到报告：doc/guides/development-spec.md [Skip: 已存在]
+  → 添加到报告：docs/guides/development-spec.md [Skip: 已存在]
 ```
 
 #### 场景3：仅有新规则文件需要创建
@@ -143,15 +143,15 @@ def overwrite_strategy(source_files, dest_files):
 
   将删除：
     - CLAUDE.md
-    - doc/guides/development-spec.md
-    - doc/guides/workflow-guide.md
-    - doc/guides/prd-analysis-guide.md
-    - doc/guides/test-plan.md
+    - docs/guides/development-spec.md
+    - docs/guides/workflow-guide.md
+    - docs/guides/prd-analysis-guide.md
+    - docs/guides/test-plan.md
     - configs/rules/*
 
   将创建：
     - CLAUDE.md（新版本模板）
-    - doc/guides/*.md（预设内容）
+    - docs/guides/*.md（预设内容）
     - configs/rules/*（适用规则）
 
 输入 "YES" 继续，或 "NO" 取消：NO
@@ -226,8 +226,8 @@ def compare_versions():
   "project_type": "Java (Maven)",
   "results": {
     "CLAUDE.md": "UPDATED (vars replaced)",
-    "doc/guides/development-spec.md": "SKIPPED (identical)",
-    "doc/guides/workflow-guide.md": "CREATED",
+    "docs/guides/development-spec.md": "SKIPPED (identical)",
+    "docs/guides/workflow-guide.md": "CREATED",
     "configs/rules/common-coding-style.md": "SKIPPED (exists)",
     "configs/rules/java/java-coding-style.md": "CREATED"
   },

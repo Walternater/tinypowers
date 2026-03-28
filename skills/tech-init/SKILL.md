@@ -99,10 +99,10 @@ metadata:
   [ ] configs/rules/kafka/*       ← Kafka 规范（如有）
 
 组件选择：
-  [✓] 开发规范 (doc/guides/)
-  [✓] 工作流指南 (doc/guides/workflow-guide.md)
-  [ ] PRD 分析指南 (doc/guides/prd-analysis-guide.md)
-  [ ] 测试计划 (doc/guides/test-plan.md)
+  [✓] 开发规范 (docs/guides/)
+  [✓] 工作流指南 (docs/guides/workflow-guide.md)
+  [ ] PRD 分析指南 (docs/guides/prd-analysis-guide.md)
+  [ ] 测试计划 (docs/guides/test-plan.md)
 
 请确认或调整上述选择，输入编号即可（如：1, 3, 5）
 ```
@@ -161,7 +161,7 @@ END
 ```
 WARNING: 即将删除并重建以下文件：
   - CLAUDE.md
-  - doc/guides/*.md
+  - docs/guides/*.md
   - configs/rules/*
 
 确认输入 "YES" 继续，或 "NO" 取消：____
@@ -210,7 +210,7 @@ END
 
 - [ ] 目录结构完整
 - [ ] CLAUDE.md 存在且变量已替换
-- [ ] doc/guides/*.md 存在（按选择）
+- [ ] docs/guides/*.md 存在（按选择）
 - [ ] configs/rules/ 已加载适用规则
 - [ ] 链接引用正确（无死链）
 
@@ -231,15 +231,15 @@ END
   ✓ configs/rules/mysql/* (6个文档)
 
 创建/更新目录:
-  ✓ doc/guides/           [Update: 新增]
+  ✓ docs/guides/          [Update: 新增]
   ✓ configs/rules/         [Update: 已存在，跳过]
   ✓ configs/templates/     [Update: 已存在，跳过]
   ✓ features/              [Update: 新增]
 
 创建/更新文件:
   ✓ CLAUDE.md              [Update: 已存在，内容保留，变量已替换]
-  ✓ doc/guides/development-spec.md  [Update: 新增]
-  ✓ doc/guides/workflow-guide.md    [Update: 新增]
+  ✓ docs/guides/development-spec.md [Update: 新增]
+  ✓ docs/guides/workflow-guide.md   [Update: 新增]
 
 验证结果: 全部通过
 

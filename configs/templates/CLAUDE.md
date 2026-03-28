@@ -118,6 +118,8 @@ author: {{author}}
 | `/tech:feature` | 开始新功能开发 |
 | `/tech:code` | 编码与审查 |
 | `/tech:commit` | 文档与提交 |
+| `/tech:progress` | 查看进度和推荐下一步 |
+| `/tech:note` | 快速记录想法、待办或远期种子 |
 
 ---
 

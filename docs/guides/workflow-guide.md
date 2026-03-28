@@ -1,132 +1,213 @@
-# 新需求完整工作流
+# 新需求工作流
 
-新需求开发遵循以下标准流程。
+本文档面向使用 tinypowers 的开发者，说明一个需求从分析到交付的标准路径。
 
----
+如果你只记住一句话，可以记这个：
 
-## 触发方式
-
-```
-开始执行 {需求编号}   # 例如：开始执行 CSS-001
+```text
+/tech:feature -> /tech:code -> /tech:commit
 ```
 
----
+## 工作流目标
 
-## 目录结构
+这套流程的目标不是“让 AI 多写一点代码”，而是让交付过程更稳定：
+- 先确认理解，再确认方案
+- 先锁决策，再拆任务
+- 先检查依赖，再并行执行
+- 先审方案符合性，再审安全和质量
+- 用 `STATE.md` 承接会话切换和执行状态
 
+## 入口命令
+
+| 命令 | 用途 |
+|------|------|
+| `/tech:init` | 在目标项目里初始化工作流骨架 |
+| `/tech:feature` | 启动新需求分析、方案设计、任务拆解 |
+| `/tech:code` | 执行编码、审查、验证 |
+| `/tech:commit` | 同步文档、提交代码、创建 PR |
+| `/tech:progress` | 查看当前 Feature 进度 |
+| `/tech:note` | 记录 note / todo / seed |
+
+## 需求目录结构
+
+单个需求的标准工作目录：
+
+```text
+features/{需求编号}-{需求名称}/
+├── PRD.md
+├── 需求理解确认.md
+├── 技术方案.md
+├── 任务拆解表.md
+├── STATE.md
+├── code-review.md
+└── 评审记录.md
 ```
-docs/feature/{需求编号}-{需求名称}/
-├── prd/                # 原始需求（用户提供，支持 md 或 pdf）
-│   ├── PRD.md
-│   └── PRD.pdf
-├── 技术方案.md          # 阶段二输出
-├── 任务拆解表.md       # 阶段二输出
-├── code-review.md      # 阶段四输出
-├── 测试计划.md         # 阶段五输出
-└── 测试报告.md         # 阶段五输出
+
+说明：
+- `技术方案.md` 是方案与决策锁定的主文档
+- `任务拆解表.md` 是执行入口
+- `STATE.md` 是执行状态主数据源
+
+## 全流程总览
+
+```text
+PRD
+  ↓
+Phase 0: 准备
+  ↓
+Phase 1: 需求理解
+  ↓
+Phase 2: 歧义检测
+  ↓
+Phase 3: 技术方案 + 决策锁定
+  ↓
+Phase 4: 任务拆解
+  ↓
+/tech:code
+  ↓
+Plan Check
+  ↓
+Wave Execution
+  ↓
+Spec Compliance Review
+  ↓
+Security Review
+  ↓
+Code Review
+  ↓
+Verification
+  ↓
+/tech:commit
 ```
 
----
+## 阶段说明
 
-## 流程总览
+### 1. `/tech:feature`
 
+这个阶段产出“可执行的需求定义”，而不是直接写代码。
+
+主要步骤：
+- 读取 `PRD.md`
+- 输出需求理解和澄清问题
+- 生成技术方案
+- 通过 `ask_followup_question` 做方案确认
+- 锁定关键决策
+- 生成任务拆解表
+- 再次确认任务拆解是否可执行
+
+关键产物：
+- `需求理解确认.md`
+- `技术方案.md`
+- `任务拆解表.md`
+
+硬门禁：
+- 技术方案未经确认，不能进入编码
+- 任务拆解未经确认，不能进入 `/tech:code`
+
+### 2. `/tech:code`
+
+这个阶段产出“经过审查和验证的实现”。
+
+执行顺序固定：
+
+1. Plan Check
+2. Wave Execution
+3. Spec Compliance Review
+4. Security Review
+5. Code Review
+6. Verification
+
+关键规则：
+- 编码前必须先过 `tech-plan-checker`
+- 执行时以 `STATE.md` 追踪当前位置
+- 审查顺序不能交换
+- 在 `/tech:commit` 之前不自动 `git commit`
+
+### 3. `/tech:commit`
+
+这个阶段产出“可交付的提交和 PR”。
+
+主要步骤：
+- 根据代码改动同步文档
+- 生成规范化 commit message
+- 执行提交和推送
+- 生成 PR 内容
+- 视情况更新 `CHANGELOG.md`
+
+## 审查顺序为什么固定
+
+tinypowers 强制采用下面的顺序：
+
+```text
+方案符合性 -> 安全 -> 代码质量
 ```
-PRD 需求文档
-    ↓
-[阶段一：理解与澄清]
-    ↓
-[阶段二：方案设计] ← ★ 关键确认点
-    ↓
-[阶段三：开发执行]
-    ↓
-[阶段四：代码审查] ← 可迭代
-    ↓
-[阶段五：测试与报告] ← ★ 关键确认点
-    ↓
-[阶段六：验证与交付]
+
+原因很简单：
+- 如果代码实现的不是方案要求的功能，后面的安全和质量审查都会浪费
+- 先确认“做的是对的东西”，再确认“做得安不安全、好不好维护”
+
+## `STATE.md` 的作用
+
+`STATE.md` 是执行期唯一主状态文件，用来记录：
+- 当前阶段
+- 当前 Wave
+- 已完成和未完成任务
+- 阻塞项
+- 偏差项
+- 上次操作
+
+会话恢复时：
+- hook 先从 `/tmp` Snapshot 发现“有未完成工作”
+- 真正恢复时再读取 `features/{id}/STATE.md`
+
+换句话说：
+- Snapshot 负责提醒
+- `STATE.md` 负责恢复
+
+## 日常使用建议
+
+### 开新需求
+
+```text
+1. /tech:feature
+2. 准备 PRD.md
+3. 确认技术方案
+4. 确认任务拆解
+5. /tech:code
 ```
 
----
+### 中断后继续
 
-## 阶段一：理解与澄清
+```text
+1. /tech:progress
+2. 查看当前 Feature 和阶段
+3. 按提示继续 /tech:feature 或 /tech:code
+```
 
-| 步骤 | 操作 | 产出物 |
-|------|------|--------|
-| 1 | 阅读 PRD，按 `prd-analysis-guide.md` 执行需求分析 | 需求理解确认 |
-| 2 | 使用 `superpowers:brainstorming` 分析代码现状 | 复用方案、技术难点 |
+### 临时记录想法
 
----
+```text
+/tech:note
+/tech:note todo
+/tech:note seed
+```
 
-## 阶段二：方案设计
+## 交付清单
 
-| 步骤 | 操作 | 产出物 |
-|------|------|--------|
-| 1 | 按 `configs/templates/tech-design.md` 模板输出技术方案 | 技术方案文档 |
-| 2 | 按 `prd-analysis-guide.md` 执行任务拆解 | 任务拆解表 |
+一个完整需求通常至少应包含：
+- `features/{id}/技术方案.md`
+- `features/{id}/任务拆解表.md`
+- `features/{id}/STATE.md`
+- `features/{id}/code-review.md`
+- 代码实现
+- 测试结果
+- 提交记录 / PR
 
-**关键确认**：技术方案输出后暂停，等待确认后再进入开发阶段。
+## 相关文档
 
----
-
-## 阶段三：开发执行
-
-| 步骤 | 操作 | 产出物 |
-|------|------|--------|
-| 1 | 直接编写代码，遵循 `development-spec.md` | 代码文件 |
-
----
-
-## 阶段四：代码审查（可迭代）
-
-| 步骤 | 操作 | 产出物 |
-|------|------|--------|
-| 1 | 使用 `superpowers:requesting-code-review` 进行审查 | 审查报告 |
-| 2 | 按审查报告修复问题 | 修复后代码 |
-| 3 | 验证修复是否正确 | 自检结果 |
-| 4 | 确认所有问题已解决 | 审查通过 |
-
-> 迭代：当修复后新问题暴露，应继续修复直到审查通过
-
----
-
-## 阶段五：测试与报告
-
-| 步骤 | 操作 | 产出物 |
-|------|------|--------|
-| 1 | 按 `test-plan.md` 规范编写测试计划 | 测试计划文档 |
-| 2 | 使用 `superpowers:test-driven-development` 编写单元测试 | 单元测试 |
-| 3 | 使用 `superpowers:test-driven-development` 进行集成测试 | 集成测试 |
-| 4 | 按 `configs/templates/test-report.md` 模板填写测试报告 | 测试报告 |
-
-**关键确认**：测试报告输出后暂停，等待确认后再进入验证阶段。
-
----
-
-## 阶段六：验证与交付
-
-| 步骤 | 操作 | 产出物 |
-|------|------|--------|
-| 1 | 使用 `superpowers:verification-before-completion` 进行最终验证 | 验证报告 |
-| 2 | 检查交付物完整性 | 交付清单 |
-
----
-
-## 交付物清单
-
-每个需求最终交付：
-
-| 类型 | 归档位置 |
-|------|---------|
-| 技术方案文档 | `docs/feature/{需求编号}-{需求名称}/` |
-| 任务拆解表 | `docs/feature/{需求编号}-{需求名称}/` |
-| 代码审查报告 | `docs/feature/{需求编号}-{需求名称}/` |
-| 测试计划文档 | `docs/feature/{需求编号}-{需求名称}/` |
-| 测试报告 | `docs/feature/{需求编号}-{需求名称}/` |
-| 代码源文件 | `src/` |
-
----
-
-## 分支管理
-
-- 分支命名：`feature/{需求编号}-{功能描述}` / `fix/{问题描述}`
-- 审查报告命名：`code_review_{分支名}_{时间戳}.md`
+- [development-spec.md](./development-spec.md)
+- [prd-analysis-guide.md](./prd-analysis-guide.md)
+- [test-plan.md](./test-plan.md)
+- [tech-feature skill](/Users/wcf/personal/tinypowers/skills/tech-feature/SKILL.md)
+- [tech-code skill](/Users/wcf/personal/tinypowers/skills/tech-code/SKILL.md)
+- [tech-commit skill](/Users/wcf/personal/tinypowers/skills/tech-commit/SKILL.md)

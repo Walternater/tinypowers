@@ -5,8 +5,8 @@
 目录创建有依赖关系，必须按顺序执行：
 
 ```
-1. doc/              （父级目录，如不存在）
-2. doc/guides/       （开发规范）
+1. docs/             （父级目录，如不存在）
+2. docs/guides/      （开发规范）
 3. configs/          （父级目录）
 4. configs/rules/    （规则集）
 5. configs/templates/ （模板）
@@ -18,10 +18,10 @@
 
 ```bash
 # 创建目录（递归）
-mkdir -p doc/guides configs/rules configs/templates features .claude
+mkdir -p docs/guides configs/rules configs/templates features .claude
 
 # 验证创建成功
-test -d doc/guides && echo "OK" || echo "FAIL"
+test -d docs/guides && echo "OK" || echo "FAIL"
 ```
 
 ## 模板复制规则
@@ -31,8 +31,8 @@ test -d doc/guides && echo "OK" || echo "FAIL"
 | 来源 | 目标 | 条件 |
 |------|------|------|
 | `configs/templates/CLAUDE.md` | `CLAUDE.md` | 不存在或用户选择覆盖 |
-| `configs/templates/tech-design.md` | `doc/guides/` | 不存在 |
-| `configs/templates/test-report.md` | `doc/guides/` | 不存在 |
+| `docs/guides/*.md` | `docs/guides/` | 不存在 |
+| `configs/templates/*.md` | `configs/templates/` | 框架模板保留 |
 | `configs/rules/common-*` | `configs/rules/` | 始终复制 |
 | `configs/rules/{{tech_stack}}/*` | `configs/rules/` | 根据检测结果 |
 
@@ -116,7 +116,7 @@ def replace_variables(content, tech_stack_info):
 
 ```bash
 chmod 644 CLAUDE.md
-chmod 644 doc/guides/*.md
+chmod 644 docs/guides/*.md
 chmod 644 configs/rules/*.md
 chmod 755 features/
 ```
@@ -130,7 +130,6 @@ chmod 755 features/
 ```
 # AI Development Framework
 .claude/
-features/
 docs/plans/
 ```
 
