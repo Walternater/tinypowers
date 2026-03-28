@@ -1,204 +1,116 @@
 # commit-message-format.md
 
-## Commit Message 格式规范
+## 作用
 
-本文档描述 Conventional Commits 标准格式。
+这份文档定义 `/tech:commit` 的提交信息格式，目标是让 commit history 能被人和工具同时读懂。
 
----
+## 默认格式
 
-## 格式
+项目默认使用 Conventional Commits，并保留来源前缀：
 
-```
-<type>(<scope>): <description>
-
-[optional body]
-
-[optional footer]
+```text
+[prefix] type(scope): description
 ```
 
----
+常见示例：
 
-## 结构
-
-### 1. Type（必需）
-
-| Type | 描述 | 示例 |
-|------|------|------|
-| **feat** | 新功能 | `feat(auth): add TOTP login` |
-| **fix** | Bug修复 | `fix(pay): resolve double-charge bug` |
-| **refactor** | 代码重构 | `refactor(api): extract validation` |
-| **docs** | 文档更新 | `docs: update API docs` |
-| **test** | 测试相关 | `test(order): add integration tests` |
-| **chore** | 构建/工具 | `chore: upgrade dependencies` |
-| **perf** | 性能优化 | `perf(db): add index on user_id` |
-| **ci** | CI/CD | `ci: add github actions` |
-| **revert** | 回滚 | `revert: revert abc1234` |
-
-### 2. Scope（可选）
-
-表示影响的模块：
-
-```
-feat(auth): add login
-feat(order): add create order
-feat(billing): add payment
+```text
+[AI-Gen] feat(CSS-1234): add login endpoint
+[AI-Review] fix(CSS-1234): address auth validation gap
+[AI-Gen] docs(CSS-1234): sync tech design
 ```
 
-常用 scope：
-- `auth`, `user`, `order`, `billing`, `product`, `inventory`
-- `api`, `db`, `cache`, `queue`
-- `ci`, `deps`, `docs`
+## 组成部分
 
-### 3. Description（必需）
+### 1. Prefix
 
-- 简短描述（<50字符）
-- 使用动词开头
-- 不使用句号结尾
-- 小写字母
+用于说明改动来源：
 
----
+| Prefix | 含义 |
+|--------|------|
+| `[AI-Gen]` | AI 生成的主要实现或文档 |
+| `[AI-Review]` | 根据审查意见做的修复 |
+| `[Manual]` | 以人工主导完成的改动 |
 
-## AI 生成代码规范
+### 2. Type
 
-### 前缀类型
+常用类型：
 
-```
-[AI-Gen]     # AI生成的代码
-[AI-Review]  # AI Review后的修复
-[Manual]     # 手动修改
-```
+| Type | 适用场景 |
+|------|----------|
+| `feat` | 新功能 |
+| `fix` | 缺陷修复 |
+| `docs` | 文档更新 |
+| `refactor` | 重构但不改变外部行为 |
+| `test` | 测试补充或调整 |
+| `chore` | 工具链、配置或杂项维护 |
+| `perf` | 性能优化 |
+| `ci` | CI/CD 相关 |
+| `revert` | 回滚 |
 
-### 完整格式
+### 3. Scope
 
-```
-[AI-Gen] feat(CSS-1234): add user login endpoint
+建议优先使用与需求或模块相关的 scope，例如：
+- Feature ID，如 `CSS-1234`
+- 领域模块，如 `auth`、`order`
+- 基础设施模块，如 `db`、`ci`、`docs`
 
-- 实现登录接口 POST /api/auth/login
-- 添加密码加密存储
-- 集成Session管理
+如果 scope 会让标题更模糊，可以省略。
 
-Closes #123
-```
+### 4. Description
 
-### 格式变体
+description 应满足：
+- 简短明确
+- 使用动作表达
+- 不写无意义词
+- 不用句号收尾
 
-根据分支类型自动适配：
+推荐写法：
+- `add login endpoint`
+- `fix order status transition`
+- `sync deployment guide`
 
-| 分支模式 | Commit 格式 |
-|---------|-------------|
-| `feature/CSS-{id}-{desc}` | `[AI-Gen] feat({id}): {desc}` |
-| `bugfix/{id}-{desc}` | `[AI-Gen] fix({id}): {desc}` |
-| `hotfix/{id}-{desc}` | `[AI-Gen] fix({id}): {desc} (hotfix)` |
+不推荐写法：
+- `update code`
+- `fix bugs`
+- `WIP`
 
----
+## Body 和 Footer
 
-## Body 规范
+当标题不足以说明上下文时，可以补 body。
 
-### 作用
+body 适合写：
+- 为什么要这样改
+- 有哪些重要权衡
+- 是否有额外风险或限制
 
-- 解释 **what** 和 **why**，不解释 **how**
-- 说明做出的重大决策
-- 记录技术债
+footer 适合写：
+- `Closes #123`
+- `Fixes #456`
+- `BREAKING CHANGE: ...`
 
-### 示例
+## 什么时候拆多个 commit
 
-```
-feat(auth): add two-factor authentication
+建议拆分的情况：
+- 功能实现和审查修复是两轮独立动作
+- 文档同步很多，值得单独阅读
+- 一个 commit 里混入了不相关改动
 
-采用TOTP算法实现2FA
-支持Google Authenticator扫描
-首次登录引导用户绑定
+不建议拆分的情况：
+- 为了“看起来勤奋”把一个完整动作切成很多碎 commit
+- 每改几行就提交一次
 
-决定：
-- 使用TOTP而非HOTP（更安全）
-- 不支持短信验证码（成本考虑）
-```
+## 提交前自检
 
----
+提交前至少看一遍：
+- message 是否准确描述本次改动
+- scope 是否有助于理解，而不是增加噪音
+- 是否误把多件不相关的事塞进同一个 commit
+- 是否保留了后续追溯所需的信息
 
-## Footer 规范
+## 判断标准
 
-### 关联 Issue
-
-```
-Closes #123
-Closes #123, #124
-Fixes #456
-```
-
-### Breaking Change
-
-```
-BREAKING CHANGE: 移除 /api/v1/login 接口
-
-请迁移到 /api/v2/auth/login
-旧接口将于 2026-06-01 下线
-```
-
----
-
-## 提交频率
-
-### 推荐
-
-| 场景 | Commit 频率 |
-|------|------------|
-| 完成一个Task | 1次commit |
-| 完成一个Wave | 1次commit（含多个Task） |
-| Review修复 | 1次commit |
-| 技术方案同步 | 1次commit |
-
-### 避免
-
-- 不要把不相关的变更放一起
-- 不要每改一行就commit
-- 不要整个功能完成才commit
-
----
-
-## Commit Message 检查
-
-### 自动化检查（.commitlintrc）
-
-```json
-{
-  "rules": {
-    "type-enum": [2, "always", ["feat", "fix", "docs", "style", "refactor", "test", "chore"]],
-    "subject-case": [2, "never", ["sentence-case", "start-case"]],
-    "subject-empty": [2, "never"],
-    "type-empty": [2, "never"]
-  }
-}
-```
-
-### 手动检查清单
-
-```
-□ 格式正确：type(scope): description
-□ 描述简洁，不超过50字符
-□ 使用祈使语气
-□ Body说明why而非how
-□ Footer关联相关Issue
-□ 无拼写错误
-```
-
----
-
-## 常见错误
-
-### 错误示例
-
-```
-❌ "fixed the bug"
-❌ "Updated code"
-❌ "WIP"
-❌ "asdfghjkl"
-```
-
-### 正确示例
-
-```
-✅ "fix(auth): resolve session timeout issue"
-✅ "feat(user): add profile avatar upload"
-✅ "docs: update API documentation"
-```
+一个好的 commit message，应当让后来的人在不打开全部 diff 的情况下，也能大致知道：
+- 改动类型是什么
+- 改动落在哪个 feature 或模块
+- 这次提交最重要的变化是什么

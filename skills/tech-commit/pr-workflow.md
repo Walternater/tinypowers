@@ -1,335 +1,112 @@
 # pr-workflow.md
 
-## Pull Request 工作流
+## 作用
 
-本文档描述从分支创建到 PR 合并的完整流程。
+这份文档定义 `/tech:commit` 在需要 Pull Request 流程时，如何把一组已提交改动转换成可审阅的 PR。
 
----
+## 前提
 
-## PR 创建流程
+创建 PR 之前，至少应满足：
+- 本地改动已经提交
+- 验证结果是最新的
+- 工作区干净
+- 当前分支已经推送到远程
+- 仓库确实采用 PR 工作流
 
-```
-┌─────────────────────────────────────────────┐
-│  Step 1: Pre-flight Check                   │
-│  验证一切就绪                               │
-└──────────────────┬────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────┐
-│  Step 2: Sync & Push                       │
-│  同步远程 + 推送分支                         │
-└──────────────────┬────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────┐
-│  Step 3: PR Body                           │
-│  生成 PR 描述                               │
-└──────────────────┬────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────┐
-│  Step 4: Create PR                          │
-│  gh pr create                               │
-└──────────────────┬────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────┐
-│  Step 5: Code Review                        │
-│  请求审查 + 处理反馈                         │
-└──────────────────┬────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────┐
-│  Step 6: Merge                              │
-│  Squash & Merge                              │
-└─────────────────────────────────────────────┘
+如果仓库没有远程、没有 `gh`、或者不是通过 PR 合并，就不需要强行套这一步。
+
+## 标准流程
+
+```text
+Pre-flight Check
+  -> Sync & Push
+  -> Draft PR Body
+  -> Create PR
+  -> Handle Review
 ```
 
----
+## 1. Pre-flight Check
 
-## Step 1: Pre-flight Check
+创建 PR 前先确认：
+- 测试和验证仍然通过
+- 没有未提交的无关改动
+- 当前分支名称和用途一致
+- 远程配置正常
 
-### 检查清单
+如果这些前提不成立，先修好再提 PR。
 
-```bash
-# 1. verification 通过
-mvn test -q
-IF $? != 0 THEN
-  BLOCK "测试未通过，不能创建 PR"
-END
+## 2. Sync & Push
 
-# 2. 工作区干净
-git status
-IF 有 uncommitted changes THEN
-  BLOCK "请先 commit 或 stash"
-END
+PR 基于的是远程分支，不是本地幻觉。
 
-# 3. 分支正确
-CURRENT=$(git branch --show-current)
-EXPECTED="feature/CSS-{id}-{desc}"
-IF CURRENT != EXPECTED THEN
-  WARN "分支名可能不正确"
-END
+这一阶段需要确保：
+- 已同步目标基线分支
+- 当前分支能正常推送
+- 推送后远程内容和本地一致
 
-# 4. 远程已配置
-git remote -v
-IF remote 不存在 THEN
-  BLOCK "请配置远程仓库"
-END
-```
+如果同步基线后出现冲突，应先解决冲突，再创建 PR。
 
----
+## 3. Draft PR Body
 
-## Step 2: Sync & Push
+PR 描述的目标是降低 reviewer 理解成本。
 
-### 同步远程
+建议至少包含：
+- `Summary`：一句话说清改动目标
+- `Changes`：列出最重要的改动点
+- `Testing`：说明测试方式和结果
+- `Docs`：说明是否已同步文档
+- `Risks` 或 `Notes`：如果还有注意事项，在这里说明
 
-```bash
-# Fetch latest
-git fetch origin
-
-# Rebase onto main (保持线性历史)
-git rebase origin/main
-
-# 或者 Merge (如果需要保留完整历史)
-git merge origin/main --no-ff
-```
-
-### 推送分支
-
-```bash
-BRANCH=$(git branch --show-current)
-git push -u origin ${BRANCH}
-
-# 如果远程已有分支
-git push origin ${BRANCH}
-```
-
----
-
-## Step 3: PR Body 生成
-
-### PR 模板
+一个最小结构可以是：
 
 ```markdown
 ## Summary
-<一句话描述改动>
+<一句话概括>
 
 ## Changes
-- <改动点1>
-- <改动点2>
-
-## Requirements
-- [ ] 测试通过
-- [ ] 代码审查通过
-- [ ] 文档已更新
+- 改动点 1
+- 改动点 2
 
 ## Testing
-```
-<测试命令和结果>
-```
+- <命令或验证方式>
 
-## Decisions
-| 决策 | 理由 |
-|------|------|
-| <决策1> | <理由> |
+## Docs
+- [x] relevant docs updated
 ```
 
-### 自动生成示例
+## 4. Create PR
 
-```bash
-# 基于 commit 历史生成
-COMMITS=$(git log origin/main..HEAD --oneline)
-echo "## Summary"
-echo "实现登录功能"
-echo ""
-echo "## Changes"
-git log origin/main..HEAD --format="  - %s"
-```
+标题通常应与本次主 commit 的语义一致，但更偏向“供 reviewer 阅读”。
 
----
+例如：
+- `feat(CSS-1234): add login flow`
+- `fix(CSS-1234): close auth validation gap`
 
-## Step 4: Create PR
+如果仓库使用 `gh pr create`，就用仓库当前模板和约定创建；如果使用别的平台，也保持同样的信息结构。
 
-### 命令
+## 5. Handle Review
 
-```bash
-TITLE="feat(CSS-1234): 实现用户登录功能"
-BODY=$(cat <<'EOF'
-## Summary
-实现基于Session的用户登录功能
+PR 创建后，重点不是“等别人批”，而是继续维护这条交付链的可读性。
 
-## Changes
-- 添加 POST /api/auth/login 接口
-- 添加密码加密存储
-- 集成Session管理
+处理 review 时建议：
+- 先分类问题：阻断项、建议项、讨论项
+- 修复后用新的 commit 明确表达目的
+- 在回复中说明哪些意见已处理、哪些需要进一步讨论
 
-## Requirements
-- [x] 单元测试通过
-- [ ] 代码审查通过
-- [x] 技术方案已更新
+如果 review 导致实现方向改变，记得同步文档和验证结果，不要只改代码。
 
-## Testing
-```bash
-mvn test -q
-# All tests passed
-```
+## 合并前检查
 
-🤖 Generated with [Claude Code](https://claude.ai/code)
-EOF
-)
+准备合并前，再确认一次：
+- reviewer 已经完成必要审查
+- 关键反馈已处理
+- CI 或项目门禁状态正常
+- PR 描述没有过期
 
-gh pr create \
-  --title "${TITLE}" \
-  --body "${BODY}" \
-  --base main \
-  --label "AI-Gen" \
-  --reviewer "" \
-  --assignee "@me"
-```
+## 判断标准
 
----
-
-## Step 5: Code Review
-
-### 审查请求
-
-```bash
-# 指定审查者
-gh pr review REQUEST \
-  --reviewer user1,user2
-
-# 添加评论
-gh pr comment $PR_NUMBER \
-  --body "请检查这段逻辑"
-```
-
-### 处理审查反馈
-
-```bash
-# 查看审查意见
-gh pr view $PR_NUMBER --comments
-
-# 修复问题
-# ... 修改代码 ...
-git add -A
-git commit -m "[AI-Review] fix(CSS-1234): address review feedback"
-git push
-```
-
-### 审查状态
-
-| 状态 | 说明 |
-|------|------|
-| APPROVE | 可以合并 |
-| REQUEST_CHANGES | 需要修复 |
-| COMMENT | 仅评论 |
-
----
-
-## Step 6: Merge
-
-### Squash & Merge（推荐）
-
-```bash
-# Squash 并合并
-gh pr merge $PR_NUMBER \
-  --squash \
-  --delete-branch \
-  --merge-method squash
-
-# 合并后自动删除本地分支
-git checkout main
-git pull origin main
-git branch -d ${BRANCH}
-```
-
-### 其他合并方式
-
-```bash
-# Merge (保留完整历史)
-gh pr merge $PR_NUMBER --merge --delete-branch
-
-# Rebase (线性历史)
-gh pr merge $PR_NUMBER --rebase --delete-branch
-```
-
----
-
-## PR 模板配置
-
-### .github/pull_request_template.md
-
-```markdown
-## Summary
-<!-- 一句话描述 -->
-
-## Type
-- [ ] Feature
-- [ ] Bug Fix
-- [ ] Refactor
-- [ ] Documentation
-
-## Changes
-<!-- 详细改动 -->
-
-## Testing
-<!-- 测试说明 -->
-
-## Checklist
-- [ ] 代码自测通过
-- [ ] 单元测试覆盖
-- [ ] 文档已更新
-- [ ] 无敏感信息泄露
-```
-
----
-
-## 标签管理
-
-### 常用标签
-
-| Label | 用途 |
-|-------|------|
-| `AI-Gen` | AI生成的代码 |
-| `AI-Review` | Review修复 |
-| `feature` | 新功能 |
-| `bug` | Bug修复 |
-| `docs` | 文档更新 |
-| `refactor` | 重构 |
-| `skip-changelog` | 不计入changelog |
-
-### 自动添加
-
-```bash
-# 根据分支名自动添加标签
-BRANCH=$(git branch --show-current)
-if [[ $BRANCH == feature/* ]]; then
-  gh pr edit $PR_NUMBER --add-label feature
-elif [[ $BRANCH == bugfix/* ]]; then
-  gh pr edit $PR_NUMBER --add-label bug
-fi
-```
-
----
-
-## PR 关闭
-
-### 手动关闭
-
-```bash
-gh pr close $PR_NUMBER
-```
-
-### 合并后自动行为
-
-```yaml
-# .github/workflows/pr-close.yml
-on:
-  pull_request:
-    types: [closed]
-
-jobs:
-  cleanup:
-    if: github.event.pull_request.merged == true
-    steps:
-      - name: Delete branch
-        run: |
-          # 远程分支已在 merge 时删除
-          echo "Branch cleanup completed"
-```
+一个好的 PR 应该让 reviewer 快速回答这几个问题：
+- 这次改动想解决什么问题
+- 改了哪些关键内容
+- 有没有验证过
+- 还有没有已知风险

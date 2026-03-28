@@ -1,197 +1,101 @@
 # session-recovery.md
 
-## Session 恢复机制
+## 作用
 
-上下文满或 `/clear` 后，自动保存状态，下次可从断点续传。
+这份文档定义 `/tech:code` 在上下文清空、压缩或会话结束后如何恢复工作。
 
-**核心原则：STATE.md 是恢复主数据源，Snapshot 只是入口通知。**
+核心原则只有一条：
 
----
+`STATE.md` 是恢复依据，Snapshot 只是恢复入口。
 
 ## 生命周期
 
-```
-SessionStart hook
-       ↓
-  检测 Snapshot (/tmp)
-       ↓ 存在
-  注入询问 → 用户确认恢复
-       ↓
-  读取 STATE.md (features/{id}/) ← 主数据源
-       ↓
-  工作进行中（实时更新 STATE.md）
-       ↓
-   /compact
-       ↓ (PreCompact hook 快照)
-    压缩
-       ↓
-  读取 STATE.md 恢复现场
-       ↓
-  工作继续
-       ↓
-SessionEnd hook (Stop hook 基于 STATE.md 保存 Snapshot)
+```text
+工作进行中
+  -> 持续更新 STATE.md
+  -> Stop / PreCompact 时生成 Snapshot
+  -> 下次 SessionStart 检测 Snapshot
+  -> 用户确认恢复
+  -> 读取 STATE.md
+  -> 从断点继续
 ```
 
----
+## Hook 角色
 
-## Hooks 配置
+默认由 `hooks/gsd-session-manager.js` 负责三个时机：
 
-在 `.claude/settings.json` 中配置：
+- `SessionStart`：检测是否有未完成 Feature
+- `Stop`：在会话结束时写入恢复快照
+- `PreCompact`：在压缩前保存最小恢复信息
 
-```json
-{
-  "hooks": {
-    "SessionStart": [{
-      "type": "command",
-      "command": "node \"{HOOKS_DIR}/gsd-session-manager.js\" SessionStart"
-    }],
-    "Stop": [{
-      "type": "command",
-      "command": "node \"{HOOKS_DIR}/gsd-session-manager.js\" Stop"
-    }],
-    "PreCompact": [{
-      "type": "command",
-      "command": "node \"{HOOKS_DIR}/gsd-session-manager.js\" PreCompact"
-    }]
-  }
-}
+## 恢复顺序
+
+### 1. 检测 Snapshot
+
+在 `SessionStart` 时检查 `/tmp` 下是否存在对应快照。
+
+如果没有快照，静默开始新会话。
+
+### 2. 询问是否恢复
+
+如果有快照，就提示当前存在未完成 Feature，让用户决定是否继续。
+
+### 3. 读取 STATE.md
+
+一旦用户确认恢复，必须读取：
+
+```text
+features/{id}/STATE.md
 ```
 
----
+读取重点：
+- 当前阶段
+- 当前 Wave
+- 已完成任务
+- 阻塞项
+- 偏差记录
+- 上次操作
 
-## Hook 行为
+### 4. 从断点继续
 
-### SessionStart
+恢复后的动作应该是：
+- 跳过已完成任务
+- 回到当前 Wave 或当前审查步骤
+- 先处理仍然存在的阻塞项
+- 延续原有决策，不重新发明方案
 
-1. 检测 `/tmp/tinypowers-session-{session_id}.json` 快照文件
-2. 存在 → 注入 `additionalContext` 询问是否恢复
-3. 用户确认后 → **读取 `features/{id}/STATE.md`** 作为恢复依据
-4. 不存在 → 静默退出
+## Snapshot 中应该有什么
 
-### Stop（SessionEnd）
+Snapshot 只保存最小恢复信息，例如：
+- `feature_id`
+- `feature_path`
+- `current_wave`
+- `completed_tasks`
+- `blocked_tasks`
+- `timestamp`
 
-会话结束时保存当前进度：
-- 读取 `features/{id}/STATE.md`（主数据源）
-- 创建 `/tmp` Snapshot（入口通知）
+不要把 Snapshot 当作第二份完整状态文档。
 
-### PreCompact
+## 恢复后的约束
 
-压缩前：
-- 快照关键上下文到 `/tmp`
-- **STATE.md 已在执行过程中实时更新，无需额外操作**
+- 禁止忽略 `STATE.md` 直接从头重做
+- 禁止删除上次已确认的正确实现
+- 禁止借恢复机会私自修改锁定决策
+- 禁止让 Snapshot 覆盖 `STATE.md` 的结论
 
----
+## 手动触发
 
-## 状态文件格式
-
-### Snapshot 文件
-
-```json
-// /tmp/tinypowers-session-{session_id}.json
-{
-  "session_id": "abc123",
-  "feature_id": "CSS-1234",
-  "feature_path": "features/CSS-1234",
-  "current_wave": 3,
-  "completed_waves": [1, 2],
-  "completed_tasks": ["T-001", "T-002", "T-003"],
-  "failed_tasks": [],
-  "blocked_tasks": ["T-006"],
-  "deviations": ["deviations/deviation-001.md"],
-  "timestamp": 1743072600
-}
-```
-
-### Feature STATE.md
-
-```markdown
-# STATE: CSS-1234
-
-> 最后更新: 2026-03-27 15:30:00 | 当前阶段: Phase 2 - Wave Execution
-
-## 位置
-- 当前技能: tech-code
-- 当前阶段: Phase 2 - Wave Execution
-- 当前 Wave: 3 / 5
-
-## 进度
-
-### Wave 1 ✅
-- T-001 数据库设计
-- T-002 User实体类
-
-### Wave 2 ✅
-- T-003 LoginService
-- T-004 UserService
-
-### Wave 3 🔄 进行中
-- T-005 LoginController (70%)
-- T-006 LoginPage (等待)
-
-### Wave 4 ⏳ 待开始
-- T-007 登录测试
-
-### Wave 5 ⏳ 待开始
-- T-008 集成测试
-
-## 偏差
-- deviation-001.md: 依赖偏差（已自动修复）
-
-## 上次操作
-- Wave 2 完成，Gate 通过
-- T-005 开始执行
-```
-
----
-
-## 恢复流程
-
-```
-SessionStart hook 触发
-       ↓
-检测到 /tmp/tinypowers-session-{id}.json (Snapshot)
-       ↓
-注入询问：
-"检测到上次会话未完成，Feature: CSS-1234, Wave: 3/5"
-       ↓
-用户输入"恢复"
-       ↓
-读取 features/CSS-1234/STATE.md ← 主数据源
-       ↓
-恢复工作现场：
-1. 解析 STATE.md 中的「位置」章节 → 确认当前阶段和 Wave
-2. 解析「进度」章节 → 确认已完成/未完成 Tasks
-3. 解析「阻塞」章节 → 确认是否有阻塞项
-4. 从断点继续，跳过已完成 Tasks
-5. 如果有阻塞项，先处理阻塞
-```
-
----
-
-## 手动保存/恢复
-
-### 强制保存
+如果需要手动验证恢复链路，可以直接运行 hook：
 
 ```bash
-# 手动触发 Stop hook
 node .claude/hooks/gsd-session-manager.js Stop
+node .claude/hooks/gsd-session-manager.js SessionStart
 ```
 
-### 清除快照
+## 判断标准
 
-```bash
-rm /tmp/tinypowers-session-{session_id}.json
-```
-
----
-
-## 约束
-
-<HARD-GATE>
-禁止在 Session 恢复后：
-- 忽略已完成 Tasks，直接重新执行
-- 删除已有的正确实现
-- 改变用户已确认的决策
-
-恢复后必须从断点继续，保持与上次会话状态一致。
-</HARD-GATE>
+一个可用的恢复机制应满足：
+- 新会话能知道上次做到了哪里
+- 不会重复执行已经完成的任务
+- 不会丢失阻塞或偏差信息
+- 恢复后可以继续原流程，而不是重新组织一次工作

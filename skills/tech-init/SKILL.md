@@ -1,6 +1,6 @@
 ---
 name: tech:init
-description: 初始化项目AI开发环境，自动检测技术栈，增量更新配置，生成预设文档。
+description: 初始化项目 AI 开发环境，自动检测技术栈，生成规则、模板与入口文件。
 license: MIT
 compatibility: Claude Code
 metadata:
@@ -10,250 +10,152 @@ metadata:
 
 # /tech:init
 
-## 功能
-在新项目或空项目中创建完整的工作流框架。
+## 作用
 
-**核心特性：**
-- 自动检测技术栈（Java/Maven、Java/Gradle、Node/npm 等）
-- 增量更新策略（已有配置不再直接覆盖）
-- 初始化前确认问卷（确认技术栈和需要的组件）
-- 变量模板替换（`{{project_name}}` → 实际项目名）
-- 精简 CLAUDE.md（引用外部规则文件，保持 <150 行）
+`/tech:init` 用于在一个目标项目里落地 tinypowers 的基础工作流骨架。
 
-## 执行流程
+它解决的是“第一次接入框架时该放什么、怎么放、已有配置怎么处理”的问题，而不是业务初始化本身。
 
-```
-┌─────────────────────────────────────────────────────┐
-│  1. 技术栈检测                                        │
-│  扫描根目录文件，自动判断项目类型                       │
-└────────────────────────┬────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────┐
-│  2. 检测结果确认                                      │
-│  输出检测到的技术栈，询问用户确认/调整                  │
-└────────────────────────┬────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────┐
-│  3. 已初始化检查                                      │
-│  项目根目录存在 CLAUDE.md？                           │
-│  - 不存在 → 执行全新初始化                             │
-│  - 存在 → 进入增量更新流程                             │
-└────────────────────────┬────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────┐
-│  4. 增量更新                                         │
-│  根据策略执行：Update / Skip / Overwrite              │
-└────────────────────────┬────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────┐
-│  5. 规则集加载                                        │
-│  根据确认的技术栈，加载对应规则                         │
-│  通用规则始终加载                                     │
-└────────────────────────┬────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────┐
-│  6. 模板复制与变量替换                                │
-│  复制 CLAUDE.md 等模板                                │
-│  替换 {{project_name}} 等变量                         │
-└────────────────────────┬────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────┐
-│  7. 初始化验证                                        │
-│  检查目录完整性、文件存在性、链接正确性                 │
-└────────────────────────┬────────────────────────────┘
-                         ↓
-                    输出完成报告
+## 初始化目标
+
+执行完成后，目标项目通常应具备：
+- `CLAUDE.md` 入口文件
+- `docs/guides/` 指南文档
+- `configs/rules/` 规则目录
+- `configs/templates/` 模板目录
+- `features/` 需求工作目录
+- `.claude/` 本地配置目录
+
+## 核心特性
+
+- 自动检测技术栈
+- 初始化前让用户确认检测结果
+- 支持增量更新，不默认覆盖已有内容
+- 自动替换模板变量
+- 保持 `CLAUDE.md` 精简，只做入口
+
+## 主流程
+
+```text
+1. 技术栈检测
+2. 检测结果确认
+3. 已初始化检查
+4. 选择更新策略
+5. 加载对应规则
+6. 复制模板并替换变量
+7. 执行初始化验证
+8. 输出结果与下一步建议
 ```
 
----
+## 详细步骤
 
-## Step 1: 技术栈检测
+### 1. 技术栈检测
 
-调用 `stack-detection.md` 中的算法：
+通过根目录文件、目录结构和依赖特征判断项目类型。
 
-1. 扫描根目录构建文件（优先级：pom.xml → build.gradle → package.json → go.mod）
-2. 扫描包名结构（src/main/java/*.java → Java）
-3. 扫描目录结构（src/main/kotlin → Kotlin）
+常见识别来源：
+- `pom.xml`
+- `build.gradle`
+- `package.json`
+- `go.mod`
+- `src/main/java`
 
----
+检测细节见：
+- `stack-detection.md`
 
-## Step 2: 检测结果确认
+### 2. 检测结果确认
 
-### 输出格式
+检测结果不是最终事实，用户确认才是。
 
-```
-检测到项目类型：Java (Maven) + Spring Boot + MyBatis
+确认时至少要让用户看到：
+- 检测到的主技术栈
+- 推荐加载的规则集
+- 建议初始化的指南文档
 
-技术栈确认：
-  [1] Java (Maven) ← 检测到
-  [2] Java (Gradle)
-  [3] Node.js
-  [4] Go
-  [5] 其他：____
+### 3. 已初始化检查
 
-规则集选择（可多选）：
-  [✓] configs/rules/common-*     ← 始终加载
-  [✓] configs/rules/java/*       ← 检测到
-  [ ] configs/rules/mysql/*      ← MySQL 规范
-  [ ] configs/rules/redis/*      ← Redis 规范（如有）
-  [ ] configs/rules/kafka/*       ← Kafka 规范（如有）
+如果项目根目录已经有 `CLAUDE.md`，说明大概率不是首次接入。
 
-组件选择：
-  [✓] 开发规范 (docs/guides/)
-  [✓] 工作流指南 (docs/guides/workflow-guide.md)
-  [ ] PRD 分析指南 (docs/guides/prd-analysis-guide.md)
-  [ ] 测试计划 (docs/guides/test-plan.md)
+这时不应直接覆盖，而应进入更新策略选择。
 
-请确认或调整上述选择，输入编号即可（如：1, 3, 5）
-```
+### 4. 更新策略
 
----
+支持三种策略：
 
-## Step 3: 已初始化检查
+| 策略 | 含义 |
+|------|------|
+| `Update` | 只补缺失内容，尽量保留现有配置 |
+| `Skip` | 完全不改动 |
+| `Overwrite` | 删除后重建，风险最高 |
 
-```
-IF 项目根目录存在 CLAUDE.md THEN
-    输出检测到的配置版本 vs 当前模板版本
-    输出："项目已初始化，选择操作策略："
+默认推荐 `Update`。
 
-    策略说明：
-      1. Update（推荐）— 补全缺失部分，保留现有内容
-      2. Skip    — 保持现状，完全不修改
-      3. Overwrite — 删除后重建（危险，需二次确认）
+策略细节见：
+- `update-strategies.md`
 
-    用户选择后继续
-ELSE
-    继续全新初始化
-END
-```
+### 5. 规则加载
 
----
+按确认后的技术栈加载：
+- `configs/rules/common-*`
+- 技术栈对应子目录规则
 
-## Step 4: 增量更新策略
+例如：
+- Java 项目加载 `configs/rules/java/`
+- 需要 MySQL 约束时加载 `configs/rules/mysql/`
 
-### 策略对比
+### 6. 模板复制与变量替换
 
-| 策略 | 适用场景 | 行为 |
-|------|----------|------|
-| **Update（推荐）** | 已有配置，手动添加过内容 | 只创建缺失文件，不修改已有内容 |
-| **Skip** | 不想任何改动 | 什么都不做，直接退出 |
-| **Overwrite** | 配置过时，需要重建 | 删除后重建（危险操作） |
+会用项目上下文替换模板变量，例如：
+- `{{project_name}}`
+- `{{tech_stack}}`
+- `{{build_tool}}`
+- `{{branch_pattern}}`
+- `{{author}}`
 
-### Update 策略详细行为
+目录和变量细节见：
+- `init-steps.md`
 
-```
-For each 目标文件:
-  IF 文件不存在 THEN
-    复制模板并替换变量
-  ELSE IF 文件存在 AND 内容不同 THEN
-    检测差异：
-      - 仅有模板变量未替换 → 替换变量，保留用户内容
-      - 有实质性修改 → 保留用户内容，添加警告
-    END
-  ELSE
-    跳过（完全相同）
-  END
-END
-```
+### 7. 初始化验证
 
-### Overwrite 策略详细行为
+初始化完成后，要确认：
+- 目录存在
+- 关键文件存在
+- 模板变量已替换
+- 规则和技术栈匹配
+- 链接没有明显断裂
 
-```
-WARNING: 即将删除并重建以下文件：
-  - CLAUDE.md
-  - docs/guides/*.md
-  - configs/rules/*
+验证细节见：
+- `verification.md`
 
-确认输入 "YES" 继续，或 "NO" 取消：____
+## 典型输出
 
-IF 用户输入 == "YES" THEN
-    删除目标文件
-    执行全新初始化
-ELSE
-    取消操作，输出："操作已取消"
-END
-```
-
----
-
-## Step 5: 规则集加载
-
-根据 Step 2 确认的技术栈：
-
-| 检测到 | 加载规则 |
-|--------|----------|
-| pom.xml / build.gradle | `configs/rules/java/*` |
-| package.json | `configs/rules/javascript/*`（如有） |
-| go.mod | `configs/rules/golang/*`（如有） |
-| 任意项目 | `configs/rules/common-*`（始终加载） |
-
----
-
-## Step 6: 模板复制与变量替换
-
-从 `configs/templates/` 复制并替换变量：
-
-| 变量 | 替换为 | 示例 |
-|------|--------|------|
-| `{{project_name}}` | 当前目录名 | `my-project` |
-| `{{ProjectName}}` | 项目名（首字母大写） | `MyProject` |
-| `{{date}}` | 当前日期 | `2026-03-27` |
-| `{{datetime}}` | 当前日期时间 | `2026-03-27 14:30:00` |
-| `{{author}}` | git user.name | `John Doe` |
-| `{{tech_stack}}` | 检测到的技术栈描述 | `Java (Maven)` |
-
----
-
-## Step 7: 初始化验证
-
-调用 `verification.md` 检查清单：
-
-- [ ] 目录结构完整
-- [ ] CLAUDE.md 存在且变量已替换
-- [ ] docs/guides/*.md 存在（按选择）
-- [ ] configs/rules/ 已加载适用规则
-- [ ] 链接引用正确（无死链）
-
----
-
-## 输出报告
-
-```
+```text
 === 初始化完成 ===
 
 策略: Update
 项目类型: Java (Maven)
-加载规则:
-  ✓ configs/rules/common-coding-style.md
-  ✓ configs/rules/common-security.md
-  ✓ configs/rules/common-testing.md
-  ✓ configs/rules/java/java-coding-style.md
-  ✓ configs/rules/mysql/* (6个文档)
 
-创建/更新目录:
-  ✓ docs/guides/          [Update: 新增]
-  ✓ configs/rules/         [Update: 已存在，跳过]
-  ✓ configs/templates/     [Update: 已存在，跳过]
-  ✓ features/              [Update: 新增]
+已加载:
+- common-coding-style
+- common-security
+- common-testing
+- java/java-coding-style
+- mysql/*
 
-创建/更新文件:
-  ✓ CLAUDE.md              [Update: 已存在，内容保留，变量已替换]
-  ✓ docs/guides/development-spec.md [Update: 新增]
-  ✓ docs/guides/workflow-guide.md   [Update: 新增]
+已创建:
+- CLAUDE.md
+- docs/guides/
+- features/
 
-验证结果: 全部通过
-
-下一步：
-  /tech:feature — 开始新功能开发
+下一步:
+/tech:feature
 ```
 
----
+## 默认忽略项
 
-## 忽略文件
+初始化过程中默认跳过这类文件或目录：
 
-初始化时自动忽略以下文件（不复制、不删除）：
-
-```
+```text
 .git/
 node_modules/
 target/
@@ -265,11 +167,9 @@ build/
 *.key
 ```
 
----
+## 相关文档
 
-## 参考文档
-
-- `init-steps.md` — 目录创建与模板复制细节
-- `stack-detection.md` — 技术栈检测算法
-- `verification.md` — 初始化验证清单
-- `update-strategies.md` — 增量更新策略详解
+- `init-steps.md`
+- `stack-detection.md`
+- `update-strategies.md`
+- `verification.md`

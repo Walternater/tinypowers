@@ -1,254 +1,90 @@
 # documenter-guide.md
 
-## 文档复写指南
+## 作用
 
-本文档描述代码变更后如何同步更新技术文档。
+这份文档定义 `/tech:commit` 在提交前如何同步代码相关文档，避免“实现已经变了，说明还停在旧版本”。
 
----
+## 核心原则
 
-## 同步原则
+- 文档服务于交付，不是装饰物
+- 只更新真正受影响的文档
+- 文档描述当前实现，不描述理想中的实现
+- 文档同步应发生在验证完成之后、正式提交之前
 
-### 必须同步的文档
+## 常见需要同步的文档
 
-| 文档 | 更新时机 | 负责人 |
-|------|---------|--------|
-| 技术方案.md | 功能变更 | AI |
-| API文档 | 接口变更 | AI |
-| README.md | 重大变更 | AI |
-| 数据库文档 | 表结构变更 | AI |
-| 部署文档 | 部署相关变更 | AI |
+| 文档 | 触发条件 |
+|------|----------|
+| `features/{id}/技术方案.md` | 实现细节、验收状态或决策落地发生变化 |
+| API 文档 | Controller、路由、请求响应结构变更 |
+| README | 用法、入口、配置、能力边界发生变化 |
+| 数据库文档 | 表结构、字段、索引、迁移方式变更 |
+| 部署文档 | 启动方式、环境变量、依赖服务变更 |
 
-### 同步时机
+## 同步顺序
 
-```
-代码变更 commit 后
-       ↓
-检查是否需要文档同步
-       ↓
-       ↓否
-    跳过
-       ↓是
-更新相关文档 → commit
-```
+建议按这个顺序检查：
 
----
-
-## 技术方案同步
-
-### 分析代码变更
-
-```bash
-# 1. 获取变更文件列表
-CHANGED_FILES=$(git diff --name-only origin/main..HEAD)
-
-# 2. 获取变更摘要
-CHANGES=$(git diff --stat origin/main..HEAD)
-
-# 3. 识别影响的功能模块
-AFFECTED_MODULES=$(echo "$CHANGED_FILES" | cut -d/ -f1-3 | sort -u)
+```text
+实现变更
+  -> 技术方案
+  -> 接口/数据结构文档
+  -> README / 部署说明
 ```
 
-### 更新模板
+先改离实现最近的文档，再决定是否需要更新面向外部的入口文档。
 
-```markdown
-## 实现记录
+## 1. 技术方案同步
 
-### {功能名称}
-**状态**: ✅ 已完成
+重点不是重写方案，而是补齐“这次实际怎么落地了”。
 
-**变更内容**:
-- 变更点1
-- 变更点2
+建议至少检查：
+- 功能点状态是否需要标记为已完成
+- 决策是否已经被实现验证
+- 验收标准是否已经落地
+- 是否需要补充实现记录或风险说明
 
-**代码变更**:
-- `src/main/java/.../Xxx.java`: 新增/修改
+## 2. API 文档同步
 
-**实现细节**:
-- 设计决策1
-- 设计决策2
+当接口发生变化时，需要同步：
+- 路径和方法
+- 请求参数
+- 响应结构
+- 错误码或异常行为
+- 示例请求和响应
 
-**验收标准达成**:
-- [x] 标准1
-- [x] 标准2
-```
+如果项目把 API 文档写在 `技术方案.md` 中，就在那里同步；如果有独立 OpenAPI 或接口文档，也要保持一致。
 
----
+## 3. README 同步
 
-## API 文档同步
+README 只在对使用者有感知变化时更新，例如：
+- 新增能力
+- 新增配置
+- 接入方式变化
+- 本地启动步骤变化
 
-### 接口变更分析
+不要把纯内部实现细节塞进 README。
 
-```bash
-# 1. 找出新增/修改的 Controller
-CONTROLLERS=$(git diff --name-only origin/main..HEAD \
-  | grep -E "Controller\.java$")
+## 4. 数据库或部署文档同步
 
-# 2. 提取接口定义
-for f in $CONTROLLERS; do
-  grep -E "@(Get|Post|Put|Delete)Mapping" $f
-done
-```
-
-### OpenAPI 格式更新
-
-```yaml
-# 技术方案.md 中的 API 章节
-## API 接口
-
-### POST /api/auth/login
-
-**请求**:
-```json
-{
-  "username": "string",
-  "password": "string"
-}
-```
-
-**响应**:
-```json
-{
-  "code": 0,
-  "data": {
-    "token": "string",
-    "expiresIn": 3600
-  }
-}
-```
-
-**状态**: ✅ 已实现
-```
-
----
-
-## README.md 同步
-
-### 分析是否需要更新
-
-```bash
-# 1. 检查是否新增了功能模块
-MAJOR_CHANGES=$(git log --format="%s" origin/main..HEAD \
-  | grep -E "feat|feature")
-
-# 2. 检查是否有配置变更
-CONFIG_CHANGES=$(git diff --name-only origin/main..HEAD \
-  | grep -E "\.yml$|\.properties$|config")
-
-# 3. 如果有重大变更，更新 README
-if [ -n "$MAJOR_CHANGES" ] || [ -n "$CONFIG_CHANGES" ]; then
-  UPDATE_README=true
-fi
-```
-
-### README 更新检查项
-
-```
-□ 新功能说明
-□ 新增配置项说明
-□ 新增环境变量说明
-□ 新增依赖说明
-□ 新增 API 端点说明
-□ 快速开始步骤（如果需要）
-```
-
----
-
-## 数据库文档同步
-
-### 表结构变更分析
-
-```bash
-# 1. 找出新增/修改的 Entity
-ENTITIES=$(git diff --name-only origin/main..HEAD \
-  | grep -E "Entity\.java$|Mapper\.xml$")
-
-# 2. 提取表结构变更
-for f in $ENTITIES; do
-  echo "=== $f ==="
-  grep -E "@Table|@Column|private" $f
-done
-```
-
-### 数据库文档更新模板
-
-```markdown
-## 数据库变更
-
-### 新增表: user_login_log
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | BIGINT | 主键 |
-| user_id | BIGINT | 用户ID |
-| login_time | DATETIME | 登录时间 |
-| ip_address | VARCHAR(50) | IP地址 |
-
-### 修改表: users
-
-新增字段:
-- `last_login_time` DATETIME - 最后登录时间
-```
-
----
-
-## Commit 指南
-
-### 文档更新的 commit 格式
-
-```bash
-# 独立文档更新
-git commit -m "[AI-Gen] docs(CSS-1234): update tech design
-
-- 同步登录接口实现记录
-- 更新 API 文档
-- 添加数据库变更说明"
-
-# 代码 + 文档一起提交
-git commit -m "[AI-Gen] feat(CSS-1234): add login feature
-
-- 实现登录接口
-- 添加 Session 管理
-- 更新技术方案文档
-- 更新 README"
-```
-
-### 文档优先还是代码优先？
-
-```
-建议：
-1. 先 commit 代码
-2. 代码验证通过后
-3. 再 commit 文档
-
-原因：
-- 文档可能基于不稳定的实现
-- 减少 revert 成本
-- 保持清晰的变更历史
-```
-
----
+当本次改动影响运行环境时，至少要说明：
+- 新增或修改的表结构
+- 数据迁移要求
+- 新增环境变量
+- 新的外部依赖
+- 启动或部署步骤变化
 
 ## 验证清单
 
-### 文档同步后检查
+文档同步完成后，至少检查：
+- 文档中的接口签名和代码一致
+- 文档中的状态描述和实际交付一致
+- 没有继续引用旧路径或旧命令
+- 没有把未完成项写成已完成
+- 没有明显拼写或结构错误
 
-```
-□ 技术方案.md 中的功能点状态已更新
-□ 技术方案.md 中的实现记录已补充
-□ API 文档中的接口签名正确
-□ README.md 中的说明准确
-□ 数据库文档中的表结构正确
-□ 无拼写错误
-□ 格式一致
-```
+## 提交建议
 
-### 同步质量检查
+如果代码和文档强绑定，可以一起提交。
 
-```bash
-# 检查文档是否过期
-WARN_IF=$(git log --since="30 days ago" --format="%s" -- "*.md")
-if [ -n "$WARN_IF" ]; then
-  echo "以下文档最近有变更，考虑同步:"
-  echo "$WARN_IF"
-fi
-```
+如果文档变更较多、需要单独阅读，也可以拆成单独的 `docs(...)` commit。关键是让历史可读，而不是强行追求固定拆法。

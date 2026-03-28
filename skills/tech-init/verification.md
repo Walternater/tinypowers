@@ -1,175 +1,110 @@
 # verification.md
 
-## 初始化验证清单
+## 作用
 
-验证在初始化完成后执行，确保项目结构正确、文件完整、链接有效。
+这份文档定义 `/tech:init` 完成后，如何判断初始化是否成功。
 
----
+它不是脚本实现，而是验收标准说明。
 
-## 一、目录结构验证
+## 验证目标
 
-| 检查项 | 路径 | 验证方法 |
-|--------|------|----------|
-| [ ] 开发规范目录 | `docs/guides/` | `test -d docs/guides` |
-| [ ] 规则目录 | `configs/rules/` | `test -d configs/rules` |
-| [ ] 模板目录 | `configs/templates/` | `test -d configs/templates` |
-| [ ] 功能目录 | `features/` | `test -d features` |
-| [ ] Claude 配置目录 | `.claude/` | `test -d .claude` |
+初始化完成后，至少应确认：
+- 目录结构存在
+- 关键文件存在
+- 模板变量已替换
+- 规则与技术栈匹配
+- 文档链接没有明显断裂
 
----
+## 目录结构验证
 
-## 二、关键文件验证
-
-### 入口文件
-
-| 检查项 | 路径 | 验证方法 |
-|--------|------|----------|
-| [ ] 项目入口 | `CLAUDE.md` | 文件存在且非空 |
-| [ ] 变量已替换 | `CLAUDE.md` | 不包含 `{{project_name}}` 等未替换变量 |
-
-### 规范文档
-
-| 检查项 | 路径 | 验证方法 |
-|--------|------|----------|
-| [ ] 开发规范 | `docs/guides/development-spec.md` | 文件存在 |
-| [ ] 工作流指南 | `docs/guides/workflow-guide.md` | 文件存在 |
-| [ ] PRD 分析指南 | `docs/guides/prd-analysis-guide.md` | 文件存在 |
-| [ ] 测试计划 | `docs/guides/test-plan.md` | 文件存在 |
-
-### 规则文件
-
-| 检查项 | 验证方法 |
+| 检查项 | 验证方式 |
 |--------|----------|
-| [ ] 通用编码规范存在 | `configs/rules/common-coding-style.md` 存在 |
-| [ ] 通用安全规范存在 | `configs/rules/common-security.md` 存在 |
-| [ ] 通用测试规范存在 | `configs/rules/common-testing.md` 存在 |
-| [ ] Java 规则已加载 | 如检测到 Java，则 `configs/rules/java/` 存在 |
-| [ ] MySQL 规则已加载 | 如检测到 Java，则 `configs/rules/mysql/` 存在（6个文件） |
+| `docs/guides/` 存在 | `test -d docs/guides` |
+| `configs/rules/` 存在 | `test -d configs/rules` |
+| `configs/templates/` 存在 | `test -d configs/templates` |
+| `features/` 存在 | `test -d features` |
+| `.claude/` 存在 | `test -d .claude` |
 
----
+## 关键文件验证
 
-## 三、内容验证
+| 检查项 | 验证方式 |
+|--------|----------|
+| `CLAUDE.md` 存在 | 文件存在且非空 |
+| `CLAUDE.md` 变量已替换 | 不再包含 `{{project_name}}` 等变量 |
+| `docs/guides/development-spec.md` 存在 | 文件存在 |
+| `docs/guides/workflow-guide.md` 存在 | 文件存在 |
+| `docs/guides/prd-analysis-guide.md` 存在 | 文件存在 |
+| `docs/guides/test-plan.md` 存在 | 文件存在 |
 
-### CLAUDE.md 变量替换检查
+## 规则集验证
+
+默认至少检查：
+
+- [ ] `configs/rules/common-coding-style.md`
+- [ ] `configs/rules/common-security.md`
+- [ ] `configs/rules/common-testing.md`
+- [ ] 技术栈特定规则已按检测结果加载
+
+例如：
+- Java 项目应有 `configs/rules/java/`
+- 需要 MySQL 规则时应有 `configs/rules/mysql/`
+
+## 内容验证
+
+### 模板变量
+
+可以用类似方式快速检查：
 
 ```bash
-# 检查是否存在未替换的变量
 grep -E '\{\{project_name\}\}|\{\{date\}\}|\{\{author\}\}' CLAUDE.md
-
-# 如果有输出，则验证失败
-# 期望：无输出
 ```
 
-### 链接有效性检查
+期望：
+- 无输出
+
+### 链接有效性
+
+重点检查：
+- `docs/guides/` 内部链接
+- `CLAUDE.md` 引用路径
+- rules 与 guides 的入口引用
+
+## 技术栈一致性
+
+至少确认：
+
+- 检测到的技术栈与项目结构不冲突
+- 加载的规则与技术栈一致
+- 没有明显加载错规则目录
+
+## 快速验收思路
+
+可以用下面这组问题快速判断：
+
+1. 项目入口文件是否已生成？
+2. 开发者现在是否知道下一步看哪些文档？
+3. 规则是否已经落到项目中？
+4. 需求工作目录是否已准备好？
+
+如果四个问题都能回答“是”，通常说明初始化已基本完成。
+
+## 失败处理
+
+| 失败类型 | 处理方式 |
+|----------|----------|
+| 目录缺失 | 创建缺失目录 |
+| 关键文件缺失 | 重新复制模板 |
+| 变量未替换 | 重新执行变量替换 |
+| 链接死链 | 修复引用或移除失效链接 |
+| 规则集不匹配 | 重新检测技术栈并加载规则 |
+
+## 最小验证命令
 
 ```bash
-# 检查 markdown 链接是否有效
-# 验证内部链接
-grep -oE '\[.*\]\((.*\.md)\)' docs/guides/*.md | while read link; do
-    target=$(echo "$link" | sed 's/.*\](\(.*\))/\1/')
-    # 解析相对路径并检查文件是否存在
-done
-
-# 期望：无死链
-```
-
----
-
-## 四、技术栈一致性验证
-
-| 检查项 | 验证方法 |
-|--------|----------|
-| [ ] Java 项目有 pom.xml | `test -f pom.xml`（如检测到 Java） |
-| [ ] 规则与检测到的栈匹配 | Java 项目加载了 `configs/rules/java/` |
-| [ ] 非 Java 项目不加载 Java 规则 | 未检测到 Java 时，`configs/rules/java/` 不存在或不强制要求 |
-
----
-
-## 五、可执行性验证
-
-### 检查 skill 触发路径
-
-```bash
-# 检查 skills 目录结构
-test -d skills/tech-feature || echo "WARN: skills/tech-feature 不存在"
-test -d skills/tech-code || echo "WARN: skills/tech-code 不存在"
-test -d skills/tech-commit || echo "WARN: skills/tech-commit 不存在"
-```
-
----
-
-## 六、验证报告格式
-
-```
-=== 初始化验证报告 ===
-
-一、目录结构验证
-  ✓ docs/guides/          存在
-  ✓ configs/rules/       存在
-  ✓ configs/templates/    存在
-  ✓ features/             存在
-  ✓ .claude/              存在
-
-二、关键文件验证
-  ✓ CLAUDE.md             存在
-  ✓ CLAUDE.md             变量已替换
-  ✓ development-spec.md   存在
-  ✓ workflow-guide.md     存在
-  ✓ prd-analysis-guide.md 存在
-  ✓ test-plan.md          存在
-
-三、规则集验证
-  ✓ common-coding-style.md  存在
-  ✓ common-security.md      存在
-  ✓ common-testing.md       存在
-  ✓ java/java-coding-style.md  已加载（检测到 Java）
-  ✓ mysql/* (6个文档)        已加载（检测到 Java）
-
-四、链接验证
-  ✓ 内部链接无死链
-
-五、技术栈一致性
-  ✓ Java 项目结构匹配
-  ✓ pom.xml 存在
-
-六、可执行性
-  ✓ skills/tech-feature 存在
-  ✓ skills/tech-code    存在
-  ✓ skills/tech-commit 存在
-
-=== 验证结果：全部通过 ===
-```
-
----
-
-## 七、验证失败处理
-
-| 失败类型 | 严重程度 | 处理方式 |
-|----------|----------|----------|
-| 目录缺失 | 阻塞 | 创建缺失目录 |
-| 关键文件缺失 | 阻塞 | 复制模板 |
-| 变量未替换 | 警告 | 重新执行变量替换 |
-| 链接死链 | 警告 | 修复或移除链接 |
-| 规则集不匹配 | 错误 | 重新检测并加载 |
-
-### 严重程度定义
-
-- **阻塞**：初始化未完成，必须修复
-- **警告**：不影响初始化完成，但应修复
-- **错误**：配置错误，需人工介入
-
----
-
-## 八、快速验证命令
-
-```bash
-# 一键验证（期望全部 OK）
-(
-  test -d docs/guides && echo "✓ docs/guides" || echo "✗ docs/guides MISSING"
-  test -d configs/rules && echo "✓ configs/rules" || echo "✗ configs/rules MISSING"
-  test -d configs/templates && echo "✓ configs/templates" || echo "✗ configs/templates MISSING"
-  test -d features && echo "✓ features" || echo "✗ features MISSING"
-  test -f CLAUDE.md && echo "✓ CLAUDE.md" || echo "✗ CLAUDE.md MISSING"
-  ! grep -q '{{project_name}}' CLAUDE.md && echo "✓ CLAUDE.md 变量已替换" || echo "✗ CLAUDE.md 变量未替换"
-)
+test -d docs/guides
+test -d configs/rules
+test -d configs/templates
+test -d features
+test -f CLAUDE.md
+! grep -q '{{project_name}}' CLAUDE.md
 ```

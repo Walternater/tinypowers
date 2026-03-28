@@ -1,118 +1,95 @@
 # init-steps.md
 
-## 目录创建顺序
+## 作用
 
-目录创建有依赖关系，必须按顺序执行：
+本文档说明 `/tech:init` 在目录创建、模板复制和变量替换时的默认做法。
 
+它回答的是“初始化到底会落什么文件、怎么落”。
+
+## 目录创建
+
+推荐创建这些目录：
+
+```text
+docs/
+docs/guides/
+configs/
+configs/rules/
+configs/templates/
+features/
+.claude/
 ```
-1. docs/             （父级目录，如不存在）
-2. docs/guides/      （开发规范）
-3. configs/          （父级目录）
-4. configs/rules/    （规则集）
-5. configs/templates/ （模板）
-6. features/         （功能目录）
-7. .claude/          （Claude 配置）
-```
 
-### 创建规则
+对应命令：
 
 ```bash
-# 创建目录（递归）
 mkdir -p docs/guides configs/rules configs/templates features .claude
-
-# 验证创建成功
-test -d docs/guides && echo "OK" || echo "FAIL"
 ```
 
-## 模板复制规则
+## 模板与内容来源
 
-### 复制来源
-
-| 来源 | 目标 | 条件 |
+| 来源 | 目标 | 说明 |
 |------|------|------|
-| `configs/templates/CLAUDE.md` | `CLAUDE.md` | 不存在或用户选择覆盖 |
-| `docs/guides/*.md` | `docs/guides/` | 不存在 |
-| `configs/templates/*.md` | `configs/templates/` | 框架模板保留 |
-| `configs/rules/common-*` | `configs/rules/` | 始终复制 |
-| `configs/rules/{{tech_stack}}/*` | `configs/rules/` | 根据检测结果 |
+| `configs/templates/CLAUDE.md` | `CLAUDE.md` | 项目入口文件 |
+| `docs/guides/*.md` | `docs/guides/` | 指南文档 |
+| `configs/rules/common-*` | `configs/rules/` | 通用规则 |
+| `configs/rules/{{tech_stack}}/*` | `configs/rules/` | 技术栈规则 |
 
-### 文件复制逻辑
+说明：
+- `configs/templates/` 本身属于框架资源，不必在目标项目里原样复制整个目录，除非你明确希望把模板也带过去。
+- 真正对目标项目立即有价值的，是入口、guides 和 rules。
+
+## 文件复制原则
+
+默认原则：
+- 目标不存在时创建
+- 已存在时优先保留用户内容
+- 变量未替换时做替换
+- 有明显差异时不盲目覆盖
+
+简化逻辑：
 
 ```python
 def copy_template(src, dest):
     if file_exists(dest):
-        return "SKIP"  # 已存在，跳过
-    else:
-        content = read_file(src)
-        content = replace_variables(content)  # 变量替换
-        write_file(dest, content)
-        return "COPIED"
+        return "SKIP_OR_UPDATE"
+    content = read_file(src)
+    content = replace_variables(content)
+    write_file(dest, content)
+    return "COPIED"
 ```
 
-## 变量替换算法
+## 模板变量
 
-### 支持的变量
+常见变量：
 
-| 变量格式 | 替换为 | 示例 |
-|----------|--------|------|
-| `{{project_name}}` | 项目目录名 | `my-project` |
-| `{{ProjectName}}` | 首字母大写 | `MyProject` |
-| `{{PROJECT_NAME}}` | 全大写下划线 | `MY_PROJECT` |
-| `{{tech_stack}}` | 技术栈描述 | `Java (Maven)` |
-| `{{tech_stack_short}}` | 技术栈简称 | `java` |
-| `{{build_tool}}` | 构建工具 | `Maven` |
-| `{{build_command}}` | 构建命令 | `mvn checkstyleMain testClasses` |
-| `{{service_port}}` | 服务端口 | `8080` |
-| `{{branch_pattern}}` | 分支命名模式 | `feature/{id}-{short-desc}` |
-| `{{date}}` | 当前日期 | `2026-03-27` |
-| `{{datetime}}` | 当前日期时间 | `2026-03-27 14:30:00` |
-| `{{author}}` | Git 用户名 | `John Doe` |
-| `{{year}}` | 当前年份 | `2026` |
+| 变量 | 含义 |
+|------|------|
+| `{{project_name}}` | 当前项目目录名 |
+| `{{ProjectName}}` | 首字母大写名称 |
+| `{{PROJECT_NAME}}` | 全大写下划线形式 |
+| `{{tech_stack}}` | 技术栈描述 |
+| `{{tech_stack_short}}` | 技术栈简称 |
+| `{{build_tool}}` | 构建工具 |
+| `{{build_command}}` | 默认构建命令 |
+| `{{service_port}}` | 默认服务端口 |
+| `{{branch_pattern}}` | 默认分支命名模式 |
+| `{{date}}` | 当前日期 |
+| `{{datetime}}` | 当前日期时间 |
+| `{{author}}` | Git 用户名 |
+| `{{year}}` | 当前年份 |
 
-### 变量替换实现
+## 变量替换来源
 
-```python
-import os
-import re
-from datetime import datetime
-import subprocess
-
-def replace_variables(content, tech_stack_info):
-    project_name = os.path.basename(os.getcwd())
-
-    # 尝试获取 git user.name
-    try:
-        author = subprocess.check_output(
-            ['git', 'config', 'user.name'], text=True
-        ).strip()
-    except:
-        author = 'Unknown'
-
-    replacements = {
-        '{{project_name}}': project_name,
-        '{{ProjectName}}': project_name.title().replace('-', ''),
-        '{{PROJECT_NAME}}': project_name.upper().replace('-', '_'),
-        '{{tech_stack}}': tech_stack_info.get('tech_stack', 'Unknown'),
-        '{{tech_stack_short}}': tech_stack_info.get('tech_stack_short', 'unknown'),
-        '{{build_tool}}': tech_stack_info.get('build_tool', 'Maven'),
-        '{{build_command}}': tech_stack_info.get('build_command', 'mvn checkstyleMain testClasses'),
-        '{{service_port}}': tech_stack_info.get('service_port', '8080'),
-        '{{branch_pattern}}': tech_stack_info.get('branch_pattern', 'feature/{id}-{short-desc}'),
-        '{{date}}': datetime.now().strftime('%Y-%m-%d'),
-        '{{datetime}}': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        '{{author}}': author,
-        '{{year}}': datetime.now().strftime('%Y'),
-    }
-
-    for var, value in replacements.items():
-        content = content.replace(var, value)
-
-    return content
-```
+变量一般来自：
+- 当前工作目录
+- 技术栈检测结果
+- `git config user.name`
+- 当前系统时间
 
 ## 文件权限
 
-确保关键文件可读：
+建议至少保证这些可读：
 
 ```bash
 chmod 644 CLAUDE.md
@@ -121,30 +98,33 @@ chmod 644 configs/rules/*.md
 chmod 755 features/
 ```
 
-## 特殊处理
+## `.gitignore` 建议
 
-### .gitignore 检查
+如果项目已有 `.gitignore`，通常建议至少忽略：
 
-如果项目已有 .gitignore，确保包含：
-
-```
+```text
 # AI Development Framework
 .claude/
 docs/plans/
 ```
 
-### git 初始化
+注意：
+- 不要默认忽略整个 `features/`
+- `features/{id}/STATE.md` 和需求产物通常需要被版本控制追踪
 
-如果项目不是 git 仓库：
-1. 询问用户是否初始化
-2. 如需初始化：`git init`
-3. 设置默认分支：`git checkout -b main`
+## Git 初始化
 
-## 错误处理
+如果目标项目还不是 Git 仓库：
 
-| 错误 | 处理方式 |
-|------|----------|
-| 目录创建失败 | 输出错误，继续尝试创建其他目录，最后报告失败 |
-| 模板复制失败 | 跳过该文件，记录到报告 |
-| 变量替换失败 | 保留原变量名（不替换），添加警告 |
-| 权限不足 | 输出警告，建议用户手动修复权限 |
+1. 先确认是否需要初始化
+2. 需要时执行 `git init`
+3. 视团队约定创建默认分支
+
+## 常见错误处理
+
+| 问题 | 建议处理 |
+|------|---------|
+| 目录创建失败 | 记录失败项并继续检查其他项 |
+| 模板复制失败 | 跳过该文件并在结果里提示 |
+| 变量替换失败 | 保留原变量并发出警告 |
+| 权限不足 | 提示用户手动处理权限 |

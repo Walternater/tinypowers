@@ -173,10 +173,11 @@ tinypowers/
 1. [README.md](./README.md)
 2. [skills/tech-feature/SKILL.md](./skills/tech-feature/SKILL.md)
 3. [skills/tech-code/SKILL.md](./skills/tech-code/SKILL.md)
-4. [hooks/README.md](./hooks/README.md)
-5. [agents/tech-plan-checker.md](./agents/tech-plan-checker.md)
-6. [agents/spec-compliance-reviewer.md](./agents/spec-compliance-reviewer.md)
-7. [agents/tech-verifier.md](./agents/tech-verifier.md)
+4. [docs/guides/repo-normalization-summary.md](./docs/guides/repo-normalization-summary.md)
+5. [hooks/README.md](./hooks/README.md)
+6. [agents/tech-plan-checker.md](./agents/tech-plan-checker.md)
+7. [agents/spec-compliance-reviewer.md](./agents/spec-compliance-reviewer.md)
+8. [agents/tech-verifier.md](./agents/tech-verifier.md)
 
 ## 贡献建议
 
@@ -192,6 +193,7 @@ tinypowers/
 - 不要重新引入 `doc/guides`、`docs/feature`、`SESSION.md`、`superpowers:*` 这类旧约定
 - 如果修改了主流程，最好同步更新 README 和对应 guide
 - 如果修改了 hook 行为，确认文档和实现一致
+- 如果不确定当前哪些约定算正式标准，先看 `docs/guides/repo-normalization-summary.md`
 
 ## 参考
 

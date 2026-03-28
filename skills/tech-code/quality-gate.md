@@ -1,220 +1,99 @@
 # quality-gate.md
 
-## 质量门禁
+## 作用
 
-本文档描述每 Wave 结束后的质量门禁检查机制。
+质量门禁定义了每个 Wave 结束后“能不能继续往下走”的最低标准。
 
----
+它的目的不是追求完美，而是防止明显有问题的实现带着错误进入下一轮。
 
-## 门禁检查项
+## 默认检查项
 
-每 Wave 结束后，必须通过以下门禁才能进入下一个 Wave：
+| 检查项 | 默认结果 | 说明 |
+|--------|----------|------|
+| 编译或构建 | 阻断项 | 构建失败不能进入下一 Wave |
+| 单元测试 | 阻断项 | 有失败测试不能继续推进 |
+| 覆盖率 | 默认警告，可配置为阻断 | 建议目标为行覆盖率 >= 80% |
+| 安全或依赖扫描 | 高危问题阻断 | 避免把明显漏洞带入后续阶段 |
 
-| # | 检查项 | 命令/方法 | 阻断标准 |
-|---|--------|----------|----------|
-| 1 | 代码编译 | `mvn compile` | 编译失败 |
-| 2 | 单元测试 | `mvn test` | 有测试失败 |
-| 3 | 行覆盖率 | `mvn test jacoco:report` | < 80% |
-| 4 | 安全扫描 | `mvn dependency-check` | 有高危漏洞 |
+## 执行顺序
 
----
+每个 Wave 结束后，按下面的顺序执行：
 
-## 阻断式门禁
-
-### 1. 编译门禁
-
-```bash
-mvn compile -q
-
-IF $? != 0 THEN
-  BLOCK
-  输出："编译失败，必须修复后才能继续"
-  列出编译错误
-END
+```text
+Build
+  -> Test
+  -> Coverage
+  -> Security Scan
 ```
 
-### 2. 测试门禁
+如果前面已经失败，默认不再继续跑后面的阻断项。
 
-```bash
-mvn test -q
+## 技术栈适配
 
-IF $? != 0 THEN
-  BLOCK
-  输出："单元测试失败，必须修复后才能继续"
-  列出失败的测试
-END
-```
+具体命令应跟随项目技术栈。
 
----
+例如 Java 项目通常会用：
+- `mvn compile`
+- `mvn test`
+- `mvn test jacoco:report`
+- `mvn dependency-check:check`
 
-## 警告式门禁（可配置）
+如果项目不是 Maven，就替换成等价命令，但保持同样的门禁语义。
 
-### 3. 覆盖率门禁
+## 结果解释
 
-```bash
-mvn test jacoco:report
-line_coverage=$(get_line_coverage)
+### 编译或构建失败
 
-IF line_coverage < 80% THEN
-  IF block_on_coverage == true THEN
-    BLOCK
-  ELSE
-    WARN "覆盖率 ${line_coverage}% 未达标（目标80%）"
-  END
-END
-```
-
-### 配置选项
-
-```yaml
-quality_gate:
-  block_on_coverage: false  # true=阻断，false=警告
-  coverage_target: 80       # 目标覆盖率%
-```
-
----
-
-## 门禁流程
-
-```
-Wave N 完成
-     ↓
-执行门禁检查
-     ↓
-┌────────────────────────────────────┐
-│  Gate 1: 编译                      │
-│  mvn compile                       │
-└─────────────────┬──────────────────┘
-                   ↓
-              [通过/失败]
-                   ↓失败
-             BLOCK + 报告错误
-                   ↓通过
-┌────────────────────────────────────┐
-│  Gate 2: 测试                      │
-│  mvn test                          │
-└─────────────────┬──────────────────┘
-                   ↓
-              [通过/失败]
-                   ↓失败
-             BLOCK + 报告错误
-                   ↓通过
-┌────────────────────────────────────┐
-│  Gate 3: 覆盖率                    │
-│  jacoco:report                     │
-└─────────────────┬──────────────────┘
-                   ↓
-              [通过/警告]
-                   ↓警告
-             记录 + 继续
-                   ↓通过
-┌────────────────────────────────────┐
-│  Gate 4: 安全扫描                  │
-│  dependency-check                   │
-└─────────────────┬──────────────────┘
-                   ↓
-              [通过/失败]
-                   ↓失败
-             BLOCK + 报告漏洞
-                   ↓通过
-     ↓
-Wave N+1 可开始
-```
-
----
-
-## 门禁报告
-
-```markdown
-=== Wave 3 门禁报告 ===
-
-检查时间: 2026-03-27 15:00:00
-
-## Gate 1: 编译
-✅ 通过
-
-## Gate 2: 单元测试
-✅ 通过
-  - CustomerAssignmentBusinessTest: 12/12 passed
-  - LoginServiceTest: 8/8 passed
-
-## Gate 3: 覆盖率
-⚠️  警告
-  - 行覆盖率: 75% (目标: 80%)
-  - 未达标文件:
-    - LoginController.java: 65%
-    - UserService.java: 70%
-
-  建议: 增加 LoginController 测试用例
-
-## Gate 4: 安全扫描
-✅ 通过
-
----
-
-## 结论
-
-✅ Wave 4 可以开始
-
-备注: 覆盖率略低于目标，建议后续补充测试用例
-```
-
----
-
-## 失败处理
-
-### 编译失败
-
-```markdown
-=== ❌ 编译失败 ===
-
-**错误文件**:
-  - src/main/java/com/xxx/LoginController.java
-  - src/main/java/com/xxx/UserService.java
-
-**错误详情**:
-  ```
-  LoginController.java:45: 错误: 找不到符号
-    symbol:   method getUserById()
-    location: class UserService
-  ```
-
-**修复建议**:
-  1. 检查 UserService 是否已实现 getUserById() 方法
-  2. 确认 UserService 已被正确导入
-
-**状态**: 🚫 阻断 Wave 4
-```
+说明当前实现还不具备进入下一 Wave 的基本条件，必须先修复。
 
 ### 测试失败
 
+说明已有行为或新增行为还不稳定，必须先收敛。
+
+### 覆盖率不足
+
+默认记录为警告，但如果当前项目或阶段要求更高，可以升级成阻断项。
+
+### 安全扫描发现高危问题
+
+必须阻断。安全问题不应带着进入后续审查。
+
+## 建议报告格式
+
+每次门禁执行后，至少记录：
+- Wave 编号
+- 执行时间
+- 每个检查项结果
+- 阻断原因或警告原因
+- 下一步动作
+
+一个最小报告示例：
+
 ```markdown
-=== ❌ 单元测试失败 ===
+## Wave 3 Gate Report
 
-**失败测试**:
-  - CustomerAssignmentBusinessTest.testCreateTask_withNullTitle
-    Assertion failed: expected exception, but none was thrown
+- Build: PASS
+- Test: PASS
+- Coverage: WARN (74% < 80%)
+- Security: PASS
 
-**修复建议**:
-  1. 检查 CustomerAssignmentBusiness.createTask() 是否正确处理空标题
-  2. 确认 @NotNull 注解已添加
-
-**状态**: 🚫 阻断 Wave 4
+下一步：进入 Wave 4，并在本轮补齐控制器测试。
 ```
 
----
+## 失败处理
 
-## 门禁跳过（危险）
+- 门禁失败时，停止启动下一 Wave
+- 在当前 Wave 内修复问题
+- 修复后重新执行门禁
+- 如果同一问题连续失败 3 次，升级到 `deviation-handling.md`
 
-```
-⚠️  警告：跳过门禁是危险操作
+## 谨慎跳过
 
-仅在以下情况使用：
-  - 技术方案临时变更，需要快速验证
-  - 已知风险且愿意承担后果
+默认不建议跳过质量门禁。
 
-跳过命令：输入 "SKIP_GATE" 跳过当前门禁
-         输入 "SKIP_ALL" 跳过所有剩余门禁（危险）
+如果确实要跳过，必须满足：
+- 已知风险被明确记录
+- 原因写入 `STATE.md`
+- 团队接受后续返工成本
 
-建议：不要跳过，除非你清楚风险
-```
+跳过门禁从来不是常规路径，只能是有记录的例外。

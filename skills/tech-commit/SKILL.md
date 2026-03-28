@@ -1,6 +1,6 @@
 ---
 name: tech:commit
-description: 文档复写 + 代码提交 + PR 创建的完整流程。
+description: 文档同步、代码提交、PR 创建和 Changelog 收口流程。
 license: MIT
 compatibility: Claude Code
 metadata:
@@ -10,255 +10,137 @@ metadata:
 
 # /tech:commit
 
-## 功能
-文档复写 + 代码提交 + PR 创建
+## 作用
 
-**核心特性：**
-- Conventional Commit 格式
-- 文档自动同步
-- PR 自动化创建
-- Changelog 维护
+`/tech:commit` 负责把 `/tech:code` 阶段已经完成但尚未提交的成果，收口成一组可审阅、可追踪、可合并的交付物。
+
+它回答四个问题：
+- 哪些文档需要随实现一起同步
+- 这次改动应该怎么提交
+- 什么时候适合创建 PR
+- `CHANGELOG.md` 是否需要更新
+
+## 前置条件
+
+进入 `/tech:commit` 之前，默认已经满足：
+- `/tech:code` 已完成
+- 代码和文档变更已经稳定
+- 审查和验证结果可追溯
+- 工作区中的改动都是本次准备交付的内容
+
+如果这些条件还没满足，不建议提前进入提交阶段。
 
 ## 输入
 
-- 代码变更（已通过 tech-code 验证）
+- 已通过验证的代码变更
 - `features/{id}/技术方案.md`
 - `features/{id}/任务拆解表.md`
+- `features/{id}/STATE.md`
+- 审查与验证产物，例如 `code-review.md`、`测试报告.md`、`VERIFICATION.md`
 
----
+## 主流程
 
-## 执行流程
-
-```
-┌─────────────────────────────────────────────┐
-│  Phase 1: Document Sync                     │
-│  代码变更 → 技术文档同步                      │
-│  技术方案 / API文档 / README                 │
-└──────────────────┬────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────┐
-│  Phase 2: Git Commit                        │
-│  格式化 → 提交                              │
-│  Conventional Commit 规范                   │
-└──────────────────┬────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────┐
-│  Phase 3: PR Create                         │
-│  检查 → 生成 → 创建                          │
-│  自动填充 PR 模板                            │
-└──────────────────┬────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────┐
-│  Phase 4: Changelog                         │
-│  更新 CHANGELOG.md                          │
-│  Unreleased 段                              │
-└─────────────────────────────────────────────┘
+```text
+Document Sync
+  -> Commit Preparation
+  -> Git Commit
+  -> PR Workflow
+  -> Changelog Update
 ```
 
----
+## 硬约束
 
-## Phase 1: Document Sync
+- 只提交已经通过验证的改动，禁止把“待修问题”混进正式提交
+- 提交信息必须可读、可追溯，禁止使用无意义 message
+- PR 只在分支、远程和工作区状态都正确时创建
+- `CHANGELOG.md` 只记录面向项目或版本的有效变化，不把所有内部噪音都写进去
 
-调用 `documenter-guide.md`：
+## 1. Document Sync
 
-### 1.1 分析变更
+先确认代码落地后，哪些说明文档需要同步更新。
 
-```bash
-# 获取变更文件列表
-git diff --name-only origin/main..HEAD
+典型范围包括：
+- `features/{id}/技术方案.md`
+- API 或接口说明
+- README 或接入说明
+- 数据库或部署文档
 
-# 识别影响的功能模块
-git diff --stat origin/main..HEAD
-```
+这一阶段的目标不是重写文档，而是让文档和当前实现保持一致。具体方法见 `documenter-guide.md`。
 
-### 1.2 同步技术方案
+## 2. Commit Preparation
 
-```bash
-IF 技术方案.md 需要更新 THEN
-  更新实现记录
-  更新接口文档
-  更新验收标准状态
-END
-```
+提交之前先做一次收口检查：
+- 确认测试和验证结果是最新的
+- 确认工作区里没有无关改动
+- 确认本次提交的文件边界清楚
+- 确认提交信息能够准确描述这次变更
 
-### 1.3 同步其他文档
+如果当前变更太杂，应先整理再提交，而不是用一个大 commit 淹没上下文。
 
-| 文档 | 条件 |
-|------|------|
-| API 文档 | 有 Controller 变更 |
-| README.md | 有重大变更 |
-| 数据库文档 | 有 Entity 变更 |
+## 3. Git Commit
 
-详见 `documenter-guide.md`
+提交信息默认遵循 Conventional Commits，并结合项目自己的来源前缀使用。
 
----
+常见场景：
+- 新功能：`[AI-Gen] feat({id}): ...`
+- 审查修复：`[AI-Review] fix({id}): ...`
+- 文档同步：`[AI-Gen] docs({id}): ...`
 
-## Phase 2: Git Commit
+提交格式细则见 `commit-message-format.md`。
 
-调用 `commit-message-format.md`：
+## 4. PR Workflow
 
-### 2.1 生成 Commit Message
+如果当前仓库使用 Pull Request 流程，就在提交完成后进入 PR 阶段。
 
-```bash
-# AI 生成代码格式
-[AI-Gen] feat({id}): {简短描述}
+PR 的目标不是重复 commit message，而是帮助 reviewer 快速理解：
+- 这次改了什么
+- 为什么这样改
+- 已经验证到什么程度
+- 还有哪些风险或待确认事项
 
-# Review 修复格式
-[AI-Review] fix({id}): {简短描述}
+具体流程见 `pr-workflow.md`。
 
-# 手动修改格式
-[Manual] {type}({id}): {简短描述}
-```
+## 5. Changelog Update
 
-### 2.2 提交
+只有在以下情况之一成立时，才建议更新 `CHANGELOG.md`：
+- 仓库明确维护 changelog
+- 本次变更会进入版本说明
+- 对外行为、接口或使用方式发生了可感知变化
 
-```bash
-# 添加相关文件
-git add {files}
+如果只是局部重构、内部修复或过程性提交，不一定要写进 changelog。规则见 `changelog-update.md`。
 
-# 提交
-git commit -m "[AI-Gen] feat(CSS-1234): {描述}"
+## 输出
 
-# 推送
-git push
-```
+`/tech:commit` 完成后，通常应留下：
 
-详见 `commit-message-format.md`
-
----
-
-## Phase 3: PR Create
-
-调用 `pr-workflow.md`：
-
-### 3.1 Pre-flight Check
-
-```bash
-# 验证通过
-mvn test -q
-IF $? != 0 THEN BLOCK
-
-# 工作区干净
-git status
-IF 有 uncommitted THEN BLOCK
-
-# 远程配置
-git remote -v
-IF 无 remote THEN BLOCK
-```
-
-### 3.2 生成 PR Body
-
-```markdown
-## Summary
-<一句话描述>
-
-## Changes
-- 改动点1
-- 改动点2
-
-## Requirements
-- [x] 测试通过
-- [ ] 代码审查
-- [x] 文档已更新
-
-## Testing
-<测试命令和结果>
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
-```
-
-### 3.3 创建 PR
-
-```bash
-gh pr create \
-  --title "feat(CSS-1234): {描述}" \
-  --body "${PR_BODY}" \
-  --base main \
-  --label "AI-Gen"
-```
-
-详见 `pr-workflow.md`
-
----
-
-## Phase 4: Changelog
-
-调用 `changelog-update.md`：
-
-### 4.1 检查更新需求
-
-```bash
-# 查看 AI 相关的 commits
-git log --format="%s" --grep "^\[AI-Gen\]"
-
-# 决定是否需要更新
-```
-
-### 4.2 更新 CHANGELOG.md
-
-```markdown
-## [Unreleased]
-
-### Added
-- feat(CSS-1234): 实现用户登录功能
-- feat(CSS-1235): 添加订单创建接口
-```
-
-### 4.3 Commit
-
-```bash
-git add CHANGELOG.md
-git commit -m "docs(changelog): update for CSS-1234"
-git push
-```
-
-详见 `changelog-update.md`
-
----
-
-## 输出清单
-
-```
+```text
 features/{id}/
-├── 技术方案.md        # 已同步
-├── code/             # 代码变更
-└── code-review.md    # 审查报告
+├── 技术方案.md
+├── code-review.md
+├── 测试报告.md
+└── VERIFICATION.md
+
+Git:
+├── commit history
+└── pushed branch
 
 PR:
-├── Git Commit        # 已提交
-├── PR Created        # 已创建
-└── CHANGELOG.md      # 已更新
+└── pull request (如果仓库采用 PR 流程)
 ```
 
----
+如果项目维护 `CHANGELOG.md`，此阶段也会把它一起更新。
 
-## 验证
+## 判断标准
 
-### Commit 检查
+一轮合格的 `/tech:commit` 应该满足：
+- 代码、文档和验证结论一致
+- commit history 能说明本次交付内容
+- reviewer 可以只看 PR 就理解改动范围
+- 后续发布或追溯时能找到对应证据
 
-```
-□ 格式正确：type(scope): description
-□ 描述简洁，不超过50字符
-□ 使用祈使语气
-□ 无拼写错误
-```
+## 配套文档
 
-### PR 检查
-
-```
-□ 标题格式正确
-□ Summary 简洁
-□ Changes 列出所有改动
-□ Requirements 已勾选
-□ Testing 有测试结果
-```
-
----
-
-## 参考文档
-
-- `commit-message-format.md` — Commit Message 规范
-- `pr-workflow.md` — PR 创建流程
-- `changelog-update.md` — Changelog 维护
-- `documenter-guide.md` — 文档同步指南
+- `documenter-guide.md`：代码落地后怎么同步说明文档
+- `commit-message-format.md`：commit message 的格式约束
+- `pr-workflow.md`：PR 创建和合并前检查
+- `changelog-update.md`：什么时候更新 changelog、怎么更新
