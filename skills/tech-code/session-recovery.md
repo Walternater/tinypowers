@@ -24,21 +24,33 @@
 
 默认由 `hooks/gsd-session-manager.js` 负责三个时机：
 
-- `SessionStart`：检测是否有未完成 Feature
-- `Stop`：在会话结束时写入恢复快照
-- `PreCompact`：在压缩前保存最小恢复信息
+- `SessionStart`：检测是否有未完成 Feature，注入 notepad 提示
+- `Stop`：在会话结束时写入恢复快照，同时更新 `.tinypowers/notepad.md` 和 `.tinypowers/handoff.json`
+- `PreCompact`：在压缩前保存最小恢复信息到 notepad（穿越 context 重置的关键）
+
+## 持久化状态层（新增）
+
+除了 `/tmp/` 下的临时 Snapshot，会话管理器还会维护 `.tinypowers/` 目录下的持久化文件，它们在 session 结束后仍然保留：
+
+| 文件 | 作用 | 生命周期 |
+|------|------|---------|
+| `.tinypowers/notepad.md` | 压缩前关键状态摘要，resume 时可读取 | 永久，直到 feature 关闭 |
+| `.tinypowers/handoff.json` | 结构化交接信息（phase/wave/tasks/blockers） | 永久，直到 feature 关闭 |
+| `/tmp/tinypowers-session-{id}.json` | 临时恢复入口，24h 后自动失效 | 临时 |
+
+恢复顺序：SessionStart → 检测 handoff.json → 注入 notepad 提示 → 用户确认恢复 → 读取 STATE.md
 
 ## 恢复顺序
 
 ### 1. 检测 Snapshot
 
-在 `SessionStart` 时检查 `/tmp` 下是否存在对应快照。
+在 `SessionStart` 时检查 `/tmp` 下是否存在对应快照，以及 `.tinypowers/handoff.json` 是否存在。
 
 如果没有快照，静默开始新会话。
 
-### 2. 询问是否恢复
+### 2. 询问是否恢复 + 注入 notepad
 
-如果有快照，就提示当前存在未完成 Feature，让用户决定是否继续。
+如果有快照，提示当前存在未完成 Feature，让用户决定是否继续。同时读取 `.tinypowers/notepad.md` 注入压缩前的关键状态摘要。
 
 ### 3. 读取 STATE.md
 
@@ -55,6 +67,7 @@ features/{id}/STATE.md
 - 阻塞项
 - 偏差记录
 - 上次操作
+- Context 使用情况
 
 ### 4. 从断点继续
 
@@ -63,6 +76,7 @@ features/{id}/STATE.md
 - 回到当前 Wave 或当前审查步骤
 - 先处理仍然存在的阻塞项
 - 延续原有决策，不重新发明方案
+- 读取 `features/{id}/notepads/learnings.md` 获取之前积累的智慧
 
 ## Snapshot 中应该有什么
 
@@ -88,8 +102,8 @@ Snapshot 只保存最小恢复信息，例如：
 如果需要手动验证恢复链路，可以直接运行 hook：
 
 ```bash
-node .claude/hooks/gsd-session-manager.js Stop
-node .claude/hooks/gsd-session-manager.js SessionStart
+node hooks/gsd-session-manager.js Stop
+node hooks/gsd-session-manager.js SessionStart
 ```
 
 ## 判断标准

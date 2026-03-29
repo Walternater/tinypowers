@@ -1,6 +1,6 @@
 ---
 name: tech:init
-description: 初始化项目 AI 开发环境，自动检测技术栈，生成规则、模板与入口文件。
+description: 当用户在全新项目中首次使用、或要求重新初始化 AI 开发环境时触发。
 license: MIT
 compatibility: Claude Code
 metadata:
@@ -56,7 +56,7 @@ metadata:
 
 判断条件（满足任意两个即为框架仓库）：
 - 存在 `skills/` 目录且包含 `SKILL.md` 文件
-- 存在 agents/ 目录且包含多个 md 文件
+- 存在 `agents/` 目录且包含多个 md 文件
 - 存在 `manifests/components.json`
 - 存在 `hooks/` 目录
 
@@ -195,3 +195,11 @@ build/
 - `stack-detection.md`
 - `update-strategies.md`
 - `verification.md`
+
+## Gotchas
+
+> 已知失败模式，从实际使用中发现，有机增长。
+
+- **检测到已存在文件就跳过初始化**：但已存在的 CLAUDE.md 可能过时 → 配置不同步：加 `--force` 可以强制覆盖，或先跑 `/tech:doctor` 检查差异
+- **在空目录下初始化**：没有任何源码文件 → 栈检测失效：至少需要有 `package.json` 或 `pom.xml` 等标记文件
+- **覆盖已有配置而不备份**：强制覆盖后原配置丢失 → 无法回滚：init 默认跳过已存在文件，不会自动备份

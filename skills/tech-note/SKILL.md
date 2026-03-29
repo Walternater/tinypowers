@@ -1,6 +1,6 @@
 ---
 name: tech:note
-description: 零摩擦记录想法、待办和远期种子。
+description: 当用户要求快速记录想法、添加待办事项、或捕获远期种子想法时触发。
 license: MIT
 compatibility: Claude Code
 metadata:
@@ -148,3 +148,11 @@ scope: {Small/Medium/Large}
 - 它只是想法、待办还是未来方向
 - 现在需不需要处理
 - 什么时候再回来看它
+
+## Gotchas
+
+> 已知失败模式，从实际使用中发现，有机增长。
+
+- **记录后不引用**：在 note 中写了 ideas 但在 `/tech:code` 中从不看 → seed 永远不会被激活：seed 只在 `/tech:feature` Phase 0 被扫描，必须在那个时机引用才能生效
+- **把 note 当 todo 用**：把"我要做 X"记在 note 里而不是 todo → 没有验收标准无法关闭：没有清晰完成标准的应该记在 todo 而不是 note
+- **seed 堆积不看**：seeds 目录下有 20+ 个未处理的种子 → 积累过多失去价值：seed 只保留活跃相关的，超过 10 个应定期清理或合并

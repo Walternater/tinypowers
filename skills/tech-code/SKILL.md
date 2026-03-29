@@ -1,6 +1,6 @@
 ---
 name: tech:code
-description: Wave并行执行 + 顺序审查循环，支持偏差处理、质量门禁和Session恢复。
+description: 当用户要求执行已规划的任务、开始编码实现、或继续未完成的 wave 执行时触发。
 license: MIT
 compatibility: Claude Code
 metadata:
@@ -91,9 +91,11 @@ Plan Check
 - 启动前先读取或创建 `features/{id}/STATE.md`
 - 按依赖图分 Wave，同一 Wave 内的任务可以并行，不同 Wave 必须串行
 - **启动 Wave 前执行上下文预加载**（见 `context-preload.md`）
+- **优先使用 Per-Task 命令文件**（`features/{id}/commands/T-XXX-execute.md`）减少 token 浪费
 - 每个任务都要带着明确的验收标准、相关文件和技术方案上下文执行
 - 执行前先读现有代码，禁止脱离上下文直接生成新实现
 - 每个 Wave 完成后必须执行质量门禁
+- **每个 Wave 完成后必须提取智慧积累**到 `features/{id}/notepads/learnings.md`
 
 ### 任务分配要求
 
@@ -171,6 +173,7 @@ Plan Check
 - 使用 `task` 工具调用 `tech-verifier`
 - 回到技术方案核对功能点、接口、数据结构和验收标准
 - 检查测试结果和覆盖率目标
+- 确认 `notepads/learnings.md` 包含所有 Wave 的智慧积累
 - 产出验证报告
 
 ### 默认目标
@@ -192,7 +195,12 @@ features/{id}/
 ├── STATE.md
 ├── code-review.md
 ├── 测试报告.md
-└── VERIFICATION.md
+├── VERIFICATION.md
+├── notepads/
+│   └── learnings.md       # 每个 Wave 的智慧积累
+└── commands/             # Per-Task 执行命令文件（可选）
+    ├── T-001-execute.md
+    └── ...
 ```
 
 代码变更此时仍处于“待提交”状态，统一由 `/tech:commit` 收口。
@@ -212,3 +220,11 @@ features/{id}/
 - `quality-gate.md`：每个 Wave 之后的门禁要求
 - `deviation-handling.md`：偏差分类、升级条件和记录方式
 - `anti-rationalization.md`：防止绕过门禁时自我合理化
+
+## Gotchas
+
+> 已知失败模式，从实际使用中发现，有机增长。
+
+- **审查阶段跳过直接推进**：Step 1 失败后直接尝试修复代码而不重跑 Step 1 → 审查结果仍为 FAIL：每次修复后必须重新跑对应 Step
+- **3 次失败后继续同方向**：同一 Wave 内连续失败 3 次后换方向继续 → 架构质疑失效：严格在第 3 次失败后停止并升级
+- **STATE.md 和 Snapshot 不一致**：Snapshot 说 Wave 3，STATE.md 说 Wave 2 → 以 STATE.md 为准，Snapshot 只是恢复提示

@@ -40,7 +40,7 @@ features/{id}/STATE.md
 
 ## 进度
 ### Wave 1 DONE
-- [x] T-001 ...
+- [x] T-001 ... (智慧已积累)
 
 ### Wave 2 IN_PROGRESS
 - [ ] T-002 ...
@@ -55,7 +55,7 @@ features/{id}/STATE.md
 - 无
 
 ## 上次操作
-- Wave 1 门禁通过，开始 Wave 2
+- Wave 1 门禁通过，智慧已积累到 learnings.md，开始 Wave 2
 ```
 
 ## 必须更新的时机

@@ -1,6 +1,6 @@
 ---
 name: tech:progress
-description: 读取 Feature 状态并推荐下一步动作。
+description: 当用户询问当前进度、查看 feature 执行状态、或要求推荐下一步动作时触发。
 license: MIT
 compatibility: Claude Code
 metadata:
@@ -100,3 +100,11 @@ metadata:
 - 每个 Feature 卡在哪一段
 - 下一步应该做什么
 - 是否存在必须先处理的阻塞项
+
+## Gotchas
+
+> 已知失败模式，从实际使用中发现，有机增长。
+
+- **STATE.md 为空或过时**：但仍在报告进度 → 报告与实际不符：progress 默认从 STATE.md 读取，如果 STATE.md 不存在则静默跳过，不生成误导信息
+- **只读不推进**：反复查看进度但不实际推进 → 状态不变：progress 是信息工具，不是推进工具；读完应主动决策下一步
+- **多个活跃 Feature 时混淆**：没有指定具体是哪个 Feature → 报告不精准：progress 默认显示所有活跃 Feature 的汇总，加 `--feature <id>` 可以只看单个

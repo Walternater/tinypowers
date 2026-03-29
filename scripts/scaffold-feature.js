@@ -74,9 +74,64 @@ function main() {
   const featureDir = path.join(args.root, 'features', `${featureId}-${featureName}`);
 
   fs.mkdirSync(featureDir, { recursive: true });
-  for (const dir of ['notes', 'todos', 'seeds', 'archive']) {
+  for (const dir of ['notes', 'todos', 'seeds', 'archive', 'notepads', 'commands']) {
     fs.mkdirSync(path.join(featureDir, dir), { recursive: true });
   }
+
+  const notepadsDir = path.join(featureDir, 'notepads');
+  const learningsPath = path.join(notepadsDir, 'learnings.md');
+  fs.writeFileSync(learningsPath, [
+    '# 【' + featureId + '】Learnings',
+    '',
+    '> 自动生成 | 最后更新: ' + date,
+    '',
+    '## 积累的智慧',
+    '',
+    '> 每完成一个 Wave 后，在此记录从实现中学到的可复用知识。',
+    '> 格式：Instinct 条目 = 模式描述 + Confidence 评分 + 适用范围',
+    '',
+    '## Instinct 条目（高 Confidence）',
+    '',
+    '> Confidence: 0.3（低，建议验证）/ 0.5-0.7（中高）/ 0.8+（高，可推广）',
+    '',
+    '### 命名约定',
+    '',
+    '| Instinct | Confidence | 适用范围 | 发现 Wave |',
+    '|----------|-----------|---------|----------|',
+    '| | | | |',
+    '',
+    '### 代码模式',
+    '',
+    '| Instinct | Confidence | 适用范围 | 发现 Wave |',
+    '|----------|-----------|---------|----------|',
+    '| | | | |',
+    '',
+    '### 已知陷阱',
+    '',
+    '| Instinct | Confidence | 触发条件 | 解决方案 | 发现 Wave |',
+    '|----------|-----------|---------|---------|----------|',
+    '| | | | | |',
+    '',
+    '### 成功模式',
+    '',
+    '| Instinct | Confidence | 适用范围 | 发现 Wave |',
+    '|----------|-----------|---------|----------|',
+    '| | | | |',
+    '',
+    '## 决策记录',
+    '',
+    '> 本 feature 期间确认的关键决策，供后续参考。',
+    '',
+    '| ID | 决策内容 | 原因 | 确认时间 | 备注 |',
+    '|----|---------|------|---------|------|',
+    '| D-01 | | | | |',
+    '',
+    '## 使用说明',
+    '',
+    '- 新 Wave 开始前，读取本文件并注入相关 Instinct 到 Per-Task 命令文件',
+    '- Confidence >= 0.8 的 Instinct 可考虑贡献回项目根目录的 `.tinypowers/instincts.md`',
+    '- 项目级 instincts 存储在 `.tinypowers/instincts.md`，跨 feature 共享'
+  ].join('\n'));
 
   const context = { featureId, featureName, date };
   const files = [

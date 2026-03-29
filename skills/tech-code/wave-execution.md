@@ -21,7 +21,7 @@ Wave 执行要同时满足三件事：
 
 ## 0. 上下文预加载（每个 Wave 启动前必做）
 
-在启动每个 Wave 的任务分发之前，编排层必须一次性完成上下文收集：
+在启动每个 Wave 的任务分发之前，编排层必须一次性完成上下文收集和 Per-Task 命令文件生成：
 
 ```text
 必读（一次性读取）:
@@ -29,17 +29,24 @@ Wave 执行要同时满足三件事：
   features/{id}/任务拆解表.md
   features/{id}/SPEC-STATE.md
   features/{id}/STATE.md
+  features/{id}/notepads/learnings.md   (如果存在)
 
 按需读:
   features/{id}/需求理解确认.md (仅首次)
   CLAUDE.md (仅首次)
 ```
 
-读取后按 `context-preload.md` 的裁剪规则，将相关上下文注入每个任务的 prompt。
+读取后按 `context-preload.md` 的裁剪规则，为每个任务生成独立的命令文件：
+
+```bash
+mkdir -p features/{id}/commands/
+# 为 Wave 中的每个任务生成 T-XXX-execute.md
+```
 
 核心规则：
 - 已预加载的文件，subagent 禁止重新读取
 - subagent 只读取需要修改的目标源码文件
+- Per-Task 命令文件内嵌所有必要上下文，subagent 只需读取该文件
 - 审查阶段不受此约束（审查需要独立读取完整文件）
 
 详见 `context-preload.md`。
@@ -76,7 +83,17 @@ Wave 只是执行单元，不改变原始任务定义。
 
 ## 3. 分配任务
 
-同一 Wave 内的任务可以并行分配给独立 Agent，但每个任务 prompt 必须完整，至少包含：
+同一 Wave 内的任务可以并行分配给独立 Agent，优先使用 Per-Task 命令文件模式：
+
+```bash
+# 每个任务对应一个命令文件
+features/{id}/commands/T-001-execute.md
+features/{id}/commands/T-002-execute.md
+```
+
+subagent 读取对应的命令文件即可获得所有必要上下文，无需重新读取技术方案等文档。
+
+如果 Per-Task 命令文件不存在，每个任务 prompt 必须完整，至少包含：
 - 任务描述
 - 验收标准
 - 相关文件
@@ -97,10 +114,49 @@ Wave 只是执行单元，不改变原始任务定义。
 - 失败任务已处理完毕或明确阻塞
 - `STATE.md` 已更新
 - 质量门禁已执行完
+- **智慧积累已提取并存入 `notepads/learnings.md`**（新增）
 
 如果当前 Wave 中任何一个任务被阻塞，下一 Wave 默认不能开始。
 
-## 5. Wave 末尾质量门禁
+## 5. Wave 末尾智慧积累（新增）
+
+每个 Wave 完成后，必须从本次实现中提取可复用的知识，写入 `features/{id}/notepads/learnings.md`。
+
+### 应该提取的内容
+
+| 类型 | 内容示例 |
+|------|---------|
+| **命名约定** | 发现了什么命名模式与项目一致/冲突 |
+| **代码模式** | 什么模式被证明有效（如 Builder 模式、链式调用） |
+| **已知陷阱** | 什么错误被修复（如循环导入、BCrypt 初始化问题） |
+| **成功模式** | 什么方法被证明高效（如用 Stream 替代循环） |
+| **依赖发现** | 发现了什么之前未知的依赖关系 |
+
+### 提取格式
+
+```markdown
+## Wave N 智慧 (T-XXX ~ T-YYY)
+
+### [命名约定]
+- + 发现：项目使用 `I` 前缀命名接口（如 `IUserService`）
+
+### [已知陷阱]
+- + 发现：MyBatis XML 中 `<if test="...">` 的条件要加 `!= null` 判断
+
+### [成功模式]
+- + 发现：使用 `@Transactional(propagation = Propagation.REQUIRES_NEW)` 解决自调用事务问题
+```
+
+### 下游任务如何使用
+
+后续 Wave 的 subagent 在读取 Per-Task 命令文件时，会自动注入 `learnings.md` 中的相关条目。每个任务 prompt 中应包含：
+
+```
+## 已积累的智慧 (from learnings.md)
+> [相关条目直接引用]
+```
+
+## 6. Wave 末尾质量门禁
 
 每个 Wave 结束后，都要做一次项目本地检查。默认顺序如下：
 - 编译或构建
@@ -112,7 +168,7 @@ Wave 只是执行单元，不改变原始任务定义。
 
 具体标准见 `quality-gate.md`。
 
-## 6. 失败处理
+## 7. 失败处理
 
 ### 任务级失败
 
@@ -128,7 +184,7 @@ Wave 只是执行单元，不改变原始任务定义。
 - 在当前 Wave 内修复问题
 - 修复后重新跑门禁
 
-## 7. 3 次失败升级
+## 8. 3 次失败升级
 
 同一问题连续失败 3 次后，不再继续第 4 次同方向尝试。
 
@@ -139,7 +195,7 @@ Wave 只是执行单元，不改变原始任务定义。
 
 这时应转入 `deviation-handling.md` 中的架构质疑流程。
 
-## 8. STATE.md 要记录什么
+## 9. STATE.md 要记录什么
 
 每个 Wave 至少要同步以下内容到 `STATE.md`：
 - 当前 Wave 编号
@@ -150,11 +206,12 @@ Wave 只是执行单元，不改变原始任务定义。
 
 如果发生重排、暂停或偏差，也要在同一轮记录下来。
 
-## 结果判断
+## 10. 结果判断
 
 Wave 执行完成，不代表整个 `/tech:code` 完成。
 
 它只表示：
 - 所有任务已按依赖顺序落地
 - 每个 Wave 都通过了本地门禁
+- 每个 Wave 的智慧已积累到 `notepads/learnings.md`
 - 可以进入后续顺序审查

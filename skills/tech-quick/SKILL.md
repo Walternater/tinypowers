@@ -1,6 +1,6 @@
 ---
 name: tech:quick
-description: 快速执行小任务，跳过 discuss 阶段，保留质量保障。
+description: 当用户要求快速完成小任务、或需要跳过详细讨论直接执行简单实现时触发。
 license: MIT
 compatibility: Claude Code
 metadata:
@@ -111,3 +111,11 @@ Agent 快速列出要改的文件和操作：
 - 改动可能影响其他需求
 
 Agent 应主动建议升级，不要强行在 quick 模式下处理复杂任务。
+
+## Gotchas
+
+> 已知失败模式，从实际使用中发现，有机增长。
+
+- **quick 通过后不跑 validate 就 commit**：quick 跳过了部分检查 → 直接 commit 可能引入 lint 问题：`/tech:commit` 前应先跑 `npm run validate` 确认
+- **改动超出 quick 范围但不升级**：继续在 quick 模式下做复杂改动 → 质量保证失效：触及升级条件时必须停止并切换到 `/tech:feature`
+- **自我判断"这个改动简单"**：实际涉及多模块依赖但不承认 → 实现后需要大量回归：复杂度的判断以 tech-plan-checker 的评估为准，不以主观判断为准
