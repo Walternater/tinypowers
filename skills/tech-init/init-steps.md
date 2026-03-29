@@ -6,9 +6,23 @@
 
 它回答的是“初始化到底会落什么文件、怎么落”。
 
+## 框架自举检测
+
+如果检测到当前项目是 tinypowers 框架自身（见 SKILL.md Step 0），以下行为必须调整：
+
+| 正常项目行为 | 框架仓库行为 |
+|-------------|-------------|
+| 创建 `.claude/agents/` | 跳过，Agent 定义在 `agents/` |
+| 创建 `docs/templates/` | 跳过，模板在 `configs/templates/` |
+| 创建 `docs/guides/code-review-checklist.md` | 跳过，已在 `configs/rules/common/` |
+| 创建通用 Agent 定义文件 | 跳过，框架有完整的 `agents/` 目录 |
+| 复制规则文件到项目 | 跳过，规则已在 `configs/rules/` |
+
+框架仓库只需确认目录完整性和模板变量替换，不应创建重复文件。
+
 ## 目录创建
 
-推荐创建这些目录：
+推荐创建这些目录（框架仓库跳过已有目录）：
 
 ```text
 docs/
@@ -18,12 +32,6 @@ configs/rules/
 configs/templates/
 features/
 .claude/
-```
-
-对应命令：
-
-```bash
-mkdir -p docs/guides configs/rules configs/templates features .claude
 ```
 
 ## 模板与内容来源

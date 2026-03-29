@@ -37,6 +37,7 @@ metadata:
 ## 主流程
 
 ```text
+0. 框架自举检测（是否在 tinypowers 仓库自身运行）
 1. 技术栈检测
 2. 检测结果确认
 3. 已初始化检查
@@ -48,6 +49,27 @@ metadata:
 ```
 
 ## 详细步骤
+
+### 0. 框架自举检测
+
+在执行任何初始化动作之前，先判断当前项目是否是 tinypowers 框架自身。
+
+判断条件（满足任意两个即为框架仓库）：
+- 存在 `skills/` 目录且包含 `SKILL.md` 文件
+- 存在 agents/ 目录且包含多个 md 文件
+- 存在 `manifests/components.json`
+- 存在 `hooks/` 目录
+
+如果判定为框架仓库：
+
+- **跳过**：创建 .claude/agents/（框架的 Agent 定义在 agents/ 而不是 .claude/agents/）
+- **跳过**：创建 docs/templates/（框架模板在 configs/templates/）
+- **跳过**：创建 code-review-checklist（框架已有 configs/rules/common/ 下的审查清单）
+- **跳过**：复制通用 Agent 定义（框架已有完整的 agents/ 目录）
+- **保留**：技术栈检测、CLAUDE.md 更新、规则加载、features/ 创建等正常流程
+- **提示**：明确告知用户"检测到框架仓库，已跳过重复创建"
+
+这一步的目的是防止框架用自己的 init 流程创建出重复的 Agent 和模板。
 
 ### 1. 技术栈检测
 
