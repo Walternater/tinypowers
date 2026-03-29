@@ -1,6 +1,6 @@
 ---
 name: tech:debug
-description: 系统化调试流程，用科学方法定位根因并验证修复。
+description: 当用户报告 bug、遇到错误信息、或要求分析定位问题时触发。
 license: MIT
 compatibility: Claude Code
 metadata:
@@ -170,3 +170,11 @@ features/{id}/debug-log.md
 ├── 修复方案
 └── 验证结果
 ```
+
+## Gotchas
+
+> 已知失败模式，从实际使用中发现，有机增长。
+
+- **跳过根因直接修复现象**：看到报错就改代码而不定位根因 → 修复引入新 bug：必须完成假设→验证循环才能开始修复
+- **多个假设同时验证**：同时尝试 2+ 个方向 → 不知道哪个修复有效：一次只验证一个假设
+- **3 次失败后换假设但不升级**：连续失败后换方向但不记录 → 下次会话重复同样失败：3 次失败后必须记录到 `../tech-code/deviation-handling.md` 并讨论

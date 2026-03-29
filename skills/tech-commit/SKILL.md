@@ -1,6 +1,6 @@
 ---
 name: tech:commit
-description: 文档同步、代码提交、PR 创建和 Changelog 收口流程。
+description: 当用户要求提交代码、创建 PR、同步文档、或完成 feature 收口时触发。
 license: MIT
 compatibility: Claude Code
 metadata:
@@ -144,3 +144,11 @@ PR:
 - `commit-message-format.md`：commit message 的格式约束
 - `pr-workflow.md`：PR 创建和合并前检查
 - `changelog-update.md`：什么时候更新 changelog、怎么更新
+
+## Gotchas
+
+> 已知失败模式，从实际使用中发现，有机增长。
+
+- **Commit 缺少验证就推送**：没有先跑 `mvn test` 或 `npm test` 就 push → 测试失败阻断 CI：commit 前必须确认本地验证通过
+- **PR 描述过于简略**：只写"功能完成"而不写 scope → reviewer 不知道改了什么：PR description 必须包含改动范围和测试结论
+- **在 feature 分支上直接 commit main**：没有切回 feature 分支 → commit 落入错误的分支：确认当前分支后再执行 commit

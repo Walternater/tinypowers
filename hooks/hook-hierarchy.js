@@ -7,11 +7,25 @@
 //   minimal  - only security intercepts (beforeToolUse)
 //   standard - security + context monitoring (default)
 //   strict   - security + context monitoring + code format + type checks
+//
+// Disabled hooks:
+//   TINYPOWERS_DISABLED_HOOKS=context-monitor,code-checker,residual-check
+//   Comma-separated list of hook IDs to disable regardless of level
 
 const fs = require('fs');
 const path = require('path');
 
 const HOOK_LEVEL = process.env.TINYPOWERS_HOOK_LEVEL || 'standard';
+const DISABLED_HOOKS = new Set(
+  (process.env.TINYPOWERS_DISABLED_HOOKS || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+);
+
+function isHookDisabled(hookId) {
+  return DISABLED_HOOKS.has(hookId);
+}
 
 const HOOK_CONFIGS = {
   minimal: {
@@ -121,9 +135,30 @@ const HOOK_CONFIGS = {
   }
 };
 
-const config = HOOK_CONFIGS[HOOK_LEVEL] || HOOK_CONFIGS.standard;
+// Apply disabled hooks filter to settings
+const baseConfig = HOOK_CONFIGS[HOOK_LEVEL] || HOOK_CONFIGS.standard;
+const config = JSON.parse(JSON.stringify(baseConfig)); // deep clone
 
-console.log(`Hook level: ${HOOK_LEVEL} - ${config.description}`);
+// Filter out disabled PostToolUse hooks by id
+if (config.settings?.hooks?.PostToolUse) {
+  const idMap = {
+    'gsd-context-monitor.js': 'context-monitor',
+    'gsd-code-checker.js': 'code-checker',
+    'residual-check.js': 'residual-check'
+  };
+  config.settings.hooks.PostToolUse = config.settings.hooks.PostToolUse.filter(hook => {
+    const cmd = hook.hooks?.[0]?.command || '';
+    for (const [file, id] of Object.entries(idMap)) {
+      if (cmd.includes(file) && isHookDisabled(id)) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+const disabledList = DISABLED_HOOKS.size > 0 ? [...DISABLED_HOOKS].join(', ') : 'none';
+console.log(`Hook level: ${HOOK_LEVEL} - ${config.description} | Disabled: ${disabledList}`);
 
 // Output the appropriate configuration
 process.stdout.write(JSON.stringify(config, null, 2));

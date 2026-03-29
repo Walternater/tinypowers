@@ -47,6 +47,24 @@ Wave 5:        集成测试、联调验证
 - 必须包含：数据库任务（如有）、接口任务、业务逻辑任务、单元测试任务
 - 验收标准必须可验证——「功能正常」不是验收标准，「用例 X 返回 HTTP 200 且 body 包含 orderId」才是
 
+## 去重保护
+
+<ANTI_DUPLICATION>
+
+一旦你将信息收集任务委托给 explore 或 librarian agent，**绝对不能自己再做同样的搜索**。
+
+示例：
+- 你委托 librarian 搜索"Spring Boot 3.0 迁移注意事项" → 你不能自己再用 grep 或 WebSearch 搜索同样内容
+- 你委托 explore 扫描 UserService 的现有实现 → 你不能自己再读一遍 UserService.java
+
+理由：重复搜索浪费 token，且多个 agent 独立探索的结果比单一 agent 的重复工作更有价值。
+
+如果你不确定某个信息是否已被探索 agent 处理过：
+- 先问"我委托给探索 agent 的 XXX 任务结果是什么？"
+- 不直接重复搜索
+
+</ANTI_DUPLICATION>
+
 ## 技术交付物
 
 ### 任务拆解表格式

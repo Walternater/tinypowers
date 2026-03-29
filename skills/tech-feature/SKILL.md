@@ -1,6 +1,6 @@
 ---
 name: tech:feature
-description: 从 PRD 分析到技术方案再到任务拆解的完整需求定义流程。
+description: 当用户开始新功能需求、需求模糊不完整、或需要先做技术方案和任务拆解时触发。
 license: MIT
 compatibility: Claude Code
 metadata:
@@ -264,3 +264,11 @@ Epic -> Story -> Task
 - `@docs/guides/prd-analysis-guide.md`
 - `@docs/guides/change-set-model.md`
 - `@configs/templates/tech-design.md`
+
+## Gotchas
+
+> 已知失败模式，从实际使用中发现，有机增长。
+
+- **跳过歧义检测直接做技术方案**：觉得歧义"基本清楚"就开始设计 → 方案在实现时发现需求冲突：歧义检测的高优先级项必须清零才能进入 DESIGN
+- **技术方案不做用户确认就拆任务**：用 AI 自己的理解替代用户意图 → 返工：方案完成后必须通过 `ask_followup_question` 获得明确确认
+- **任务粒度过大**：把"实现订单模块"当一个 Task → 执行时无法评估进度：Task 必须 ≤ 1 人天（8h）

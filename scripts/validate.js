@@ -37,7 +37,8 @@ const VIRTUAL_OUTPUT_REFERENCES = new Set([
   'code-review.md',
   '任务拆解表.md',
   '技术方案.md',
-  '测试报告.md'
+  '测试报告.md',
+  'learnings.md'
 ]);
 
 let errors = 0;
@@ -360,6 +361,7 @@ function resolveReference(ref, baseDir, root) {
 function isVirtualReference(ref) {
   if (ref.includes('{') || ref.includes('*')) return true;
   if (ref.startsWith('features/')) return true;
+  if (ref.startsWith('notepads/') || ref === 'notepads') return true;
   return VIRTUAL_OUTPUT_REFERENCES.has(ref);
 }
 
@@ -457,6 +459,12 @@ function validateRulesStructure() {
         warn(rel, 0, '语言规则未声明扩展 common/ 基础规则');
       } else {
         ok(rel, '已声明扩展 common/');
+      }
+
+      // Check for Glob-scoped rule (e.g. Glob: **/*.java)
+      const fm = parseFrontmatter(content);
+      if (fm && (fm.Glob || fm.glob)) {
+        ok(rel, 'Glob 作用域规则: ' + (fm.Glob || fm.glob));
       }
     }
   }

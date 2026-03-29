@@ -6,3 +6,6 @@ node_modules/
 .claude/skills/tinypowers/
 hooks-settings-template.json
 
+# session state (survives sessions, generated at runtime)
+.tinypowers/
+
