@@ -1,0 +1,8 @@
+.DS_Store
+.idea/
+node_modules/
+
+# install artifacts
+.claude/skills/tinypowers/
+hooks-settings-template.json
+

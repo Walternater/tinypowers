@@ -136,9 +136,9 @@ metadata:
 项目类型: Java (Maven)
 
 已加载:
-- common-coding-style
-- common-security
-- common-testing
+- common/coding-style
+- common/security
+- common/testing
 - java/java-coding-style
 - mysql/*
 

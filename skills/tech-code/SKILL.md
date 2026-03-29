@@ -41,6 +41,12 @@ Plan Check
 
 这条链路必须顺序推进，不能跳步。
 
+## 默认 Context
+
+- Wave Execution 默认使用 `contexts/dev.md`
+- 顺序审查默认使用 `contexts/review.md`
+- 遇到疑难问题时，可临时切到 `contexts/debug.md`
+
 ## 硬约束
 
 - 禁止在 `/tech:commit` 之前自动执行 `git commit`

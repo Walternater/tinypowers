@@ -51,6 +51,15 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{HOOKS_DIR}/residual-check.js\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PreCompact": [
@@ -82,6 +91,16 @@
             "type": "command",
             "command": "node \"{HOOKS_DIR}/config-protection.js\"",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{HOOKS_DIR}/gsd-code-checker.js\"",
+            "timeout": 15
           }
         ]
       }

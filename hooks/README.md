@@ -7,6 +7,7 @@
 - 监控上下文压力
 - 为会话恢复提供入口
 - 防止为了过检查去改配置
+- 检测残留调试代码
 
 ## 设计目标
 
@@ -30,7 +31,7 @@ export TINYPOWERS_HOOK_LEVEL=standard
 |------|------|------|
 | `minimal` | 最轻量保护 | 安全拦截 |
 | `standard` | 默认开发体验 | 安全拦截 + 上下文监控 |
-| `strict` | 更强约束 | 安全拦截 + 上下文监控 + 代码检查 |
+| `strict` | 更强约束 | 安全拦截 + 上下文监控 + 验证提醒 |
 
 推荐：
 - 日常开发：`standard`
@@ -44,8 +45,9 @@ export TINYPOWERS_HOOK_LEVEL=standard
 | `hook-hierarchy.js` | 按级别输出对应 hook 配置 |
 | `gsd-context-monitor.js` | 监控上下文占用，提醒 `/compact` |
 | `gsd-session-manager.js` | SessionStart / Stop / PreCompact 生命周期管理 |
-| `gsd-code-checker.js` | 严格模式下触发额外代码检查 |
+| `gsd-code-checker.js` | 严格模式下提醒运行匹配的验证命令 |
 | `config-protection.js` | 保护 lint / formatter / hook / CI 等关键配置 |
+| `residual-check.js` | Stop 时检测残留调试代码（System.out / console.log） |
 
 ## 核心行为
 
@@ -96,6 +98,17 @@ SessionStart
 - CI 工作流
 - `.claude/`、`hooks/`、`.husky/`
 
+### 4. Strict 验证提醒
+
+`gsd-code-checker.js` 在 `strict` 模式下启用。
+
+它不会替你偷偷运行一整套检查，而是根据最近修改过的文件类型，提醒你运行最匹配的验证命令，例如：
+- Java 改动后提醒 `mvn test`
+- JS / TS 改动后提醒 `npm test`
+- SQL / migration 改动后提醒检查 DDL 与技术方案是否一致
+
+这样可以保留严格模式的约束感，又避免把所有开发场景都强绑到一套固定命令上。
+
 ## 如何接到目标项目
 
 通常在目标项目的 `~/.claude/settings.json` 或项目级设置中挂接：
@@ -121,6 +134,15 @@ SessionStart
             "type": "command",
             "command": "node \"{HOOKS_DIR}/gsd-session-manager.js\" Stop",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{HOOKS_DIR}/residual-check.js\"",
+            "timeout": 10
           }
         ]
       }
@@ -154,6 +176,16 @@ SessionStart
             "type": "command",
             "command": "node \"{HOOKS_DIR}/config-protection.js\"",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{HOOKS_DIR}/gsd-code-checker.js\"",
+            "timeout": 15
           }
         ]
       }
@@ -191,6 +223,6 @@ echo 'export TINYPOWERS_HOOK_LEVEL=strict' >> ~/.zshrc
 
 ## 相关文档
 
-- [tech-code session-recovery](/Users/wcf/personal/tinypowers/skills/tech-code/session-recovery.md)
-- [tech-code state-management](/Users/wcf/personal/tinypowers/skills/tech-code/state-management.md)
-- [README.md](/Users/wcf/personal/tinypowers/README.md)
+- [tech-code session-recovery](../skills/tech-code/session-recovery.md)
+- [tech-code state-management](../skills/tech-code/state-management.md)
+- [README.md](../README.md)

@@ -140,12 +140,13 @@ docs(readme): 更新说明
 
 | 分类 | 文档 |
 |------|------|
-| 编码规范 | `configs/rules/common-coding-style.md` |
-| 安全规范 | `configs/rules/common-security.md` |
-| 测试规范 | `configs/rules/common-testing.md` |
+| 编码规范 | `configs/rules/common/coding-style.md` |
+| 安全规范 | `configs/rules/common/security.md` |
+| 测试规范 | `configs/rules/common/testing.md` |
 | Java 规范 | `configs/rules/java/java-coding-style.md` |
 | MySQL 规范 | `configs/rules/mysql/` |
-| 代码审查清单 | `configs/rules/code-review-checklist.md` |
+| 代码审查清单 | `configs/rules/common/code-review-checklist.md` |
+
 
 ## 给维护者的建议
 
@@ -158,4 +159,4 @@ docs(readme): 更新说明
 
 - [workflow-guide.md](./workflow-guide.md)
 - [prd-analysis-guide.md](./prd-analysis-guide.md)
-- [rules README](/Users/wcf/personal/tinypowers/configs/rules/README.md)
+- [rules README](../../configs/rules/README.md)

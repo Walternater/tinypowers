@@ -45,10 +45,10 @@ author: {{author}}
 
 | 文档 | 用途 |
 |------|------|
-| `@configs/rules/common-coding-style.md` | 通用编码规范 |
-| `@configs/rules/common-security.md` | 安全要求 |
-| `@configs/rules/common-testing.md` | 测试要求 |
-| `@configs/rules/code-review-checklist.md` | 审查清单 |
+| `@configs/rules/common/coding-style.md` | 通用编码规范 |
+| `@configs/rules/common/security.md` | 安全要求 |
+| `@configs/rules/common/testing.md` | 测试要求 |
+| `@configs/rules/common/code-review-checklist.md` | 审查清单 |
 | `@configs/rules/{{tech_stack_short}}/` | 技术栈专属规则 |
 
 ## 项目级硬约束

@@ -40,9 +40,9 @@
 
 默认至少检查：
 
-- [ ] `configs/rules/common-coding-style.md`
-- [ ] `configs/rules/common-security.md`
-- [ ] `configs/rules/common-testing.md`
+- [ ] `configs/rules/common/coding-style.md`
+- [ ] `configs/rules/common/security.md`
+- [ ] `configs/rules/common/testing.md`
 - [ ] 技术栈特定规则已按检测结果加载
 
 例如：

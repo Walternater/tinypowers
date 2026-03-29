@@ -8,6 +8,9 @@
 //   2. Skill frontmatter 必须包含 name, description
 //   3. 交叉引用的文件必须存在（agents, skills, docs, configs）
 //   4. HARD-GATE 和 ANTI-RATIONALIZATION 标签必须正确闭合
+//   5. Agent/Skill 文件最小内容阈值
+//   6. Agent 推荐章节存在性检查
+//   7. Contexts 和 Rules 目录结构验证
 //
 // 退出码: 0 = 全部通过, 1 = 存在错误
 
@@ -15,8 +18,23 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const ROOT = path.resolve(__dirname, '..');
-const fix = process.argv.includes('--fix');
+const argv = process.argv.slice(2);
+const rootIndex = argv.indexOf('--root');
+const ROOT = rootIndex !== -1 && argv[rootIndex + 1]
+  ? path.resolve(argv[rootIndex + 1])
+  : path.resolve(__dirname, '..');
+const fix = argv.includes('--fix');
+const VIRTUAL_OUTPUT_REFERENCES = new Set([
+  'CLAUDE.md',
+  'CHANGELOG.md',
+  'PRD.md',
+  'STATE.md',
+  'VERIFICATION.md',
+  'code-review.md',
+  '任务拆解表.md',
+  '技术方案.md',
+  '测试报告.md'
+]);
 
 let errors = 0;
 let warnings = 0;
@@ -72,6 +90,25 @@ function validateAgents() {
     if (fm.name && fm.description) {
       ok(rel, fm.name);
     }
+
+    // Check minimum content length
+    const strippedContent = content.replace(/[\s#*\-|>`\[\]()]/g, '');
+    if (strippedContent.length < 50) {
+      warn(rel, 0, '文件内容过短（< 50 字符），可能缺少实质内容');
+    }
+
+    // Check recommended sections for agents
+    const recommendedSections = ['核心使命', '审查原则', '沟通风格', '成功指标'];
+    const agentSpecificSections = fm.name?.includes('reviewer')
+      ? ['审查清单', '技术交付物']
+      : ['工作流程'];
+    const allRecommended = [...recommendedSections, ...agentSpecificSections];
+    const missingSections = allRecommended.filter(
+      s => !content.includes(s)
+    );
+    if (missingSections.length > 2) {
+      warn(rel, 0, '缺少多个推荐章节: ' + missingSections.join(', '));
+    }
   }
 }
 
@@ -112,6 +149,10 @@ function validateSkills() {
     const referencedFiles = extractReferences(content);
 
     for (const ref of referencedFiles) {
+      if (isVirtualReference(ref)) {
+        continue;
+      }
+
       const refPath = resolveReference(ref, dir, ROOT);
       if (!refPath) {
         // Skip @agents and @docs references for skill-internal checks
@@ -175,12 +216,13 @@ function validateHooks() {
   for (const file of hookFiles) {
     const rel = path.relative(ROOT, file);
     const content = fs.readFileSync(file, 'utf8');
+    const isStandaloneConfigTool = path.basename(file) === 'hook-hierarchy.js';
 
     // Check for basic structure
-    if (!content.includes('process.stdin')) {
+    if (!content.includes('process.stdin') && !isStandaloneConfigTool) {
       warn(rel, 0, 'Hook 缺少 stdin 读取逻辑');
     }
-    if (!content.includes('process.exit(0)')) {
+    if (!content.includes('process.exit(0)') && !isStandaloneConfigTool) {
       warn(rel, 0, 'Hook 缺少 process.exit(0) — 可能无法正常退出');
     }
 
@@ -311,6 +353,12 @@ function resolveReference(ref, baseDir, root) {
   return null;
 }
 
+function isVirtualReference(ref) {
+  if (ref.includes('{') || ref.includes('*')) return true;
+  if (ref.startsWith('features/')) return true;
+  return VIRTUAL_OUTPUT_REFERENCES.has(ref);
+}
+
 function extractHookCommands(settings) {
   const commands = [];
   const hooks = settings.hooks || {};
@@ -326,6 +374,100 @@ function extractHookCommands(settings) {
   return commands;
 }
 
+// --- Contexts 校验 ---
+
+function validateContexts() {
+  const contextsDir = path.join(ROOT, 'contexts');
+  if (!fs.existsSync(contextsDir)) {
+    console.log('SKIP  contexts/ directory not found');
+    return;
+  }
+
+  const contextFiles = findFiles(contextsDir, '.md');
+  console.log('\n=== Context 校验 (' + contextFiles.length + ' files) ===\n');
+
+  const requiredFields = ['Mode:', 'Focus:', 'Behavior', 'Preferred Tools', 'When to Switch'];
+
+  for (const file of contextFiles) {
+    const rel = path.relative(ROOT, file);
+    const content = fs.readFileSync(file, 'utf8');
+
+    const missing = requiredFields.filter(f => !content.includes(f));
+    if (missing.length > 0) {
+      warn(rel, 0, '缺少推荐字段: ' + missing.join(', '));
+    } else {
+      ok(rel, '结构完整');
+    }
+  }
+}
+
+// --- Rules 分层校验 ---
+
+function validateRulesStructure() {
+  const rulesDir = path.join(ROOT, 'configs', 'rules');
+  if (!fs.existsSync(rulesDir)) {
+    console.log('SKIP  configs/rules/ directory not found');
+    return;
+  }
+
+  console.log('\n=== Rules 分层校验 ===\n');
+
+  // Check common/ exists and has required files
+  const commonDir = path.join(rulesDir, 'common');
+  if (!fs.existsSync(commonDir)) {
+    error('configs/rules/', 0, '缺少 common/ 目录');
+  } else {
+    const requiredCommon = ['coding-style.md', 'security.md', 'testing.md'];
+    for (const f of requiredCommon) {
+      if (fs.existsSync(path.join(commonDir, f))) {
+        ok('configs/rules/common/' + f, '通用规则存在');
+      } else {
+        error('configs/rules/common/', 0, '缺少通用规则文件: ' + f);
+      }
+    }
+  }
+
+  // Check language-specific rules have extension declarations
+  const langDirs = fs.readdirSync(rulesDir, { withFileTypes: true })
+    .filter(d => d.isDirectory() && d.name !== 'common')
+    .map(d => d.name);
+
+  for (const lang of langDirs) {
+    const langDir = path.join(rulesDir, lang);
+    const langFiles = findFiles(langDir, '.md');
+
+    for (const file of langFiles) {
+      const rel = path.relative(ROOT, file);
+      const content = fs.readFileSync(file, 'utf8');
+
+      // Check if it references common/
+      if (!content.includes('common/') && !content.includes('通用')) {
+        warn(rel, 0, '语言规则未声明扩展 common/ 基础规则');
+      } else {
+        ok(rel, '已声明扩展 common/');
+      }
+    }
+  }
+
+  // Check install manifest references match actual structure
+  const manifestPath = path.join(ROOT, 'manifests', 'components.json');
+  if (fs.existsSync(manifestPath)) {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      for (const [name, comp] of Object.entries(manifest.components || {})) {
+        for (const src of (comp.sources || [])) {
+          const srcPath = path.join(ROOT, src);
+          if (!fs.existsSync(srcPath)) {
+            warn('manifests/components.json', 0, '组件 ' + name + ' 引用源不存在: ' + src);
+          }
+        }
+      }
+    } catch (e) {
+      warn('manifests/components.json', 0, 'JSON 解析失败: ' + e.message);
+    }
+  }
+}
+
 // --- 主流程 ---
 
 console.log('tinypowers 定义校验器');
@@ -335,6 +477,8 @@ console.log('根目录: ' + ROOT);
 validateAgents();
 validateSkills();
 validateHooks();
+validateContexts();
+validateRulesStructure();
 
 console.log('\n==================');
 console.log('结果: ' + errors + ' 错误, ' + warnings + ' 警告');

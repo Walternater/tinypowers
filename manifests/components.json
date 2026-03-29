@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "defaultComponents": [
+    "core",
+    "rules-common",
+    "templates",
+    "contexts"
+  ],
+  "components": {
+    "core": {
+      "description": "核心工作流：Skills、Agents、基础 Hooks",
+      "required": true,
+      "sources": [
+        "skills/",
+        "agents/",
+        "hooks/",
+        "docs/",
+        ".claude-plugin/",
+        ".codex/",
+        ".opencode/",
+        "manifests/",
+        "install.sh",
+        "scripts/validate.js",
+        "scripts/install-manifest.js",
+        "scripts/doctor.js",
+        "scripts/repair.js",
+        "package.json",
+        "README.md"
+      ]
+    },
+    "rules-common": {
+      "description": "通用编码规范（所有项目推荐安装）",
+      "required": false,
+      "sources": [
+        "configs/rules/common/"
+      ]
+    },
+    "rules-java": {
+      "description": "Java / Spring Boot 编码规范",
+      "requires": "rules-common",
+      "sources": [
+        "configs/rules/java/"
+      ]
+    },
+    "rules-mysql": {
+      "description": "MySQL 数据库规范",
+      "requires": "rules-common",
+      "sources": [
+        "configs/rules/mysql/"
+      ]
+    },
+    "templates": {
+      "description": "文档模板：CLAUDE.md、PRD、技术方案、测试报告",
+      "required": false,
+      "sources": [
+        "configs/templates/"
+      ]
+    },
+    "contexts": {
+      "description": "工作模式定义：dev / research / review / debug",
+      "required": false,
+      "sources": [
+        "contexts/"
+      ]
+    },
+    "tests": {
+      "description": "仓库脚本与 Hook 的最小回归测试",
+      "required": false,
+      "sources": [
+        "tests/"
+      ]
+    }
+  },
+  "profiles": {
+    "java-fullstack": {
+      "description": "Java + Spring Boot + MySQL 全栈",
+      "components": ["core", "rules-common", "rules-java", "rules-mysql", "templates", "contexts"]
+    },
+    "java-light": {
+      "description": "Java 后端（无数据库规范）",
+      "components": ["core", "rules-common", "rules-java", "templates"]
+    },
+    "minimal": {
+      "description": "仅核心工作流，不带规范",
+      "components": ["core"]
+    }
+  },
+  "stackDetection": {
+    "java": {
+      "files": ["pom.xml", "build.gradle", "build.gradle.kts"],
+      "components": ["rules-java"]
+    },
+    "mysql": {
+      "files": ["*.sql", "src/main/resources/db/", "src/main/resources/schema.sql"],
+      "dirs": ["flyway", "liquibase", "src/main/resources/db"],
+      "components": ["rules-mysql"]
+    },
+    "spring-boot": {
+      "files": ["pom.xml"],
+      "contentPatterns": ["spring-boot", "org.springframework"],
+      "components": ["rules-java"]
+    }
+  }
+}

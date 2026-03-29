@@ -1,5 +1,8 @@
 # Java 编码规范
 
+> 本文件扩展 [common/coding-style.md](../common/coding-style.md) 与 [common/security.md](../common/security.md)，
+> 提供 Java / Spring Boot 特定约束。通用原则以 common 为准，此处仅定义 Java 惯用覆盖。
+
 适用于 Java 项目的编码规范，基于阿里巴巴 Java 开发手册补充。
 
 ---
@@ -341,5 +344,5 @@ com.example.task
 |---------|------|
 | Java 开发规范 | 《阿里巴巴 Java 开发手册》 |
 | MySQL 规范 | `configs/rules/mysql/` |
-| 安全加固 | `configs/rules/common-security.md` |
-| 测试规范 | `configs/rules/common-testing.md` |
+| 安全加固 | `configs/rules/common/security.md` |
+| 测试规范 | `configs/rules/common/testing.md` |

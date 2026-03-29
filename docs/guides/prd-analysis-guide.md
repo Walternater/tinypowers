@@ -143,7 +143,7 @@
 - [ ] 有需要锁定的关键决策
 
 技术方案模板见：
-[tech-design.md](/Users/wcf/personal/tinypowers/configs/templates/tech-design.md)
+[tech-design.md](../../configs/templates/tech-design.md)
 
 ## 第六部分：估算建议
 

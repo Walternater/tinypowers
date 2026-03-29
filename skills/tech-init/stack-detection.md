@@ -63,9 +63,9 @@
   "detected_files": ["pom.xml", "src/main/java"],
   "frameworks": ["Spring Boot", "MyBatis"],
   "recommended_rules": [
-    "configs/rules/common-coding-style.md",
-    "configs/rules/common-security.md",
-    "configs/rules/common-testing.md",
+    "configs/rules/common/coding-style.md",
+    "configs/rules/common/security.md",
+    "configs/rules/common/testing.md",
     "configs/rules/java/java-coding-style.md",
     "configs/rules/mysql/*"
   ]

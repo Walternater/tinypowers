@@ -142,7 +142,7 @@ mvn test jacoco:report
 - 测试结论
 
 测试报告模板见：
-[test-report.md](/Users/wcf/personal/tinypowers/configs/templates/test-report.md)
+[test-report.md](../../configs/templates/test-report.md)
 
 ## TDD 建议
 
