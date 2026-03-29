@@ -28,17 +28,26 @@ Build
 
 如果前面已经失败，默认不再继续跑后面的阻断项。
 
-## 技术栈适配
+## 命令来源
 
-具体命令应跟随项目技术栈。
+门禁命令从项目 `CLAUDE.md` 的 `{{build_command}}` 或 `build_command` 字段读取。
 
-例如 Java 项目通常会用：
-- `mvn compile`
-- `mvn test`
-- `mvn test jacoco:report`
-- `mvn dependency-check:check`
+读取优先级：
+1. `CLAUDE.md` 中的 `build_command` 字段
+2. `stack-detection.md` 中的技术栈默认值（见下方参考表）
+3. 如果都读不到，提示用户手动指定
 
-如果项目不是 Maven，就替换成等价命令，但保持同样的门禁语义。
+### 参考默认命令
+
+| 技术栈 | Build | Test | Coverage | Security |
+|--------|-------|------|----------|----------|
+| Java (Maven) | `mvn compile` | `mvn test` | `mvn test jacoco:report` | `mvn dependency-check:check` |
+| Java (Gradle) | `./gradlew classes` | `./gradlew test` | `./gradlew jacocoTestReport` | `./gradlew dependencyCheckAnalyze` |
+| Node.js | `npm run build` | `npm test` | `npx c8 npm test` | `npm audit` |
+| Go | `go build ./...` | `go test ./...` | `go test -coverprofile=cover.out ./...` | `govulncheck ./...` |
+| Python | `python -m compileall .` | `pytest` | `pytest --cov` | `pip audit` |
+
+如果项目使用其他技术栈，替换成等价命令，但保持同样的门禁语义。
 
 ## 结果解释
 

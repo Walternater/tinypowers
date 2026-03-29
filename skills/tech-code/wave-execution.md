@@ -108,7 +108,7 @@ Wave 只是执行单元，不改变原始任务定义。
 - 覆盖率检查
 - 安全或依赖扫描
 
-Java 项目可用 Maven 命令作为默认实现；其他技术栈按项目实际命令替换，但门禁含义不变。
+门禁命令从项目 `CLAUDE.md` 的 `build_command` 字段读取，具体默认值见 `quality-gate.md`。
 
 具体标准见 `quality-gate.md`。
 
