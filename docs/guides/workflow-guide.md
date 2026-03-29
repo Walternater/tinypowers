@@ -109,6 +109,15 @@ Verification
 - `技术方案.md`
 - `任务拆解表.md`
 
+阶段推进建议同步更新 `SPEC-STATE.md`：
+
+```bash
+node .claude/skills/tinypowers/scripts/update-spec-state.js \
+  --feature features/{id} \
+  --to REQ|DESIGN|TASKS|EXEC \
+  --note "阶段推进说明"
+```
+
 硬门禁：
 - 技术方案未经确认，不能进入编码
 - 任务拆解未经确认，不能进入 `/tech:code`

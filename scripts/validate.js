@@ -658,6 +658,7 @@ function validateFeatureScaffold() {
   const requiredTemplates = [
     'configs/templates/change-set.md',
     'configs/templates/spec-state.md',
+    'configs/templates/state.md',
     'configs/templates/prd-template.md',
     'configs/templates/requirements-confirmation.md',
     'configs/templates/tech-design.md',

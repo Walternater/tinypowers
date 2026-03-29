@@ -81,6 +81,7 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 | `npm run doctor` | 检查安装是否完整、hooks 是否接线 |
 | `npm run repair` | 强制重装并重新跑 doctor |
 | `npm run scaffold:feature -- --id CSS-1234 --name 用户登录` | 创建 feature change set 骨架 |
+| `npm run spec-state:update -- --feature features/CSS-1234-用户登录 --to REQ --note "PRD ready"` | 推进 `SPEC-STATE.md` 阶段 |
 | `npm test` | 跑最小脚本与 hook 回归测试 |
 
 ## 维护建议

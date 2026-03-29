@@ -25,6 +25,7 @@
         "scripts/doctor.js",
         "scripts/repair.js",
         "scripts/scaffold-feature.js",
+        "scripts/update-spec-state.js",
         "package.json",
         "README.md"
       ]

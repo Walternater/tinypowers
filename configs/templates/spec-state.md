@@ -32,11 +32,14 @@ updated: {date}
 
 | 产物 | 路径 | 状态 |
 |------|------|------|
+| CHANGESET | CHANGESET.md | done |
 | PRD | PRD.md | pending |
 | 需求理解确认 | 需求理解确认.md | pending |
 | 技术方案 | 技术方案.md | pending |
 | 任务拆解表 | 任务拆解表.md | pending |
+| 生命周期状态 | SPEC-STATE.md | active |
 | STATE | STATE.md | pending |
+| 阶段评审 | 评审记录.md | pending |
 | 审查记录 | code-review.md | pending |
 | 验证报告 | VERIFICATION.md | pending |
 

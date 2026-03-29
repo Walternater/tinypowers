@@ -100,6 +100,23 @@ node .claude/skills/tinypowers/scripts/scaffold-feature.js --id CSS-1234 --name 
 - `评审记录.md`
 - `notes/`、`todos/`、`seeds/`、`archive/`
 
+阶段推进也可以用脚本更新：
+
+```bash
+node .claude/skills/tinypowers/scripts/update-spec-state.js \
+  --feature features/CSS-1234-用户登录 \
+  --to REQ \
+  --note "PRD ready"
+```
+
+这个脚本会：
+- 校验当前 phase 是否允许推进
+- 检查目标阶段的前置工件
+- 更新 `phase`、`updated`
+- 追加阶段历史
+- 重写产物状态表
+- 在进入 `EXEC` 时自动创建 `STATE.md`（如果模板存在）
+
 ## 当前边界
 
 这一版 change set 模型还是轻量版：

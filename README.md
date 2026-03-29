@@ -172,6 +172,8 @@ git clone https://github.com/Walternater/tinypowers.git /path/to/project/.claude
 /tech:feature
 # 或先生成 change set 骨架
 npm run scaffold:feature -- --id CSS-1234 --name 用户登录
+# 推进 SPEC-STATE 生命周期
+npm run spec-state:update -- --feature features/CSS-1234-用户登录 --to REQ --note "PRD ready"
 ```
 
 ### 4. 进入执行态
