@@ -25,8 +25,11 @@ metadata:
 - `features/{id}/任务拆解表.md`
 - `features/{id}/技术方案.md`
 - `features/{id}/STATE.md`
+- `features/{id}/SPEC-STATE.md`
 
 如果 `STATE.md` 不存在，则在启动时创建。
+
+如果 `SPEC-STATE.md` 存在，Phase 1 必须验证当前 phase 为 `TASKS` 或 `EXEC`，禁止在 `INIT`/`REQ`/`DESIGN` 阶段进入 code。
 
 ## 主流程
 
@@ -60,6 +63,13 @@ Plan Check
 
 目标是确认任务表足够可靠，值得进入执行阶段。
 
+### Spec State 校验
+
+如果 `SPEC-STATE.md` 存在：
+- 读取当前 phase 字段
+- 当前 phase 必须为 `TASKS` 或 `EXEC`，否则输出阻塞说明并暂停
+- 更新 phase 为 `EXEC`
+
 ### 必做事项
 
 - 使用 `task` 工具调用 `tech-plan-checker`
@@ -80,6 +90,7 @@ Plan Check
 
 - 启动前先读取或创建 `features/{id}/STATE.md`
 - 按依赖图分 Wave，同一 Wave 内的任务可以并行，不同 Wave 必须串行
+- **启动 Wave 前执行上下文预加载**（见 `context-preload.md`）
 - 每个任务都要带着明确的验收标准、相关文件和技术方案上下文执行
 - 执行前先读现有代码，禁止脱离上下文直接生成新实现
 - 每个 Wave 完成后必须执行质量门禁

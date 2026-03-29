@@ -34,19 +34,27 @@
 
 ```text
 features/{需求编号}-{需求名称}/
+├── CHANGESET.md
+├── SPEC-STATE.md
 ├── PRD.md
 ├── 需求理解确认.md
 ├── 技术方案.md
 ├── 任务拆解表.md
+├── 评审记录.md
 ├── STATE.md
 ├── code-review.md
-└── 评审记录.md
+├── notes/
+├── todos/
+├── seeds/
+└── archive/
 ```
 
 说明：
+- `CHANGESET.md` 是当前变更的目录首页
+- `SPEC-STATE.md` 负责跨阶段生命周期状态
 - `技术方案.md` 是方案与决策锁定的主文档
 - `任务拆解表.md` 是执行入口
-- `STATE.md` 是执行状态主数据源
+- `STATE.md` 在进入执行态后成为主状态数据源
 
 ## 全流程总览
 
@@ -87,6 +95,7 @@ Verification
 这个阶段产出“可执行的需求定义”，而不是直接写代码。
 
 主要步骤：
+- 创建 change set 骨架
 - 读取 `PRD.md`
 - 输出需求理解和澄清问题
 - 生成技术方案
@@ -170,10 +179,11 @@ tinypowers 强制采用下面的顺序：
 
 ```text
 1. /tech:feature
-2. 准备 PRD.md
-3. 确认技术方案
-4. 确认任务拆解
-5. /tech:code
+2. 创建 change set 骨架
+3. 准备 PRD.md
+4. 确认技术方案
+5. 确认任务拆解
+6. /tech:code
 ```
 
 ### 中断后继续
@@ -195,6 +205,8 @@ tinypowers 强制采用下面的顺序：
 ## 交付清单
 
 一个完整需求通常至少应包含：
+- `features/{id}/CHANGESET.md`
+- `features/{id}/SPEC-STATE.md`
 - `features/{id}/技术方案.md`
 - `features/{id}/任务拆解表.md`
 - `features/{id}/STATE.md`
@@ -211,3 +223,4 @@ tinypowers 强制采用下面的顺序：
 - [tech-feature skill](../../skills/tech-feature/SKILL.md)
 - [tech-code skill](../../skills/tech-code/SKILL.md)
 - [tech-commit skill](../../skills/tech-commit/SKILL.md)
+- [change-set-model.md](./change-set-model.md)

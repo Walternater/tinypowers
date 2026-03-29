@@ -24,6 +24,7 @@
         "scripts/install-manifest.js",
         "scripts/doctor.js",
         "scripts/repair.js",
+        "scripts/scaffold-feature.js",
         "package.json",
         "README.md"
       ]

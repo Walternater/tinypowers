@@ -80,6 +80,7 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 | `npm run validate` | 检查仓库内容定义是否一致 |
 | `npm run doctor` | 检查安装是否完整、hooks 是否接线 |
 | `npm run repair` | 强制重装并重新跑 doctor |
+| `npm run scaffold:feature -- --id CSS-1234 --name 用户登录` | 创建 feature change set 骨架 |
 | `npm test` | 跑最小脚本与 hook 回归测试 |
 
 ## 维护建议
@@ -89,3 +90,10 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 - 运行期行为变化优先更新 `hooks/` 与 `doctor`
 - 安装能力变化优先更新 `manifests/`、`install.sh`、多宿主文档
 - 新能力如果无法映射到这张表，先确认是不是引入了重复层
+
+## 延伸文档
+
+- `docs/guides/runtime-matrix.md`
+- `docs/guides/generated-vs-curated-policy.md`
+- `docs/guides/change-set-model.md`
+- `docs/guides/optimization-roadmap-2026.md`

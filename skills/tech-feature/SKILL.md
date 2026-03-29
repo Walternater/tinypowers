@@ -27,12 +27,39 @@ metadata:
 
 ```text
 features/{需求编号}-{需求名称}/
+├── CHANGESET.md
+├── SPEC-STATE.md          # 生命周期状态（各阶段产物追踪）
 ├── PRD.md
 ├── 需求理解确认.md
 ├── 技术方案.md
 ├── 任务拆解表.md
-└── 评审记录.md
+├── 评审记录.md
+├── notes/
+├── todos/
+├── seeds/
+└── archive/
 ```
+
+## Spec 状态机
+
+每个 Feature 必须在 Phase 0 创建 `SPEC-STATE.md`，并在每个 Phase 完成后更新阶段标记。
+
+阶段推进规则（禁止跳步）：
+
+```text
+INIT → REQ → DESIGN → TASKS → EXEC → REVIEW → VERIFY → CLOSED
+```
+
+前置条件：
+
+| 推进到 | 必须存在的产物 |
+|--------|--------------|
+| REQ | PRD.md 非空 |
+| DESIGN | 需求理解确认.md 含"已确认" |
+| TASKS | 技术方案.md 含已锁定决策 |
+| EXEC | 任务拆解表.md 通过 plan-check |
+
+模板见 `@configs/templates/spec-state.md`。
 
 ## 主流程
 
@@ -91,6 +118,21 @@ Phase 4: 任务拆解
 features/CSS-1234-用户登录/
 feature/CSS-1234-用户登录
 ```
+
+推荐直接用脚手架创建 change set 骨架：
+
+```bash
+node .claude/skills/tinypowers/scripts/scaffold-feature.js --id CSS-1234 --name 用户登录
+```
+
+如果只手动创建，也至少应从模板补齐 `CHANGESET.md` 和 `SPEC-STATE.md`：
+
+```bash
+cp {tinypowers}/configs/templates/change-set.md features/{id}/CHANGESET.md
+cp {tinypowers}/configs/templates/spec-state.md features/{id}/SPEC-STATE.md
+```
+
+将模板变量替换为实际值。
 
 ## Phase 1：需求理解
 
@@ -220,4 +262,5 @@ Epic -> Story -> Task
 - `task-breakdown.md`
 - `verification.md`
 - `@docs/guides/prd-analysis-guide.md`
+- `@docs/guides/change-set-model.md`
 - `@configs/templates/tech-design.md`

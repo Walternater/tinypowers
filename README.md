@@ -170,6 +170,8 @@ git clone https://github.com/Walternater/tinypowers.git /path/to/project/.claude
 
 ```bash
 /tech:feature
+# 或先生成 change set 骨架
+npm run scaffold:feature -- --id CSS-1234 --name 用户登录
 ```
 
 ### 4. 进入执行态
@@ -240,10 +242,13 @@ tinypowers/
 3. [skills/tech-code/SKILL.md](./skills/tech-code/SKILL.md)
 4. [docs/guides/repo-normalization-summary.md](./docs/guides/repo-normalization-summary.md)
 5. [docs/guides/capability-map.md](./docs/guides/capability-map.md)
-6. [hooks/README.md](./hooks/README.md)
-7. [agents/tech-plan-checker.md](./agents/tech-plan-checker.md)
-8. [agents/spec-compliance-reviewer.md](./agents/spec-compliance-reviewer.md)
-9. [agents/tech-verifier.md](./agents/tech-verifier.md)
+6. [docs/guides/runtime-matrix.md](./docs/guides/runtime-matrix.md)
+7. [docs/guides/generated-vs-curated-policy.md](./docs/guides/generated-vs-curated-policy.md)
+8. [docs/guides/change-set-model.md](./docs/guides/change-set-model.md)
+9. [hooks/README.md](./hooks/README.md)
+10. [agents/tech-plan-checker.md](./agents/tech-plan-checker.md)
+11. [agents/spec-compliance-reviewer.md](./agents/spec-compliance-reviewer.md)
+12. [agents/tech-verifier.md](./agents/tech-verifier.md)
 
 ## 贡献建议
 
@@ -261,6 +266,8 @@ tinypowers/
 - 如果修改了 hook 行为，确认文档和实现一致
 - 如果不确定当前哪些约定算正式标准，先看 `docs/guides/repo-normalization-summary.md`
 - 如果修改了安装或分发入口，记得同步 `manifests/`、`install.sh`、`doctor` 和多宿主安装文档
+- 如果不确定一个文件该不该发布或提交，先看 `docs/guides/generated-vs-curated-policy.md`
+- 如果新增宿主适配或命令映射，先看 `docs/guides/runtime-matrix.md`
 
 ## 参考
 

@@ -17,6 +17,32 @@ Wave 执行要同时满足三件事：
 - `tech-plan-checker` 已通过
 - 锁定决策已回顾完毕
 - `STATE.md` 已创建或已读取
+- `SPEC-STATE.md` phase 为 `TASKS` 或 `EXEC`
+
+## 0. 上下文预加载（每个 Wave 启动前必做）
+
+在启动每个 Wave 的任务分发之前，编排层必须一次性完成上下文收集：
+
+```text
+必读（一次性读取）:
+  features/{id}/技术方案.md
+  features/{id}/任务拆解表.md
+  features/{id}/SPEC-STATE.md
+  features/{id}/STATE.md
+
+按需读:
+  features/{id}/需求理解确认.md (仅首次)
+  CLAUDE.md (仅首次)
+```
+
+读取后按 `context-preload.md` 的裁剪规则，将相关上下文注入每个任务的 prompt。
+
+核心规则：
+- 已预加载的文件，subagent 禁止重新读取
+- subagent 只读取需要修改的目标源码文件
+- 审查阶段不受此约束（审查需要独立读取完整文件）
+
+详见 `context-preload.md`。
 
 ## 1. 构建依赖图
 

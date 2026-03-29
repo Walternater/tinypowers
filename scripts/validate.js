@@ -11,6 +11,8 @@
 //   5. Agent/Skill 文件最小内容阈值
 //   6. Agent 推荐章节存在性检查
 //   7. Contexts 和 Rules 目录结构验证
+//   8. Runtime 入口和边界策略验证
+//   9. Feature change set 骨架完整性验证
 //
 // 退出码: 0 = 全部通过, 1 = 存在错误
 
@@ -27,7 +29,9 @@ const fix = argv.includes('--fix');
 const VIRTUAL_OUTPUT_REFERENCES = new Set([
   'CLAUDE.md',
   'CHANGELOG.md',
+  'CHANGESET.md',
   'PRD.md',
+  'SPEC-STATE.md',
   'STATE.md',
   'VERIFICATION.md',
   'code-review.md',
@@ -374,6 +378,14 @@ function extractHookCommands(settings) {
   return commands;
 }
 
+function readTextIfExists(relPath) {
+  const fullPath = path.join(ROOT, relPath);
+  if (!fs.existsSync(fullPath)) {
+    return null;
+  }
+  return fs.readFileSync(fullPath, 'utf8');
+}
+
 // --- Contexts 校验 ---
 
 function validateContexts() {
@@ -468,6 +480,218 @@ function validateRulesStructure() {
   }
 }
 
+// --- Runtime / 边界策略校验 ---
+
+function validateRuntimeSupport() {
+  console.log('\n=== Runtime 校验 ===\n');
+
+  const requiredFiles = [
+    ['.claude-plugin/plugin.json', 'Claude Code 插件元数据'],
+    ['.codex/INSTALL.md', 'Codex 安装说明'],
+    ['.opencode/README.md', 'OpenCode 接入说明'],
+    ['.opencode/INSTALL.md', 'OpenCode 安装入口'],
+    ['docs/guides/runtime-matrix.md', 'Runtime Matrix 文档'],
+    ['docs/guides/generated-vs-curated-policy.md', 'Generated vs Curated Policy 文档']
+  ];
+
+  for (const [relPath, label] of requiredFiles) {
+    if (fs.existsSync(path.join(ROOT, relPath))) {
+      ok(relPath, label);
+    } else {
+      error(relPath, 0, '缺少运行时或边界策略入口');
+    }
+  }
+
+  const pluginPath = path.join(ROOT, '.claude-plugin', 'plugin.json');
+  if (fs.existsSync(pluginPath)) {
+    try {
+      const plugin = JSON.parse(fs.readFileSync(pluginPath, 'utf8'));
+      const missing = ['name', 'version', 'description'].filter(key => !plugin[key]);
+      if (missing.length > 0) {
+        error('.claude-plugin/plugin.json', 0, '缺少字段: ' + missing.join(', '));
+      } else {
+        ok('.claude-plugin/plugin.json', '基础字段完整');
+      }
+    } catch (e) {
+      error('.claude-plugin/plugin.json', 0, 'JSON 解析失败: ' + e.message);
+    }
+  }
+
+  const runtimeMatrix = readTextIfExists('docs/guides/runtime-matrix.md');
+  if (runtimeMatrix) {
+    const requiredHosts = ['Claude Code', 'Codex', 'OpenCode'];
+    const missingHosts = requiredHosts.filter(host => !runtimeMatrix.includes(host));
+    if (missingHosts.length > 0) {
+      warn('docs/guides/runtime-matrix.md', 0, '未明确提到宿主: ' + missingHosts.join(', '));
+    } else {
+      ok('docs/guides/runtime-matrix.md', '宿主矩阵完整');
+    }
+  }
+}
+
+function validateBoundaryPolicy() {
+  console.log('\n=== 边界策略校验 ===\n');
+
+  const manifestPath = path.join(ROOT, 'manifests', 'components.json');
+  if (fs.existsSync(manifestPath)) {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      const forbiddenSourceRules = [
+        [/^features(?:\/|$)/, 'manifest 不应引用目标项目生成目录'],
+        [/(^|\/)CLAUDE\.md$/, 'manifest 不应引用目标项目生成的 CLAUDE.md'],
+        [/(^|\/)hooks-settings-template\.json$/, 'manifest 不应引用运行时生成模板'],
+        [/(^|\/)\.planning(?:\/|$)/, 'manifest 不应引用运行时状态目录'],
+        [/\/tmp\//, 'manifest 不应引用临时目录']
+      ];
+
+      for (const [name, comp] of Object.entries(manifest.components || {})) {
+        for (const src of (comp.sources || [])) {
+          const normalized = src.replace(/\\/g, '/');
+          for (const [pattern, message] of forbiddenSourceRules) {
+            if (pattern.test(normalized)) {
+              error('manifests/components.json', 0, '组件 ' + name + ' 的 source 非法: ' + src + '；' + message);
+            }
+          }
+        }
+      }
+
+      const profilesWithTests = Object.entries(manifest.profiles || {})
+        .filter(([, profile]) => Array.isArray(profile.components) && profile.components.includes('tests'))
+        .map(([name]) => name);
+      if (profilesWithTests.length > 0) {
+        error('manifests/components.json', 0, '安装 profile 不应包含 tests 组件: ' + profilesWithTests.join(', '));
+      } else {
+        ok('manifests/components.json', 'profile 未混入 tests 组件');
+      }
+    } catch (e) {
+      error('manifests/components.json', 0, 'JSON 解析失败: ' + e.message);
+    }
+  }
+
+  const gitignorePath = path.join(ROOT, '.gitignore');
+  const requiredPatterns = [
+    '.claude/skills/tinypowers/',
+    'hooks-settings-template.json'
+  ];
+  if (!fs.existsSync(gitignorePath)) {
+    error('.gitignore', 0, '缺少 .gitignore，无法保护安装产物');
+    return;
+  }
+
+  const gitignore = fs.readFileSync(gitignorePath, 'utf8');
+  const missingPatterns = requiredPatterns.filter(pattern => !gitignore.includes(pattern));
+  if (missingPatterns.length > 0) {
+    error('.gitignore', 0, '缺少安装产物忽略规则: ' + missingPatterns.join(', '));
+  } else {
+    ok('.gitignore', '安装产物忽略规则完整');
+  }
+}
+
+// --- Spec State 校验 ---
+
+function validateSpecState() {
+  const featuresDir = path.join(ROOT, 'features');
+  if (!fs.existsSync(featuresDir)) {
+    console.log('\n=== Spec State 校验 (skip — no features/) ===\n');
+    return;
+  }
+
+  const entries = fs.readdirSync(featuresDir, { withFileTypes: true })
+    .filter(d => d.isDirectory());
+
+  console.log('\n=== Spec State 校验 (' + entries.length + ' features) ===\n');
+
+  if (entries.length === 0) {
+    console.log('(无 feature 目录)');
+    return;
+  }
+
+  for (const entry of entries) {
+    const featureDir = path.join(featuresDir, entry.name);
+    const specStatePath = path.join(featureDir, 'SPEC-STATE.md');
+    const rel = 'features/' + entry.name + '/SPEC-STATE.md';
+
+    if (!fs.existsSync(specStatePath)) {
+      warn(entry.name, 0, '缺少 SPEC-STATE.md');
+      continue;
+    }
+
+    const content = fs.readFileSync(specStatePath, 'utf8');
+    const phaseMatch = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|EXEC|REVIEW|VERIFY|CLOSED)/);
+
+    if (!phaseMatch) {
+      warn(rel, 0, 'phase 字段缺失或值无效');
+      continue;
+    }
+
+    const phase = phaseMatch[1];
+    const phaseOrder = ['INIT', 'REQ', 'DESIGN', 'TASKS', 'EXEC', 'REVIEW', 'VERIFY', 'CLOSED'];
+    const phaseIndex = phaseOrder.indexOf(phase);
+
+    const requiredArtifacts = [
+      { minPhase: 'REQ', file: 'PRD.md' },
+      { minPhase: 'DESIGN', file: '需求理解确认.md' },
+      { minPhase: 'TASKS', file: '技术方案.md' },
+      { minPhase: 'EXEC', file: '任务拆解表.md' },
+    ];
+
+    let allOk = true;
+    for (const req of requiredArtifacts) {
+      const reqIndex = phaseOrder.indexOf(req.minPhase);
+      if (phaseIndex >= reqIndex) {
+        if (!fs.existsSync(path.join(featureDir, req.file))) {
+          error(rel, 0, 'phase=' + phase + ' 但缺少产物: ' + req.file);
+          allOk = false;
+        }
+      }
+    }
+
+    if (allOk) {
+      ok(rel, 'phase=' + phase);
+    }
+  }
+}
+
+function validateFeatureScaffold() {
+  console.log('\n=== Change Set 骨架校验 ===\n');
+
+  const requiredTemplates = [
+    'configs/templates/change-set.md',
+    'configs/templates/spec-state.md',
+    'configs/templates/prd-template.md',
+    'configs/templates/requirements-confirmation.md',
+    'configs/templates/tech-design.md',
+    'configs/templates/task-breakdown.md',
+    'configs/templates/review-log.md'
+  ];
+
+  for (const relPath of requiredTemplates) {
+    if (fs.existsSync(path.join(ROOT, relPath))) {
+      ok(relPath, '脚手架模板存在');
+    } else {
+      error(relPath, 0, '缺少 change set 脚手架模板');
+    }
+  }
+
+  const scaffoldScript = path.join(ROOT, 'scripts', 'scaffold-feature.js');
+  if (fs.existsSync(scaffoldScript)) {
+    try {
+      execFileSync('node', ['--check', scaffoldScript], { stdio: 'pipe', timeout: 5000 });
+      ok('scripts/scaffold-feature.js', '脚手架脚本语法检查通过');
+    } catch (e) {
+      error('scripts/scaffold-feature.js', 0, '脚手架脚本语法错误: ' + (e.stderr ? e.stderr.toString().trim() : e.message));
+    }
+  } else {
+    error('scripts/scaffold-feature.js', 0, '缺少 feature 脚手架脚本');
+  }
+
+  if (fs.existsSync(path.join(ROOT, 'docs', 'guides', 'change-set-model.md'))) {
+    ok('docs/guides/change-set-model.md', 'change set 模型说明存在');
+  } else {
+    error('docs/guides/change-set-model.md', 0, '缺少 change set 模型说明');
+  }
+}
+
 // --- 主流程 ---
 
 console.log('tinypowers 定义校验器');
@@ -479,6 +703,10 @@ validateSkills();
 validateHooks();
 validateContexts();
 validateRulesStructure();
+validateSpecState();
+validateRuntimeSupport();
+validateBoundaryPolicy();
+validateFeatureScaffold();
 
 console.log('\n==================');
 console.log('结果: ' + errors + ' 错误, ' + warnings + ' 警告');
