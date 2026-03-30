@@ -47,13 +47,30 @@ Document Sync
 
 ## 1. Document Sync
 
-确认代码落地后需要同步的说明文档（技术方案、API 文档、README 等）。不是重写，而是保持一致。详见 `documenter-guide.md`。
+确认代码落地后需要同步的说明文档。不是重写，而是保持一致。
+
+检查项：
+- 技术方案中的接口定义是否与实现一致
+- API 文档是否反映最新变更
+- README 中的示例代码是否可运行
+- 配置说明是否匹配实际配置项
+
+不同步的文档会在后续产生误导，比没有文档更危险。
+
+详见 `documenter-guide.md`。
 
 ## 2. Commit Preparation
 
-收口检查：测试/验证结果最新、工作区无无关改动、文件边界清楚、提交信息准确。
+收口检查清单：
+- [ ] 测试和验证结果是最新的（非历史通过）
+- [ ] 工作区无无关改动（`git status` 干净或仅含预期文件）
+- [ ] 文件边界清楚（一个 commit 只做一件事）
+- [ ] 提交信息准确描述改动内容
+- [ ] 关键决策已记录
+- [ ] 验证证据已附
+- [ ] 未解决项已标注
 
-交接完整性确认：关键决策已记录、验证证据已附、未解决项已标注。
+交接完整性确认：确保后续接手的人能从 commit 和 PR 中理解全部上下文。
 
 ## 3. Git Commit
 
@@ -94,11 +111,27 @@ Confidence: high
 
 如果仓库使用 PR 流程，提交后进入此阶段。PR 目标是帮 reviewer 快速理解改动范围、原因和验证程度。
 
-完成选项：Merge locally / Push and create PR / Keep branch / Discard。详见 `pr-workflow.md`。
+完成选项决策树：
+- 无远程或不使用 PR → **Merge locally**
+- 需要团队审查 → **Push and create PR**
+- 工作未完成但需保存进度 → **Keep branch**
+- 方案变更需重做 → **Discard**
+
+详见 `pr-workflow.md`。
 
 ## 5. Changelog Update
 
-仅在以下情况更新 `CHANGELOG.md`：仓库明确维护 changelog、本次变更进入版本说明、对外行为发生可感知变化。详见 `changelog-update.md`。
+触发条件（全部满足才更新）：
+- 仓库明确维护 `CHANGELOG.md`
+- 本次变更会出现在后续版本说明中
+- 新增、修复或变更会被项目使用者感知
+
+不必更新的场景：
+- 纯内部重构
+- 过程性提交
+- 不对外暴露的微小整理
+
+详见 `changelog-update.md`。
 
 ## 输出
 

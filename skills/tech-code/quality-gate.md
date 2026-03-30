@@ -27,6 +27,27 @@ Build → Test → Coverage → Security Scan。前面失败则不再继续。
 | Node.js | `npm run build` | `npm test` | `npx c8 npm test` | `npm audit` |
 | Go | `go build ./...` | `go test ./...` | `go test -coverprofile=cover.out ./...` | `govulncheck ./...` |
 
+## 4-Level Verification
+
+门禁通过后，对本轮产出做目标回溯验证：
+
+| Level | Name | 验证内容 | 证据要求 |
+|-------|------|----------|----------|
+| L1 | Exists | 文件/方法存在 | 文件路径确认 |
+| L2 | Substantive | 真实实现（非 stub） | 函数有完整逻辑，非空壳 |
+| L3 | Wired | 被其他部分调用 | 调用链确认，grep 或引用 |
+| L4 | Data Flow | 数据真实流通 | 集成测试或端到端数据验证 |
+
+每个验证点必须附带具体证据。没有证据视为未完成。
+
+## 覆盖率基线
+
+| 场景 | 行覆盖率 | 分支覆盖率 |
+|------|---------|-----------|
+| 默认 | >= 80% | >= 70% |
+| 核心业务逻辑 | >= 90% | >= 80% |
+| 项目有更严门槛 | 以项目为准 | 以项目为准 |
+
 ## 报告格式
 
 ```markdown

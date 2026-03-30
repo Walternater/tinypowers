@@ -461,11 +461,7 @@ function validateRulesStructure() {
         ok(rel, '已声明扩展 common/');
       }
 
-      // Check for Glob-scoped rule (e.g. Glob: **/*.java)
-      const fm = parseFrontmatter(content);
-      if (fm && (fm.Glob || fm.glob)) {
-        ok(rel, 'Glob 作用域规则: ' + (fm.Glob || fm.glob));
-      }
+
     }
   }
 

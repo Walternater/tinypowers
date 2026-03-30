@@ -79,6 +79,31 @@ Evidence: 127 tests passed, coverage 94%
 Confidence: high
 ```
 
+### 特殊场景示例
+
+回滚：
+```
+revert(auth): revert session validation change
+
+Reverts commit abc123. Session validation caused
+regression in token refresh flow.
+
+Evidence: rollback test passed
+Confidence: high
+```
+
+Breaking change：
+```
+feat(api)!: change user response format
+
+BREAKING CHANGE: user endpoint now returns nested
+profile object instead of flat fields.
+
+Constraint: Backward compat not possible due to schema migration
+Evidence: migration test passed, 89% coverage
+Confidence: medium
+```
+
 ## 什么时候拆多个 commit
 
 建议拆分：
@@ -95,3 +120,5 @@ Confidence: high
 - scope 是否有助于理解
 - 是否误把不相关的事塞进同一个 commit
 - 是否保留了后续追溯所需的信息
+- trailer 中的 Evidence 是否引用了具体的测试结果
+- Confidence 评级是否诚实（不确定时标 medium/low）

@@ -31,7 +31,14 @@ process.stdin.on('end', () => {
 function handleSessionStart(snapshotPath, cwd) {
   if (!fs.existsSync(snapshotPath)) process.exit(0);
 
-  const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+  let snapshot;
+  try {
+    snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+  } catch (e) {
+    fs.unlinkSync(snapshotPath);
+    process.exit(0);
+  }
+
   const now = Math.floor(Date.now() / 1000);
   if (snapshot.timestamp && (now - snapshot.timestamp) > 86400) {
     fs.unlinkSync(snapshotPath);
@@ -71,32 +78,21 @@ function handleStop(data, snapshotPath, cwd) {
   const featuresDir = path.join(cwd, 'features');
   if (!fs.existsSync(featuresDir)) process.exit(0);
 
-  let latestFeature = null;
-  let latestMtime = 0;
-  for (const entry of fs.readdirSync(featuresDir, { withFileTypes: true })) {
-    if (entry.isDirectory()) {
-      const stateFile = path.join(featuresDir, entry.name, 'STATE.md');
-      if (fs.existsSync(stateFile)) {
-        const stat = fs.statSync(stateFile);
-        if (stat.mtimeMs > latestMtime) {
-          latestMtime = stat.mtimeMs;
-          latestFeature = { id: entry.name, path: path.join(featuresDir, entry.name) };
-        }
-      }
-    }
+  const featureId = detectCurrentFeature(cwd, featuresDir);
+  const stateMdPath = path.join(cwd, 'features', featureId, 'STATE.md');
+
+  if (!fs.existsSync(stateMdPath)) {
+    ensureFeatureDir(cwd, featureId);
+    process.exit(0);
   }
 
-  const featureId = latestFeature?.id || detectCurrentFeature(cwd);
-  const stateMdPath = path.join(cwd, 'features', featureId, 'STATE.md');
-  const summary = fs.existsSync(stateMdPath)
-    ? extractSummaryFromState(fs.readFileSync(stateMdPath, 'utf8'))
-    : {};
+  const summary = extractSummaryFromState(fs.readFileSync(stateMdPath, 'utf8'));
 
   const state = {
     session_id: data.session_id,
     feature_id: featureId,
     feature_path: 'features/' + featureId,
-    current_wave: detectCurrentWave(cwd),
+    current_wave: detectCurrentWave(cwd, featureId),
     timestamp: Math.floor(Date.now() / 1000),
     summary: {
       phase: summary.phase || 'unknown',
@@ -109,7 +105,10 @@ function handleStop(data, snapshotPath, cwd) {
     }
   };
 
-  fs.writeFileSync(snapshotPath, JSON.stringify(state, null, 2));
+  try {
+    fs.writeFileSync(snapshotPath, JSON.stringify(state, null, 2));
+  } catch (e) {}
+
   writeNotepad(cwd, featureId, summary);
 }
 
@@ -130,51 +129,80 @@ function writeNotepad(cwd, featureId, summary) {
   if (summary.last_action) lines.push('Next: ' + summary.last_action);
 
   const notepadPath = path.join(cwd, '.tinypowers', 'notepad.md');
-  fs.mkdirSync(path.dirname(notepadPath), { recursive: true });
-  fs.writeFileSync(notepadPath, lines.join('\n') + '\n');
+  try {
+    fs.mkdirSync(path.dirname(notepadPath), { recursive: true });
+    fs.writeFileSync(notepadPath, lines.join('\n') + '\n');
+  } catch (e) {}
 }
 
 function handlePreCompact(data, snapshotPath, cwd) {
-  const featureId = detectCurrentFeature(cwd);
+  const featuresDir = path.join(cwd, 'features');
+  const featureId = detectCurrentFeature(cwd, featuresDir);
   const stateMdPath = path.join(cwd, 'features', featureId, 'STATE.md');
   const summary = fs.existsSync(stateMdPath)
     ? extractSummaryFromState(fs.readFileSync(stateMdPath, 'utf8'))
     : {};
 
-  fs.writeFileSync(snapshotPath, JSON.stringify({
-    session_id: data.session_id,
-    feature_id: featureId,
-    feature_path: 'features/' + featureId,
-    current_wave: detectCurrentWave(cwd),
-    timestamp: Math.floor(Date.now() / 1000),
-    hook: 'PreCompact'
-  }, null, 2));
+  try {
+    fs.writeFileSync(snapshotPath, JSON.stringify({
+      session_id: data.session_id,
+      feature_id: featureId,
+      feature_path: 'features/' + featureId,
+      current_wave: detectCurrentWave(cwd, featureId),
+      timestamp: Math.floor(Date.now() / 1000),
+      hook: 'PreCompact'
+    }, null, 2));
+  } catch (e) {}
 
   writeNotepad(cwd, featureId, summary);
 
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: "PreCompact",
-      additionalContext: '📸 压缩前已快照：Feature ' + featureId + ', Wave ' + detectCurrentWave(cwd) +
+      additionalContext: '压缩前已快照：Feature ' + featureId + ', Wave ' + detectCurrentWave(cwd, featureId) +
         '\n.tinypowers/notepad.md 已更新。'
     }
   }));
 }
 
-function detectCurrentFeature(cwd) {
+function detectCurrentFeature(cwd, featuresDir) {
   try {
     const { execSync } = require('child_process');
     const branch = execSync('git branch --show-current', { cwd, encoding: 'utf8', timeout: 5000 }).trim();
-    if (branch && branch.startsWith('feature/')) return branch.replace('feature/', '');
+    if (branch && branch.startsWith('feature/')) {
+      const id = branch.replace('feature/', '');
+      if (featuresDir && fs.existsSync(path.join(featuresDir, id))) return id;
+      return id;
+    }
   } catch (e) {}
+
+  if (featuresDir && fs.existsSync(featuresDir)) {
+    let latestFeature = null;
+    let latestMtime = 0;
+    for (const entry of fs.readdirSync(featuresDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        const stateFile = path.join(featuresDir, entry.name, 'STATE.md');
+        if (fs.existsSync(stateFile)) {
+          const stat = fs.statSync(stateFile);
+          if (stat.mtimeMs > latestMtime) {
+            latestMtime = stat.mtimeMs;
+            latestFeature = entry.name;
+          }
+        }
+      }
+    }
+    if (latestFeature) return latestFeature;
+  }
+
   return 'unknown';
 }
 
-function detectCurrentWave(cwd) {
+function detectCurrentWave(cwd, featureId) {
   try {
-    const stateFile = path.join(cwd, 'features', detectCurrentFeature(cwd), 'STATE.md');
+    const stateFile = path.join(cwd, 'features', featureId || detectCurrentFeature(cwd), 'STATE.md');
     if (fs.existsSync(stateFile)) {
-      const match = fs.readFileSync(stateFile, 'utf8').match(/当前 Wave:\s*(\d+)/);
+      const content = fs.readFileSync(stateFile, 'utf8');
+      const match = content.match(/当前 Wave:\s*(\d+)/);
       if (match) return parseInt(match[1]);
     }
   } catch (e) {}
@@ -183,6 +211,7 @@ function detectCurrentWave(cwd) {
 
 function extractSummaryFromState(content) {
   const result = { blockers: [], decisions: [] };
+
   const phaseMatch = content.match(/-\s*当前阶段:\s*(.+)/);
   if (phaseMatch) result.phase = phaseMatch[1].trim();
 
@@ -207,7 +236,23 @@ function extractSummaryFromState(content) {
     if (lines.length > 0) result.last_action = lines[0].replace(/^-\s*/, '').trim();
   }
 
+  const waveAltMatch = content.match(/Wave:\s*(\d+)\s*\/\s*(\d+)/);
+  if (!waveMatch && waveAltMatch) { result.wave = waveAltMatch[1]; result.total_waves = waveAltMatch[2]; }
+
+  const taskAltMatch = content.match(/任务[：:]\s*(\d+)\s*\/\s*(\d+)/);
+  if (result.total_tasks === 0 && taskAltMatch) {
+    result.completed_tasks = parseInt(taskAltMatch[1]);
+    result.total_tasks = parseInt(taskAltMatch[2]);
+  }
+
   return result;
+}
+
+function ensureFeatureDir(cwd, featureId) {
+  const dir = path.join(cwd, 'features', featureId);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch (e) {}
 }
 
 function progressBar(pct) {

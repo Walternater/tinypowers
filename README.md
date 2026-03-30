@@ -30,6 +30,17 @@
 6. **决策锁定追踪** - 所有关键决策必须记录并可追溯。
 7. **拒绝过度设计** - 框架保持轻量，无外部依赖，够用即可。
 
+## 核心概念
+
+| 概念 | 说明 |
+|------|------|
+| HARD-GATE | 关键约束强制检查，不满足则阻断流程 |
+| EARS | 验收标准格式（推荐，不强制） |
+| 4-Level Verification | 证据驱动的验证（L1 Exists → L4 Data Flow） |
+| Decision Guardian | 决策锁定防漂移，编码阶段不能擅自修改已锁定决策 |
+| Anti-Rationalization | 防止自我合理化绕过门禁 |
+| Wave Execution | 依赖驱动的并行执行，按拓扑分 Wave |
+
 ## 能力地图
 
 ### Skills
@@ -86,7 +97,7 @@ configs/rules/
 ├── java/                # Java / Spring Boot（继承 common）
 │   ├── java-coding-style.md
 │   └── testing.md
-└── mysql/               # MySQL DBA 规范
+└── mysql/               # MySQL DBA 规则
 ```
 
 ## 标准流程
@@ -107,6 +118,16 @@ configs/rules/
   -> Document Sync -> Commit -> PR -> Changelog
 ```
 
+## 技术栈兼容性
+
+| 技术栈 | 支持级别 | 说明 |
+|--------|---------|------|
+| Java / Spring Boot | 完整支持 | 主栈，含专属 reviewer |
+| Node.js | 支持 | 标准 npm 工作流 |
+| Go | 支持 | 标准 go 工具链 |
+| Python | 基础支持 | 通用规则适用 |
+| MySQL | 规则层支持 | DBA 规范独立配置 |
+
 ## 统一约定
 
 - 需求工作目录：`features/{id}/`
@@ -124,6 +145,11 @@ cd /path/to/project
 /path/to/tinypowers/install.sh              # 自动检测技术栈
 /path/to/tinypowers/install.sh java-fullstack  # 指定 profile
 ```
+
+可用 profile：
+- `java-fullstack`：Java + Spring Boot + MySQL 全套
+- `node-web`：Node.js Web 应用
+- `minimal`：仅通用规则和核心 skill
 
 ### 2. 初始化
 
@@ -166,7 +192,10 @@ tinypowers/
 │   │   └── session-recovery.md
 │   └── tech-commit/
 │       ├── SKILL.md
-│       └── commit-message-format.md
+│       ├── commit-message-format.md
+│       ├── documenter-guide.md
+│       ├── pr-workflow.md
+│       └── changelog-update.md
 ├── agents/               # 角色化 Agent 提示词
 ├── hooks/                # 运行期 hook 实现
 ├── configs/
