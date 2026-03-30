@@ -10,24 +10,10 @@ function parseArgs(argv) {
   const args = { root: process.cwd(), force: false };
   for (let i = 2; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === '--id') {
-      args.id = argv[i + 1];
-      i += 1;
-      continue;
-    }
-    if (arg === '--name') {
-      args.name = argv[i + 1];
-      i += 1;
-      continue;
-    }
-    if (arg === '--root') {
-      args.root = path.resolve(argv[i + 1]);
-      i += 1;
-      continue;
-    }
-    if (arg === '--force') {
-      args.force = true;
-    }
+    if (arg === '--id') { args.id = argv[i + 1]; i += 1; continue; }
+    if (arg === '--name') { args.name = argv[i + 1]; i += 1; continue; }
+    if (arg === '--root') { args.root = path.resolve(argv[i + 1]); i += 1; continue; }
+    if (arg === '--force') { args.force = true; }
   }
   return args;
 }
@@ -41,25 +27,14 @@ function sanitizeSegment(value) {
   return value.trim().replace(/[\\/:\n\r\t]+/g, '-').replace(/\s+/g, '-');
 }
 
-function readTemplate(name) {
-  return fs.readFileSync(path.join(TEMPLATE_DIR, name), 'utf8');
-}
-
-function render(content, context) {
+function render(content, ctx) {
   return content
-    .replaceAll('{{feature_id}}', context.featureId)
-    .replaceAll('{{feature_name}}', context.featureName)
-    .replaceAll('{{date}}', context.date)
-    .replaceAll('{Feature ID}', context.featureId)
-    .replaceAll('{date}', context.date)
+    .replaceAll('{{feature_id}}', ctx.featureId)
+    .replaceAll('{{feature_name}}', ctx.featureName)
+    .replaceAll('{{date}}', ctx.date)
+    .replaceAll('{Feature ID}', ctx.featureId)
+    .replaceAll('{date}', ctx.date)
     .replaceAll('{phase}', 'INIT');
-}
-
-function writeFileIfMissing(filePath, content, force) {
-  if (fs.existsSync(filePath) && !force) {
-    return;
-  }
-  fs.writeFileSync(filePath, content);
 }
 
 function main() {
@@ -78,8 +53,9 @@ function main() {
     fs.mkdirSync(path.join(featureDir, dir), { recursive: true });
   }
 
-  const notepadsDir = path.join(featureDir, 'notepads');
-  const learningsPath = path.join(notepadsDir, 'learnings.md');
+  const ctx = { featureId, featureName, date };
+
+  const learningsPath = path.join(featureDir, 'notepads', 'learnings.md');
   fs.writeFileSync(learningsPath, [
     '# 【' + featureId + '】Learnings',
     '',
@@ -87,21 +63,16 @@ function main() {
     '',
     '## Wave 总结',
     '',
-    '### Wave 1',
-    '- ',
-    '',
     '## 关键决策',
     '',
     '| ID | 决策 | 原因 |',
     '|----|------|------|',
-    '| D-01 | | |',
     '',
     '## 陷阱',
     '- '
   ].join('\n'));
 
-  const context = { featureId, featureName, date };
-  const files = [
+  const templates = [
     ['CHANGESET.md', 'change-set.md'],
     ['SPEC-STATE.md', 'spec-state.md'],
     ['PRD.md', 'prd-template.md'],
@@ -111,9 +82,11 @@ function main() {
     ['评审记录.md', 'review-log.md']
   ];
 
-  for (const [outputName, templateName] of files) {
-    const rendered = render(readTemplate(templateName), context);
-    writeFileIfMissing(path.join(featureDir, outputName), rendered, args.force);
+  for (const [outputName, templateName] of templates) {
+    const dest = path.join(featureDir, outputName);
+    if (fs.existsSync(dest) && !args.force) continue;
+    const rendered = render(fs.readFileSync(path.join(TEMPLATE_DIR, templateName), 'utf8'), ctx);
+    fs.writeFileSync(dest, rendered);
   }
 
   console.log('Feature change set 已创建:');

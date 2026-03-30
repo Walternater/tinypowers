@@ -19,7 +19,7 @@ const ARTIFACTS = [
 ];
 
 function parseArgs(argv) {
-  const args = { root: process.cwd(), force: false };
+  const args = { root: process.cwd(), force: false, mode: 'strict' };
   for (let i = 2; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--feature') {
@@ -44,6 +44,14 @@ function parseArgs(argv) {
     }
     if (arg === '--force') {
       args.force = true;
+    }
+    if (arg === '--mode') {
+      const mode = argv[i + 1];
+      if (mode !== 'strict' && mode !== 'relaxed') {
+        fail('--mode 允许值: strict, relaxed');
+      }
+      args.mode = mode;
+      i += 1;
     }
   }
   return args;
@@ -79,6 +87,11 @@ function getCurrentPhase(content) {
     fail('SPEC-STATE.md 中缺少合法的 phase');
   }
   return match[1];
+}
+
+function getCurrentMode(content) {
+  const match = content.match(/mode:\s*(strict|relaxed)/);
+  return match ? match[1] : 'strict';
 }
 
 function read(filePath) {
@@ -254,8 +267,13 @@ function main() {
   const featureName = path.basename(featureDir);
   const content = read(specStatePath);
   const currentPhase = getCurrentPhase(content);
+  const fileMode = getCurrentMode(content);
   const currentIndex = phaseIndex(currentPhase);
   const targetIndex = phaseIndex(targetPhase);
+
+  const effectiveMode = args.mode !== 'strict' || fileMode === 'relaxed'
+    ? 'relaxed'
+    : args.mode;
 
   if (targetIndex === -1) {
     fail('目标 phase 非法: ' + targetPhase);
@@ -266,11 +284,15 @@ function main() {
     return;
   }
 
-  if (!args.force && targetIndex !== currentIndex + 1) {
-    fail(`禁止跳步: ${currentPhase} -> ${targetPhase}。如需强制推进，添加 --force`);
+  const isStrict = effectiveMode === 'strict';
+
+  if (isStrict && !args.force && targetIndex !== currentIndex + 1) {
+    fail(`禁止跳步: ${currentPhase} -> ${targetPhase}。如需强制推进，添加 --force 或 --mode relaxed`);
   }
 
-  validatePrerequisites(featureDir, targetPhase, args.note, args.force);
+  if (isStrict) {
+    validatePrerequisites(featureDir, targetPhase, args.note, args.force);
+  }
 
   const date = new Date().toISOString().slice(0, 10);
   const context = {

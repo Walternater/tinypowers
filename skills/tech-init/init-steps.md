@@ -20,6 +20,43 @@
 
 框架仓库只需确认目录完整性和模板变量替换，不应创建重复文件。
 
+## 项目级配置覆盖
+
+如果目标项目根目录存在 `project-overrides.json`，用它覆盖默认行为。
+
+`project-overrides.json` 格式示例：
+
+```json
+{
+  "review_checklist": "docs/my-review-checklist.md",
+  "acceptance_criteria_template": "EARS_RELAXED",
+  "commit_prefix": "[TEAM-A]",
+  "quality_gate_command": "mvn verify -P ci",
+  "skip_phases": ["REQ"]
+}
+```
+
+支持的覆盖项：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `review_checklist` | string | 替换默认审查清单路径 |
+| `acceptance_criteria_template` | string | 验收标准模板（EARS / EARS_RELAXED / FREEFORM） |
+| `commit_prefix` | string | 提交消息前缀 |
+| `quality_gate_command` | string | 替换默认构建/验证命令 |
+| `skip_phases` | string[] | 初始化时跳过的 SPEC-STATE 阶段 |
+| `rules_dir` | string | 自定义规则目录路径 |
+| `templates_dir` | string | 自定义模板目录路径 |
+
+检测流程：
+
+1. 检查项目根目录是否存在 `project-overrides.json`
+2. 存在时解析并验证字段合法性
+3. 用覆盖值替换默认模板路径和配置
+4. 不存在时使用默认行为
+
+在 SKILL.md Step 6（模板复制与变量替换）中，如果检测到覆盖配置，优先使用覆盖路径。
+
 ## 目录创建
 
 推荐创建这些目录（框架仓库跳过已有目录）：

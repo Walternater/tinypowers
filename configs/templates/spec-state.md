@@ -19,6 +19,7 @@
 
 ```yaml
 phase: INIT
+mode: strict
 updated: {date}
 ```
 

@@ -60,3 +60,57 @@ test('update-spec-state prevents skipping phases without force', () => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /禁止跳步/);
 });
+
+test('update-spec-state --mode relaxed allows skipping phases', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-relaxed-'));
+
+  runNode([
+    path.join(ROOT, 'scripts/scaffold-feature.js'),
+    '--id', 'CSS-5678',
+    '--name', '快速任务',
+    '--root', projectRoot
+  ]);
+
+  const featureName = 'CSS-5678-快速任务';
+  const result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'EXEC',
+    '--mode', 'relaxed',
+    '--note', 'simple task skip'
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const specState = fs.readFileSync(path.join(projectRoot, 'features', featureName, 'SPEC-STATE.md'), 'utf8');
+  assert.match(specState, /phase: EXEC/);
+});
+
+test('update-spec-state reads mode from SPEC-STATE file', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-filemode-'));
+
+  runNode([
+    path.join(ROOT, 'scripts/scaffold-feature.js'),
+    '--id', 'CSS-9999',
+    '--name', '文件模式',
+    '--root', projectRoot
+  ]);
+
+  const featureName = 'CSS-9999-文件模式';
+  const specPath = path.join(projectRoot, 'features', featureName, 'SPEC-STATE.md');
+  let content = fs.readFileSync(specPath, 'utf8');
+  content = content.replace('mode: strict', 'mode: relaxed');
+  fs.writeFileSync(specPath, content);
+
+  const result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'TASKS',
+    '--note', 'file says relaxed'
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const updated = fs.readFileSync(specPath, 'utf8');
+  assert.match(updated, /phase: TASKS/);
+});
