@@ -32,7 +32,8 @@
       "Bash(curl *)",
       "Write(*.pem)",
       "Write(.env*)",
-      "Write(node_modules/**/*)"
+      "Write(node_modules/**/*)",
+      "ToolCreation"
     ]
   },
   "skipDangerousModePermissionPrompt": true,
@@ -44,19 +45,7 @@
     "useRelated": true,
     "maxTurns": 50
   },
-  "model": {
-    "default": "opus",
-    "haiku": [
-      "simple tasks under 5 minutes"
-    ],
-    "sonnet": [
-      "daily development"
-    ],
-    "opus": [
-      "architecture design",
-      "complex problems"
-    ]
-  },
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
