@@ -44,19 +44,7 @@
     "useRelated": true,
     "maxTurns": 50
   },
-  "model": {
-    "default": "opus",
-    "haiku": [
-      "simple tasks under 5 minutes"
-    ],
-    "sonnet": [
-      "daily development"
-    ],
-    "opus": [
-      "architecture design",
-      "complex problems"
-    ]
-  },
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
