@@ -2,100 +2,43 @@
 
 ## 作用
 
-这份文档定义 `/tech:code` 在上下文清空、压缩或会话结束后如何恢复工作。
-
-核心原则只有一条：
-
 `STATE.md` 是恢复依据，Snapshot 只是恢复入口。
 
 ## 生命周期
 
-```text
-工作进行中
-  -> 持续更新 STATE.md
-  -> Stop / PreCompact 时生成 Snapshot
-  -> 下次 SessionStart 检测 Snapshot
-  -> 用户确认恢复
-  -> 读取 STATE.md
-  -> 从断点继续
-```
+工作进行中 → 持续更新 STATE.md → Stop/PreCompact 生成 Snapshot → SessionStart 检测 → 用户确认恢复 → 读取 STATE.md → 从断点继续
 
 ## Hook 角色
 
-默认由 `hooks/gsd-session-manager.js` 负责三个时机：
+由 `hooks/gsd-session-manager.js` 负责三个时机：
 
-- `SessionStart`：检测是否有未完成 Feature，注入 notepad 提示
-- `Stop`：在会话结束时写入恢复快照，更新 `.tinypowers/notepad.md`
-- `PreCompact`：在压缩前保存最小恢复信息到 notepad（穿越 context 重置的关键）
+- `SessionStart`：检测未完成 Feature，注入 notepad 提示
+- `Stop`：写入恢复快照，更新 `.tinypowers/notepad.md`
+- `PreCompact`：压缩前保存最小恢复信息
 
 ## 持久化
 
-`.tinypowers/notepad.md` 持久化保存关键状态（PreCompact 前写入，resume 时读取）。
+`.tinypowers/notepad.md` 保存关键状态（PreCompact 前写入，resume 时读取）。
 
-恢复顺序：SessionStart → 检测 notepad.md → 注入提示 → 用户确认恢复 → 读取 STATE.md
+恢复顺序：SessionStart → 检测 notepad.md → 注入提示 → 用户确认 → 读取 STATE.md
 
-## 恢复顺序
+## 恢复步骤
 
-### 1. 检测 Snapshot
+1. **检测 Snapshot**：SessionStart 检查 `/tmp` 下对应快照，无快照则静默开始新会话
+2. **询问是否恢复**：提示未完成 Feature，读取 `.tinypowers/notepad.md` 注入关键状态
+3. **读取 STATE.md**：当前阶段、Wave、已完成任务、阻塞项、偏差记录、上次操作
+4. **从断点继续**：跳过已完成任务、回到当前 Wave/审查步骤、先处理阻塞项、延续原有决策、读取 `learnings.md`
 
-在 `SessionStart` 时检查 `/tmp` 下是否存在对应快照。
+## 恢复后约束
 
-如果没有快照，静声开始新会话。
-
-### 2. 询问是否恢复 + 注入 notepad
-
-如果有快照，提示当前存在未完成 Feature，让用户决定是否继续。同时读取 `.tinypowers/notepad.md` 注入压缩前的关键状态摘要。
-
-### 3. 读取 STATE.md
-
-一旦用户确认恢复，必须读取：
-
-```text
-features/{id}/STATE.md
-```
-
-读取重点：
-- 当前阶段
-- 当前 Wave
-- 已完成任务
-- 阻塞项
-- 偏差记录
-- 上次操作
-- Context 使用情况
-
-### 4. 从断点继续
-
-恢复后的动作应该是：
-- 跳过已完成任务
-- 回到当前 Wave 或当前审查步骤
-- 先处理仍然存在的阻塞项
-- 延续原有决策，不重新发明方案
-- 读取 `features/{id}/notepads/learnings.md` 获取之前积累的智慧
-
-## Snapshot 中应该有什么
-
-Snapshot 只保存最小恢复信息（feature_id、current_wave、completed_tasks 等），不要当作第二份完整状态文档。
-
-## 恢复后的约束
-
-- 禁止忽略 `STATE.md` 直接从头重做
-- 禁止删除上次已确认的正确实现
-- 禁止借恢复机会私自修改锁定决策
-- 禁止让 Snapshot 覆盖 `STATE.md` 的结论
+- 禁止忽略 STATE.md 从头重做
+- 禁止删除已确认的正确实现
+- 禁止借恢复机会修改锁定决策
+- Snapshot 不覆盖 STATE.md 的结论
 
 ## 手动触发
-
-如果需要手动验证恢复链路，可以直接运行 hook：
 
 ```bash
 node hooks/gsd-session-manager.js Stop
 node hooks/gsd-session-manager.js SessionStart
 ```
-
-## 判断标准
-
-一个可用的恢复机制应满足：
-- 新会话能知道上次做到了哪里
-- 不会重复执行已经完成的任务
-- 不会丢失阻塞或偏差信息
-- 恢复后可以继续原流程，而不是重新组织一次工作
