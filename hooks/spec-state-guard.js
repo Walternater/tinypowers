@@ -16,7 +16,8 @@ const path = require('path');
 const CODE_EXTENSIONS = new Set([
   '.js', '.ts', '.jsx', '.tsx', '.java', '.py', '.go', '.rs',
   '.rb', '.php', '.c', '.cpp', '.h', '.hpp', '.cs', '.swift',
-  '.kt', '.scala', '.sh', '.sql', '.vue', '.svelte', '.astro'
+  '.kt', '.scala', '.sh', '.sql', '.vue', '.svelte', '.astro',
+  '.css', '.scss', '.less', '.sass', '.html', '.htm', '.svg'
 ]);
 
 const PLANNING_EXTENSIONS = new Set(['.md', '.yaml', '.yml', '.json']);
@@ -24,8 +25,6 @@ const PLANNING_EXTENSIONS = new Set(['.md', '.yaml', '.yml', '.json']);
 const PHASES = ['INIT', 'REQ', 'DESIGN', 'TASKS', 'EXEC', 'REVIEW', 'VERIFY', 'CLOSED'];
 
 const CODE_EDIT_ALLOWED_FROM = PHASES.indexOf('EXEC');
-
-const NPM_SAFE_SCRIPTS = /^(validate|test|lint|typecheck|doctor|check|ci)$/;
 
 const CODE_BASH_PATTERNS = [
   { pattern: /\bnode\s+\S+\.(js|ts|mjs)\b/, label: 'node 脚本执行' },
