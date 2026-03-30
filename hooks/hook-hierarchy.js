@@ -158,7 +158,14 @@ if (config.settings?.hooks?.PostToolUse) {
 }
 
 const disabledList = DISABLED_HOOKS.size > 0 ? [...DISABLED_HOOKS].join(', ') : 'none';
-console.log(`Hook level: ${HOOK_LEVEL} - ${config.description} | Disabled: ${disabledList}`);
+const logLine = `Hook level: ${HOOK_LEVEL} - ${config.description} | Disabled: ${disabledList}`;
 
-// Output the appropriate configuration
-process.stdout.write(JSON.stringify(config, null, 2));
+const output = {
+  hookSpecificOutput: {
+    hookEventName: 'HookConfig',
+    additionalContext: logLine
+  },
+  config: config
+};
+
+process.stdout.write(JSON.stringify(output));

@@ -3,6 +3,7 @@ name: decision-guardian
 description: 决策守护者，负责将技术方案中的关键决策写入持久化记忆，并在编码阶段执行决策合规校验。
 license: MIT
 compatibility: Claude Code
+triggers: [tech-feature, tech-code]
 ---
 
 # Decision Guardian — 决策守护者

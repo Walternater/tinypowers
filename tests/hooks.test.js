@@ -17,8 +17,8 @@ test('hook-hierarchy strict mode includes code checker', () => {
     }
   });
 
-  const jsonStart = output.indexOf('{');
-  const config = JSON.parse(output.slice(jsonStart));
+  const parsed = JSON.parse(output);
+  const config = parsed.config;
   const commands = JSON.stringify(config.settings.hooks.PostToolUse);
   assert.match(commands, /gsd-code-checker\.js/);
 });
