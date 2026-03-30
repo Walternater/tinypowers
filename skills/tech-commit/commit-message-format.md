@@ -10,14 +10,60 @@
 
 ```text
 [prefix] type(scope): description
+
+[Body]
+
+[Trailers]
 ```
 
-常见示例：
+## Commit Trailer 格式
+
+每个 commit **推荐包含**结构化的 trailer，记录决策上下文。这是 NEXUS 交接协议在 git 层面的体现。
+
+**不强制场景**：trivial 改动（如 typo 修复、格式调整）、docs-only 提交、自动化工具生成的提交。
+
+### 推荐 Trailer
 
 ```text
-[AI-Gen] feat(CSS-1234): add login endpoint
-[AI-Review] fix(CSS-1234): address auth validation gap
-[AI-Gen] docs(CSS-1234): sync tech design
+Constraint: [设计约束或特殊情况]
+Rejected: [被拒绝的替代方案及原因]
+Evidence: [验证结果或测试通过证据]
+Confidence: [high/medium/low]
+```
+
+### Trailer 字段说明
+
+| 字段 | 说明 | 示例 |
+|------|------|------|
+| `Constraint` | 设计约束、特殊情况或外部限制 | Auth service does not support token introspection |
+| `Rejected` | 被拒绝的替代方案及原因 | Extend token TTL to 24h, security policy violation |
+| `Evidence` | 验证证据，测试通过结果 | 127 tests passed, coverage 94% |
+| `Confidence` | 对改动正确性的信心 | high / medium / low |
+
+### 完整示例
+
+```
+feat(auth): prevent silent session drops
+
+Add explicit session validation on each API call to prevent
+silent authentication failures when tokens expire.
+
+Constraint: Auth service does not support token introspection
+Rejected: Extend token TTL to 24h | security policy violation
+Evidence: 127 tests passed, coverage 94%
+Confidence: high
+```
+
+```
+fix(order): correct status transition race condition
+
+Use database-level locking to prevent race conditions during
+concurrent order status updates.
+
+Constraint: High traffic module, must not impact performance
+Rejected: Distributed lock | over-engineering for current scale
+Evidence: 1000 concurrent request test passed, p99 < 50ms
+Confidence: medium
 ```
 
 ## 组成部分
@@ -89,15 +135,73 @@ footer 适合写：
 - `Fixes #456`
 - `BREAKING CHANGE: ...`
 
+## Commit Trailer 格式详解
+
+### Constraint（约束）
+
+记录影响设计的技术、业务或组织约束：
+
+```text
+Constraint: [约束内容]
+```
+
+常见约束类型：
+- **技术约束**: 不支持某功能、遗留系统限制、性能要求
+- **业务约束**: 第三方 API 限制、法规要求
+- **组织约束**: 团队技能、发布时间要求
+
+### Rejected（拒绝的方案）
+
+记录被考虑但最终拒绝的替代方案：
+
+```text
+Rejected: [方案] | [拒绝原因]
+```
+
+格式：`方案 | 原因`，如果有多个拒绝方案，用 `|` 分隔：
+
+```text
+Rejected: Use MongoDB | team expertise gap | Redis for caching | not needed at current scale
+```
+
+### Evidence（证据）
+
+记录验证结果，证明改动有效：
+
+```text
+Evidence: [证据内容]
+```
+
+常见证据：
+- 测试结果: `127 tests passed`
+- 覆盖率: `coverage 94%`
+- 性能数据: `p99 < 50ms`
+- 安全验证: `OWASP Top 10 passed`
+
+### Confidence（信心）
+
+评估对改动正确性的信心：
+
+```text
+Confidence: [high/medium/low]
+```
+
+| 级别 | 含义 |
+|------|------|
+| `high` | 有充分测试和验证，改动简单明了 |
+| `medium` | 有测试覆盖，但有潜在风险或复杂逻辑 |
+| `low` | 测试覆盖有限，或有未解决的权衡 |
+
 ## 什么时候拆多个 commit
 
 建议拆分的情况：
 - 功能实现和审查修复是两轮独立动作
 - 文档同步很多，值得单独阅读
 - 一个 commit 里混入了不相关改动
+- 不同的 Constraint/Rejected 组合
 
 不建议拆分的情况：
-- 为了“看起来勤奋”把一个完整动作切成很多碎 commit
+- 为了"看起来勤奋"把一个完整动作切成很多碎 commit
 - 每改几行就提交一次
 
 ## 提交前自检
@@ -107,6 +211,7 @@ footer 适合写：
 - scope 是否有助于理解，而不是增加噪音
 - 是否误把多件不相关的事塞进同一个 commit
 - 是否保留了后续追溯所需的信息
+- **是否包含完整的 Trailer（Constraint/Rejected/Evidence/Confidence）— 推荐包含**
 
 ## 判断标准
 
@@ -114,3 +219,7 @@ footer 适合写：
 - 改动类型是什么
 - 改动落在哪个 feature 或模块
 - 这次提交最重要的变化是什么
+- **为什么这样做（Constraint）**
+- **为什么不用其他方案（Rejected）**
+- **怎么验证的（Evidence）**
+- **信心程度（Confidence）**
