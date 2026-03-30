@@ -47,22 +47,16 @@
 
 ## 验收标准
 
-> 推荐使用 EARS 格式（Easy Approach to Requirements Syntax），确保每条标准可独立验证、无歧义。
-
-### EARS 格式
+> 推荐使用 EARS 格式（Easy Approach to Requirements Syntax），确保每条标准可独立验证。
 
 | 格式 | 适用场景 | 示例 |
 |------|---------|------|
-| `WHEN [事件] THEN [系统] SHALL [响应]` | 事件驱动型 | WHEN 用户提交订单 THEN 系统 SHALL 生成订单号并返回 201 |
-| `IF [条件] THEN [系统] SHALL [响应]` | 条件判断型 | IF 邮箱格式无效 THEN 系统 SHALL 返回 400 |
-| `WHILE [状态] [系统] SHALL [持续行为]` | 状态持续型 | WHILE 用户已登录 系统 SHALL 携带 JWT token |
-| `[系统] SHALL [行为]` | 通用型 | 系统 SHALL 记录操作日志并保留 90 天 |
+| `WHEN [事件] THEN [系统] SHALL [响应]` | 事件驱动 | WHEN 用户提交订单 THEN 系统 SHALL 返回 201 |
+| `IF [条件] THEN [系统] SHALL [响应]` | 条件判断 | IF 邮箱无效 THEN 系统 SHALL 返回 400 |
+| `WHILE [状态] [系统] SHALL [行为]` | 状态持续 | WHILE 已登录 系统 SHALL 携带 JWT |
+| `[系统] SHALL [行为]` | 通用 | 系统 SHALL 记录操作日志并保留 90 天 |
 
-### 格式要求
-
-- [ ] 包含具体的 HTTP 状态码或响应字段
-- [ ] 可通过自动化测试验证（不允许"功能正常"等模糊描述）
-- [ ] 覆盖正向、反向、边界、异常场景
+格式要求：包含具体状态码或响应字段、可通过自动化验证、覆盖正向/反向/边界/异常。
 
 ## 异常与边界
 

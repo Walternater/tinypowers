@@ -2,107 +2,46 @@
 
 ## 作用
 
-质量门禁定义了每个 Wave 结束后“能不能继续往下走”的最低标准。
-
-它的目的不是追求完美，而是防止明显有问题的实现带着错误进入下一轮。
+每个 Wave 结束后的最低通过标准。目的不是追求完美，而是防止明显有问题的实现带入下一轮。
 
 ## 默认检查项
 
-| 检查项 | 默认结果 | 说明 |
-|--------|----------|------|
-| 编译或构建 | 阻断项 | 构建失败不能进入下一 Wave |
-| 单元测试 | 阻断项 | 有失败测试不能继续推进 |
-| 覆盖率 | 默认警告，可配置为阻断 | 建议目标为行覆盖率 >= 80% |
-| 安全或依赖扫描 | 高危问题阻断 | 避免把明显漏洞带入后续阶段 |
+| 检查项 | 级别 | 说明 |
+|--------|------|------|
+| 编译或构建 | 阻断 | 构建失败不能继续 |
+| 单元测试 | 阻断 | 有失败测试不能继续 |
+| 覆盖率 | 警告（可配为阻断） | 建议行覆盖率 >= 80% |
+| 安全扫描 | 高危阻断 | 明显漏洞不应带入后续 |
 
 ## 执行顺序
 
-每个 Wave 结束后，按下面的顺序执行：
-
-```text
-Build
-  -> Test
-  -> Coverage
-  -> Security Scan
-```
-
-如果前面已经失败，默认不再继续跑后面的阻断项。
+Build → Test → Coverage → Security Scan。前面失败则不再继续。
 
 ## 命令来源
 
-门禁命令从项目 `CLAUDE.md` 的 `{{build_command}}` 或 `build_command` 字段读取。
-
-读取优先级：
-1. `CLAUDE.md` 中的 `build_command` 字段
-2. `stack-detection.md` 中的技术栈默认值（见下方参考表）
-3. 如果都读不到，提示用户手动指定
-
-### 参考默认命令
+从项目 `CLAUDE.md` 的 `build_command` 字段读取。
 
 | 技术栈 | Build | Test | Coverage | Security |
 |--------|-------|------|----------|----------|
 | Java (Maven) | `mvn compile` | `mvn test` | `mvn test jacoco:report` | `mvn dependency-check:check` |
-| Java (Gradle) | `./gradlew classes` | `./gradlew test` | `./gradlew jacocoTestReport` | `./gradlew dependencyCheckAnalyze` |
 | Node.js | `npm run build` | `npm test` | `npx c8 npm test` | `npm audit` |
 | Go | `go build ./...` | `go test ./...` | `go test -coverprofile=cover.out ./...` | `govulncheck ./...` |
-| Python | `python -m compileall .` | `pytest` | `pytest --cov` | `pip audit` |
 
-如果项目使用其他技术栈，替换成等价命令，但保持同样的门禁语义。
-
-## 结果解释
-
-### 编译或构建失败
-
-说明当前实现还不具备进入下一 Wave 的基本条件，必须先修复。
-
-### 测试失败
-
-说明已有行为或新增行为还不稳定，必须先收敛。
-
-### 覆盖率不足
-
-默认记录为警告，但如果当前项目或阶段要求更高，可以升级成阻断项。
-
-### 安全扫描发现高危问题
-
-必须阻断。安全问题不应带着进入后续审查。
-
-## 建议报告格式
-
-每次门禁执行后，至少记录：
-- Wave 编号
-- 执行时间
-- 每个检查项结果
-- 阻断原因或警告原因
-- 下一步动作
-
-一个最小报告示例：
+## 报告格式
 
 ```markdown
 ## Wave 3 Gate Report
-
 - Build: PASS
 - Test: PASS
 - Coverage: WARN (74% < 80%)
 - Security: PASS
-
-下一步：进入 Wave 4，并在本轮补齐控制器测试。
+下一步：进入 Wave 4，补齐控制器测试。
 ```
 
 ## 失败处理
 
-- 门禁失败时，停止启动下一 Wave
-- 在当前 Wave 内修复问题
-- 修复后重新执行门禁
-- 如果同一问题连续失败 3 次，升级到 `deviation-handling.md`
+门禁失败时停止下一 Wave，在当前 Wave 内修复后重跑。同一问题连续 3 次失败，升级到 `deviation-handling.md`。
 
-## 谨慎跳过
+## 跳过条件
 
-默认不建议跳过质量门禁。
-
-如果确实要跳过，必须满足：
-- 已知风险被明确记录
-- 原因写入 `STATE.md`
-- 团队接受后续返工成本
-
-跳过门禁从来不是常规路径，只能是有记录的例外。
+默认不建议跳过。确需跳过时：已知风险已记录、原因写入 `STATE.md`、团队接受返工成本。
