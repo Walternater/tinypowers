@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "6.0"
+  version: "5.0"
 ---
 
 # /tech:code
@@ -118,32 +118,11 @@ Plan Check
 - 启动前先读取或创建 `features/{id}/STATE.md`
 - 按依赖图分 Wave，同一 Wave 内的任务可以并行，不同 Wave 必须串行
 - **启动 Wave 前执行上下文预加载**（见 `context-preload.md`）
-- **优先使用 Per-Task 命令文件**（`features/{id}/commands/T-XXX-execute.md`）减少 token 浪费
 - 每个任务都要带着明确的验收标准、相关文件和技术方案上下文执行
 - 执行前先读现有代码，禁止脱离上下文直接生成新实现
 - 每个 Wave 完成后必须执行质量门禁
-- **每个 Wave 完成后必须提取智慧积累**到 `features/{id}/notepads/learnings.md`
 
-### TDD 循环执行
-
-每个任务的实现必须遵循 TDD 循环：
-
-```text
-T-XXX Task
-  ├── Step 1: RED - 编写失败的测试
-  │   ├── 明确测试目标（验证什么行为）
-  │   ├── 编写测试代码（此时应失败）
-  │   └── 验证测试确实失败
-  ├── Step 2: GREEN - 编写最小实现
-  │   ├── 只写使测试通过的最少代码
-  │   ├── 不追求完美，只求通过
-  │   └── 验证测试通过
-  └── Step 3: REFACTOR - 重构
-      ├── 消除重复代码
-      ├── 提升可读性和可维护性
-      ├── 保持测试通过
-      └── 记录重构学到的东西
-```
+TDD 循环的详细规则见本文档顶部 HARD-GATE 中的定义。
 
 ### Deviation Rules（自动修复规则）
 
@@ -160,22 +139,10 @@ T-XXX Task
 **Rule 边界**：
 - Rule 1-3 仅适用于明确、无争议的修复
 - 如果修复涉及架构决策或业务逻辑变更，必须升级到 Rule 4
-- 所有自动修复必须记录到 `deviation-log.md`
+- 所有自动修复必须记录到 `STATE.md` 的偏差章节
 - **阈值限制**：同一 Wave 内 Rule 1-3 自动修复总计最多 3 次，超过必须升级到 Rule 4
 - **Rule 2 约束**："关键功能"必须引用技术方案中的明确条目号（如 D-02），禁止主观判断
 </HARD-GATE>
-
-### Model Tiering（成本优化）
-
-根据任务复杂度选择合适的模型：
-
-| 任务类型 | 示例 | 推荐模型 |
-|----------|------|----------|
-| 机械任务 | 1-2 文件，明确需求 | 快速/便宜模型 |
-| 集成任务 | 多文件，涉及接口对接 | 标准模型 |
-| 架构/设计/审查 | 复杂逻辑，决策密集 | 最强模型 |
-
-在任务执行 prompt 中明确标注推荐模型。
 
 ### 任务分配要求
 
@@ -186,7 +153,6 @@ T-XXX Task
 - 依赖的接口、类或数据结构
 - 对应的锁定决策 ID
 - **TDD 循环要求**
-- **推荐模型**
 
 ### 运行中必须同步的状态
 
@@ -295,12 +261,8 @@ features/{id}/
 ├── code-review.md
 ├── 测试报告.md
 ├── VERIFICATION.md
-├── notepads/
-│   └── learnings.md       # 每个 Wave 的智慧积累
-├── deviation-log.md       # 偏差记录（自动修复日志）
-└── commands/             # Per-Task 执行命令文件（可选）
-    ├── T-001-execute.md
-    └── ...
+└── notepads/
+    └── learnings.md       # 每个 Wave 的智慧积累
 ```
 
 代码变更此时仍处于"待提交"状态，统一由 `/tech:commit` 收口。
@@ -319,10 +281,7 @@ features/{id}/
 - `session-recovery.md`：中断后如何恢复
 - `quality-gate.md`：每个 Wave 之后的门禁要求
 - `deviation-handling.md`：偏差分类、升级条件和记录方式
-- `anti-rationalization.md`：防止绕过门禁时自我合理化
-- `tdd-cycle.md`：TDD 循环执行指南
-- `model-tiering.md`：模型选择指南
-- `../tech-commit/nexus-handoff.md`：标准化交接协议
+- 已内联到本文档"Anti-Rationalization 自检"章节
 
 ## Gotchas
 
@@ -333,3 +292,25 @@ features/{id}/
 - **STATE.md 和 Snapshot 不一致**：Snapshot 说 Wave 3，STATE.md 说 Wave 2 → 以 STATE.md 为准，Snapshot 只是恢复提示
 - **TDD 跳过测试直接写实现**：觉得"测试会拖慢速度" → 违反 HARD-GATE：测试失败时禁止提交生产代码
 - **Deviation Rule 滥用**：把复杂变更当作 Rule 1-3 自动处理 → 违反 HARD-GATE：架构变更必须询问用户
+
+## Anti-Rationalization 自检
+
+在跳过检查之前，先问自己：是不是在找借口？
+
+| 你可能在想 | 更可靠的判断 |
+|-----------|--------------|
+| 这只是个小改动 | 小改动同样可能破坏边界条件 |
+| 我已经检查过了 | 自查不等于独立验证 |
+| 用户催得急，先跳过 | 带着已知风险继续，返工成本通常更高 |
+| 这一步应该不会出问题 | "应该"不是证据，跑完检查才是 |
+| 我后面再补 | 没进入流程的补做通常不会自动发生 |
+
+## 交接检查清单
+
+每次阶段转换或会话交接时，确认以下信息已传达：
+
+- [ ] 关键决策（Decided）及其依据
+- [ ] 被拒绝的替代方案及原因
+- [ ] 已识别风险及缓解措施
+- [ ] 未完成项及阻塞原因
+- [ ] 验证证据（测试结果、覆盖率）

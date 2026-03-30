@@ -25,28 +25,22 @@
 默认由 `hooks/gsd-session-manager.js` 负责三个时机：
 
 - `SessionStart`：检测是否有未完成 Feature，注入 notepad 提示
-- `Stop`：在会话结束时写入恢复快照，同时更新 `.tinypowers/notepad.md` 和 `.tinypowers/handoff.json`
+- `Stop`：在会话结束时写入恢复快照，更新 `.tinypowers/notepad.md`
 - `PreCompact`：在压缩前保存最小恢复信息到 notepad（穿越 context 重置的关键）
 
-## 持久化状态层（新增）
+## 持久化
 
-除了 `/tmp/` 下的临时 Snapshot，会话管理器还会维护 `.tinypowers/` 目录下的持久化文件，它们在 session 结束后仍然保留：
+`.tinypowers/notepad.md` 持久化保存关键状态（PreCompact 前写入，resume 时读取）。
 
-| 文件 | 作用 | 生命周期 |
-|------|------|---------|
-| `.tinypowers/notepad.md` | 压缩前关键状态摘要，resume 时可读取 | 永久，直到 feature 关闭 |
-| `.tinypowers/handoff.json` | 结构化交接信息（phase/wave/tasks/blockers） | 永久，直到 feature 关闭 |
-| `/tmp/tinypowers-session-{id}.json` | 临时恢复入口，24h 后自动失效 | 临时 |
-
-恢复顺序：SessionStart → 检测 handoff.json → 注入 notepad 提示 → 用户确认恢复 → 读取 STATE.md
+恢复顺序：SessionStart → 检测 notepad.md → 注入提示 → 用户确认恢复 → 读取 STATE.md
 
 ## 恢复顺序
 
 ### 1. 检测 Snapshot
 
-在 `SessionStart` 时检查 `/tmp` 下是否存在对应快照，以及 `.tinypowers/handoff.json` 是否存在。
+在 `SessionStart` 时检查 `/tmp` 下是否存在对应快照。
 
-如果没有快照，静默开始新会话。
+如果没有快照，静声开始新会话。
 
 ### 2. 询问是否恢复 + 注入 notepad
 
@@ -80,15 +74,7 @@ features/{id}/STATE.md
 
 ## Snapshot 中应该有什么
 
-Snapshot 只保存最小恢复信息，例如：
-- `feature_id`
-- `feature_path`
-- `current_wave`
-- `completed_tasks`
-- `blocked_tasks`
-- `timestamp`
-
-不要把 Snapshot 当作第二份完整状态文档。
+Snapshot 只保存最小恢复信息（feature_id、current_wave、completed_tasks 等），不要当作第二份完整状态文档。
 
 ## 恢复后的约束
 

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "3.0"
+  version: "2.0"
 ---
 
 # /tech:commit
@@ -87,24 +87,13 @@ Document Sync
 
 如果当前变更太杂，应先整理再提交，而不是用一个大 commit 淹没上下文。
 
-### NEXUS 标准化交接检查
+### 交接完整性检查
 
-使用 NEXUS 交接协议检查交接完整性：
+提交前确认以下信息已记录：
 
-```markdown
-## NEXUS Handoff Check
-- **Decided**: [关键决策摘要]
-- **Rejected**: [被拒绝的方案及原因]
-- **Risks**: [已识别风险]
-- **Remaining**: [未完成项（如果有）]
-- **Evidence**: [验证证据清单]
-```
-
-每个 feature 的交接必须包含：
-- 锁定决策清单（来自技术方案.md）
-- 拒绝替代方案记录
-- 验证证据（测试结果、覆盖率报告）
-- 未解决项（如果有）
+- [ ] 关键决策（来自技术方案.md 的锁定决策）
+- [ ] 验证证据（测试结果、覆盖率报告）
+- [ ] 未解决项（如果有）
 
 ## 3. Git Commit
 
@@ -112,7 +101,7 @@ Document Sync
 
 ### Commit Trailer 格式
 
-每个 commit 必须包含结构化的 trailer，记录决策上下文：
+推荐包含结构化 trailer 记录决策上下文（不强制）：
 
 ```
 type(scope): description
@@ -204,9 +193,7 @@ features/{id}/
 ├── 技术方案.md
 ├── code-review.md
 ├── 测试报告.md
-├── VERIFICATION.md
-├── nexus-handoff.md        # 交接文档（NEXUS 格式）
-└── deviation-log.md        # 偏差日志
+└── VERIFICATION.md
 
 Git:
 ├── commit history (含 trailers)
@@ -233,7 +220,6 @@ PR:
 - `commit-message-format.md`：commit message 的格式约束（含 trailer 格式）
 - `pr-workflow.md`：PR 创建和合并前检查
 - `changelog-update.md`：什么时候更新 changelog、怎么更新
-- `nexus-handoff.md`：标准化交接协议格式
 
 ## Gotchas
 
@@ -243,4 +229,3 @@ PR:
 - **PR 描述过于简略**：只写"功能完成"而不写 scope → reviewer 不知道改了什么：PR description 必须包含改动范围和测试结论
 - **在 feature 分支上直接 commit main**：没有切回 feature 分支 → commit 落入错误的分支：确认当前分支后再执行 commit
 - **缺少 Decision Trailer**：提交信息没有记录决策上下文 → 后期追溯困难：所有 commit 必须包含 Constraint/Rejected/Evidence trailer
-- **跳过 NEXUS 检查**：没有核对交接完整性就提交 → 遗漏关键信息：必须完成 NEXUS Handoff Check
