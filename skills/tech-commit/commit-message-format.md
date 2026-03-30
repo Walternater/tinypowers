@@ -18,9 +18,11 @@
 
 ## Commit Trailer 格式
 
-每个 commit 必须包含结构化的 trailer，记录决策上下文。这是 NEXUS 交接协议在 git 层面的体现。
+每个 commit **推荐包含**结构化的 trailer，记录决策上下文。这是 NEXUS 交接协议在 git 层面的体现。
 
-### 必需 Trailer
+**不强制场景**：trivial 改动（如 typo 修复、格式调整）、docs-only 提交、自动化工具生成的提交。
+
+### 推荐 Trailer
 
 ```text
 Constraint: [设计约束或特殊情况]
@@ -209,7 +211,7 @@ Confidence: [high/medium/low]
 - scope 是否有助于理解，而不是增加噪音
 - 是否误把多件不相关的事塞进同一个 commit
 - 是否保留了后续追溯所需的信息
-- **是否包含完整的 Trailer（Constraint/Rejected/Evidence/Confidence）**
+- **是否包含完整的 Trailer（Constraint/Rejected/Evidence/Confidence）— 推荐包含**
 
 ## 判断标准
 

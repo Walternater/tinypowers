@@ -91,7 +91,15 @@ tinypowers 试图把这些问题产品化成一套默认流程。
 | `config-protection.js` | 防止为了过检查而弱化配置 |
 | `residual-check.js` | Stop 时检测残留调试代码（System.out / console.log） |
 | `hook-hierarchy.js` | 根据 `TINYPOWERS_HOOK_LEVEL` 切换最小 / 标准 / 严格模式 |
-| `hashline-edit-hook.js` | Hash-Anchored Edit，防止 stale-line 错误 |
+
+### Scripts / Utilities
+
+| 脚本 | 作用 |
+|------|------|
+| `scripts/hashline-edit-hook.js` | Hash-Anchored Edit 工具，用于防止 stale-line 错误 |
+| `scripts/scaffold-feature.js` | 创建 feature 脚手架 |
+| `scripts/validate.js` | 框架定义校验器 |
+| `scripts/doctor.js` | 诊断安装状态 |
 
 ### Contexts
 

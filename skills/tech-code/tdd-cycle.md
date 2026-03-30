@@ -24,13 +24,16 @@ TDD（Test-Driven Development）是一种以测试驱动开发的方法论，强
 - 不要预设实现方式
 
 **示例**：
-```typescript
+```java
 // ❌ Bad: 测试实现细节
-test("UserService 有一个 getUserById 方法") { ... }
+@Test
+void userServiceHasGetUserByIdMethod() { ... }
 
 // ✅ Good: 测试行为
-test("getUserById 返回匹配的用户对象") { ... }
-test("getUserById 对不存在的用户返回 null") { ... }
+@Test
+void getUserById_returnsMatchingUser() { ... }
+@Test
+void getUserById_returnsNullForNonExistent() { ... }
 ```
 
 ### Phase 2: GREEN - 编写最小实现
@@ -49,10 +52,10 @@ test("getUserById 对不存在的用户返回 null") { ... }
 - 测试通过是唯一目标
 
 **示例**：
-```typescript
+```java
 // ✅ 最少代码，快速通过
-function getUserById(id: number): User | null {
-  return users.find(u => u.id === id) || null;
+public User getUserById(Long id) {
+    return userRepository.findById(id).orElse(null);
 }
 ```
 
@@ -167,10 +170,23 @@ function getUserById(id: number): User | null {
 ### Q: 遇到外部依赖怎么测？
 
 **A**: 使用 Mock/Stub：
-```typescript
-// 使用 mock 隔离外部依赖
-const mockUserRepo = { findById: jest.fn() };
-mockUserRepo.findById.mockResolvedValue(user);
+```java
+// 使用 Mockito 隔离外部依赖
+@Mock
+private UserRepository userRepository;
+
+@InjectMocks
+private UserService userService;
+
+@Test
+void getUserById_returnsUser() {
+    User user = new User(1L, "test");
+    when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+    
+    User result = userService.getUserById(1L);
+    
+    assertEquals("test", result.getName());
+}
 ```
 
 ## HARD-GATE 约束
