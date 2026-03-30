@@ -2,7 +2,7 @@
 
 本目录存放 tinypowers 的运行期守护脚本。
 
-这些 hook 不负责业务实现，而是负责在执行过程中“扶正流程”：
+这些 hook 不负责业务实现，而是负责在执行过程中"扶正流程"：
 - 防止危险命令和高风险读写
 - 监控上下文压力
 - 为会话恢复提供入口
@@ -11,7 +11,7 @@
 
 ## 设计目标
 
-hooks 解决的不是“怎么写代码”，而是“怎么不把流程写歪”。
+hooks 解决的不是"怎么写代码"，而是"怎么不把流程写歪"。
 
 它们主要防护这几类问题：
 - 会话切换后忘了上次做到哪
@@ -45,9 +45,8 @@ export TINYPOWERS_HOOK_LEVEL=standard
 | `hook-hierarchy.js` | 按级别输出对应 hook 配置 |
 | `gsd-context-monitor.js` | 监控上下文占用，提醒 `/compact` |
 | `gsd-session-manager.js` | SessionStart / Stop / PreCompact 生命周期管理 |
-| `gsd-code-checker.js` | 严格模式下提醒运行匹配的验证命令 |
+| `gsd-code-checker.js` | strict 模式验证提醒 + Stop 时残留代码检测 |
 | `config-protection.js` | 保护 lint / formatter / hook / CI 等关键配置 |
-| `residual-check.js` | Stop 时检测残留调试代码（System.out / console.log） |
 
 ## 核心行为
 
@@ -72,7 +71,7 @@ export TINYPOWERS_HOOK_LEVEL=standard
 
 恢复流程：
 
-```text
+```
 SessionStart
   -> 检测 /tmp 快照
   -> 提示是否恢复
@@ -81,8 +80,8 @@ SessionStart
 ```
 
 这意味着：
-- Snapshot 只负责“提醒有未完成工作”
-- `STATE.md` 才负责“告诉你具体做到哪了”
+- Snapshot 只负责"提醒有未完成工作"
+- `STATE.md` 才负责"告诉你具体做到哪了"
 
 ### 3. 配置保护
 
@@ -98,14 +97,16 @@ SessionStart
 - CI 工作流
 - `.claude/`、`hooks/`、`.husky/`
 
-### 4. Strict 验证提醒
+### 4. Strict 验证提醒 + 残留代码检测
 
-`gsd-code-checker.js` 在 `strict` 模式下启用。
+`gsd-code-checker.js` 负责两部分功能：
 
-它不会替你偷偷运行一整套检查，而是根据最近修改过的文件类型，提醒你运行最匹配的验证命令，例如：
+**PostToolUse 时（strict 模式）**：根据最近修改过的文件类型，提醒运行最匹配的验证命令，例如：
 - Java 改动后提醒 `mvn test`
 - JS / TS 改动后提醒 `npm test`
 - SQL / migration 改动后提醒检查 DDL 与技术方案是否一致
+
+**Stop 时（任意模式）**：检测残留调试代码（System.out/console.log 等），防止调试代码进入生产。
 
 这样可以保留严格模式的约束感，又避免把所有开发场景都强绑到一套固定命令上。
 
@@ -141,7 +142,7 @@ SessionStart
         "hooks": [
           {
             "type": "command",
-            "command": "node \"{HOOKS_DIR}/residual-check.js\"",
+            "command": "node \"{HOOKS_DIR}/gsd-code-checker.js\" Stop",
             "timeout": 10
           }
         ]
@@ -213,8 +214,8 @@ echo 'export TINYPOWERS_HOOK_LEVEL=strict' >> ~/.zshrc
 修改 hooks 时，优先遵守这些原则：
 - 文档和实现必须同步
 - 不要让 Snapshot 替代 `STATE.md`
-- 不要把“提醒型 hook”改成高频误报
-- 不要把“配置保护”做成无法维护框架自身
+- 不要把"提醒型 hook"改成高频误报
+- 不要把"配置保护"做成无法维护框架自身
 
 特别注意：
 - 如果改了恢复逻辑，请同步检查 `skills/tech-code/session-recovery.md`

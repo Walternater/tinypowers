@@ -136,9 +136,17 @@ configs/rules/
 - 审查顺序：方案符合性 -> 安全 -> 代码质量
 - 决策格式：D-XXX（锁定决策编号）
 
-## 快速开始
+## 安装
 
-### 1. 安装到目标项目
+### Claude Code（推荐）
+
+```bash
+git clone https://github.com/Walternater/tinypowers.git ~/.tinypowers && ~/.tinypowers/install.sh --global
+```
+
+一行命令，将 tinypowers 安装到 `~/.claude/skills/tinypowers/`，所有项目共享。
+
+### 安装到指定项目
 
 ```bash
 cd /path/to/project
@@ -146,27 +154,45 @@ cd /path/to/project
 /path/to/tinypowers/install.sh java-fullstack  # 指定 profile
 ```
 
+### 全部参数
+
+| 参数 | 说明 |
+|------|------|
+| `--global` | 安装到 `~/.claude/skills/tinypowers/`，全局生效 |
+| `--target DIR` | 安装到指定目录 |
+| `--force` | 覆盖已有安装 |
+| `--list` | 列出可用组件和 profile |
+| `--components a,b` | 指定组件列表 |
+
 可用 profile：
 - `java-fullstack`：Java + Spring Boot + MySQL 全套
-- `node-web`：Node.js Web 应用
-- `minimal`：仅通用规则和核心 skill
+- `java-light`：Java + Spring Boot（无 MySQL）
+- `minimal`：仅核心 skill
 
-### 2. 初始化
+### 安装后
 
 ```bash
+# 在 Claude Code 中初始化项目
 /tech:init
+
+# 验证安装
+node ~/.claude/skills/tinypowers/scripts/doctor.js --project .
 ```
 
-### 3. 开始新需求
+## 快速开始
 
 ```bash
+# 1. 初始化项目
+/tech:init
+
+# 2. 开始新需求
 /tech:feature
-```
 
-### 4. 执行编码
-
-```bash
+# 3. 执行编码
 /tech:code
+
+# 4. 提交
+/tech:commit
 ```
 
 ## 仓库自检

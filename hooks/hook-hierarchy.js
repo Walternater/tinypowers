@@ -143,8 +143,7 @@ const config = JSON.parse(JSON.stringify(baseConfig)); // deep clone
 if (config.settings?.hooks?.PostToolUse) {
   const idMap = {
     'gsd-context-monitor.js': 'context-monitor',
-    'gsd-code-checker.js': 'code-checker',
-    'residual-check.js': 'residual-check'
+    'gsd-code-checker.js': 'code-checker'
   };
   config.settings.hooks.PostToolUse = config.settings.hooks.PostToolUse.filter(hook => {
     const cmd = hook.hooks?.[0]?.command || '';

@@ -5,7 +5,9 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "3.0"
+  version: "4.0"
+  references:
+    - "@superpowers/brainstorming"  # 方法论引用
 ---
 
 # /tech:feature
@@ -136,10 +138,20 @@ cp {tinypowers}/configs/templates/spec-state.md features/{id}/SPEC-STATE.md
 
 ## Phase 1：需求理解
 
+> **方法论引用**: brainstorming (superpowers)
+> - 核心：探索上下文 → one at a time 澄清 → 提出多方案对比
+
 ### 输入
 
 - `features/{id}/PRD.md`
 - 相关 seed 或已有上下文
+
+### 前置：探索项目上下文
+
+在开始提问前，先了解现有代码结构：
+- 检查相关模块的文件布局
+- 了解已有的设计模式和约定
+- 扫描是否有可复用的能力
 
 ### 要回答的问题
 
@@ -151,15 +163,27 @@ cp {tinypowers}/configs/templates/spec-state.md features/{id}/SPEC-STATE.md
 
 ### 交互方式
 
-采用 one question at a time：
+采用 **one question at a time** + **优先多选**：
 - 每次只确认一个主题
 - 优先消除关键理解偏差
+- 多选优于开放式问题（更容易回答）
 - 不要一口气抛出一大串问题
+
+### Visual Companion（涉及 UI 时）
+
+如果需求涉及界面设计，按需提供可视化辅助：
+- 先问："有些内容用浏览器展示会更直观，需要我提供可视化辅助吗？"
+- 如同意，使用浏览器展示 mockup、布局对比等
+- 非视觉内容（概念选择、trade-off 列表）仍在终端完成
 
 细节见：
 - `requirements-guide.md`
+- `@superpowers/brainstorming/SKILL.md` (方法论来源)
 
-## Phase 2：歧义检测
+## Phase 2：歧义检测 + 多方案探索
+
+> **方法论引用**: brainstorming (superpowers)
+> - 核心：Propose 2-3 approaches + Section-by-section 确认 + Spec Self-Review
 
 ### 目标
 
@@ -172,18 +196,65 @@ cp {tinypowers}/configs/templates/spec-state.md features/{id}/SPEC-STATE.md
 - 数据量级
 - 性能要求
 
+### 多方案对比（from brainstorming）
+
+在技术方案正式设计前，**必须**先探索 2-3 种可行方案：
+
+1. **提出方案**：概述每种方案的思路
+2. **Trade-offs 分析**：对比各方案的优劣
+3. **推荐建议**：说明为什么推荐某方案
+4. **用户确认**：确认后再进入详细设计
+
+```text
+方案 A: [简述]
+  优点：...
+  缺点：...
+  适用场景：...
+
+方案 B: [简述]
+  ...
+
+推荐：方案 X（原因：...）
+```
+
+### Section 分区确认（from brainstorming）
+
+设计方案时分区块展示，逐步确认：
+- 架构概览 → 用户确认
+- 数据模型 → 用户确认
+- 接口设计 → 用户确认
+- 异常处理 → 用户确认
+
+每完成一个 section，都问："这部分看起来 OK 吗？"
+
+### Spec Self-Review（from brainstorming）
+
+设计方案写完后，**必须**进行 inline 自检：
+
+| 检查项 | 要找的问题 |
+|--------|-----------|
+| Placeholder | TBD、TODO、不完整的地方 |
+| 内部矛盾 | 各 section 描述是否冲突 |
+| 范围检查 | 是否聚焦单一实现计划 |
+| 歧义 | 是否有多种解释的可能 |
+
+发现问题时：**立即 inline 修复**，不需要重新 review。
+
 ### 输出
 
 应至少形成：
 - 已澄清问题
 - 待澄清问题
+- **多方案对比结论**
 - 需求理解确认文档
 
 原则：
 - 高优先级歧义不应带入技术方案阶段
+- 多方案必须获得用户确认才能进入详细设计
 
 细节见：
 - `ambiguity-check.md`
+- `@superpowers/brainstorming/SKILL.md` (方法论来源)
 
 ## Phase 3：技术方案
 
@@ -272,3 +343,5 @@ Epic -> Story -> Task
 - **跳过歧义检测直接做技术方案**：觉得歧义"基本清楚"就开始设计 → 方案在实现时发现需求冲突：歧义检测的高优先级项必须清零才能进入 DESIGN
 - **技术方案不做用户确认就拆任务**：用 AI 自己的理解替代用户意图 → 返工：方案完成后必须通过 `ask_followup_question` 获得明确确认
 - **任务粒度过大**：把"实现订单模块"当一个 Task → 执行时无法评估进度：Task 必须 ≤ 1 人天（8h）
+- **不探索上下文直接设计**：对现有代码结构不熟悉就提出方案 → 可能与现有模式冲突或重复造轮子：Phase 1 必须先了解项目上下文
+- **单方案直接实现**：只提一个方案没有对比 → 用户失去选择权且容易选错：必须提出 2-3 方案 + trade-offs
