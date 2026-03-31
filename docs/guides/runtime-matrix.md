@@ -118,4 +118,3 @@ tinypowers/
 
 - `docs/guides/capability-map.md`
 - `docs/guides/generated-vs-curated-policy.md`
-- `docs/guides/optimization-roadmap-2026.md`

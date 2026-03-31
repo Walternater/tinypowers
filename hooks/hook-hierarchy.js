@@ -9,7 +9,7 @@
 //   strict   - security + context monitoring + code format + type checks
 //
 // Disabled hooks:
-//   TINYPOWERS_DISABLED_HOOKS=context-monitor,code-checker,residual-check
+//   TINYPOWERS_DISABLED_HOOKS=context-monitor,code-checker
 //   Comma-separated list of hook IDs to disable regardless of level
 
 const fs = require('fs');

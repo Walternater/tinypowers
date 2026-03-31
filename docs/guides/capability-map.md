@@ -51,8 +51,7 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 | `gsd-session-manager.js` | 默认启用 | 管理 SessionStart / Stop / PreCompact |
 | `gsd-context-monitor.js` | 默认启用 | 监控上下文压力 |
 | `config-protection.js` | 默认启用 | 防止弱化配置来“过检查” |
-| `residual-check.js` | 默认启用 | Stop 时检查调试残留 |
-| `gsd-code-checker.js` | 默认接线，`strict` 生效 | 提醒运行匹配的验证命令 |
+| `gsd-code-checker.js` | 默认接线，`strict` 生效 | 验证命令提醒 + Stop 时检查调试残留 |
 | `hook-hierarchy.js` | 工具脚本 | 生成 hook level 配置说明 |
 
 ## 安装组件
@@ -91,4 +90,3 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 - `docs/guides/runtime-matrix.md`
 - `docs/guides/generated-vs-curated-policy.md`
 - `docs/guides/change-set-model.md`
-- `docs/guides/optimization-roadmap-2026.md`

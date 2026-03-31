@@ -84,7 +84,7 @@ SPEC-STATE 门禁和意图路由是为了防止这种行为。Hook 层 (`spec-st
 ## 硬约束
 
 - 提交前必须通过 `npm run validate && npm test`
-- Hook 文件禁止含 `console.log`（residual-check 会报错）
+- Hook 文件禁止含 `console.log`（gsd-code-checker 会报错）
 - `manifests/components.json` 的 source 路径禁止引用生成产物
 - 所有 Skill 和 Agent 必须有 `name` + `description` 元数据
 - 标签（HARD-GATE、ANTI-RATIONALIZATION、TOOL-REQUIREMENT）必须正确闭合

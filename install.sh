@@ -228,7 +228,7 @@ cat > "$SETTINGS_FILE" << 'SETTINGS_EOF'
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${TINYPOWERS_DIR}/hooks/residual-check.js\"",
+            "command": "node \"${TINYPOWERS_DIR}/hooks/gsd-code-checker.js\" Stop",
             "timeout": 10
           }
         ]

@@ -59,7 +59,7 @@
       ]
     },
     "contexts": {
-      "description": "工作模式定义：dev / research / review / debug",
+      "description": "工作模式定义：dev / research / review",
       "required": false,
       "sources": [
         "contexts/"

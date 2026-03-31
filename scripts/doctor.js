@@ -131,7 +131,6 @@ function checkHooks(projectRoot, installRoot, findings) {
     'gsd-session-manager.js',
     'gsd-context-monitor.js',
     'config-protection.js',
-    'residual-check.js',
     'gsd-code-checker.js'
   ];
 
