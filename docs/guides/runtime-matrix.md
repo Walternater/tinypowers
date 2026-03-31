@@ -43,7 +43,6 @@ tinypowers 当前的正式工作流命令模型仍是 `/tech:*`。
 | 需求分析 | `/tech:feature` | 同上 | 同上 |
 | 执行与审查 | `/tech:code` | 同上 | 同上 |
 | 收口提交 | `/tech:commit` | 同上 | 同上 |
-| 调试 | `/tech:debug` | 同上 | 同上 |
 
 约束：
 - 不重新引入 `superpowers:*` 命名。

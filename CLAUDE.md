@@ -65,7 +65,6 @@ tinypowers/
 | 编码、实现、开发、修复、写代码 | `skills/tech-code/SKILL.md` | 跳过 Plan Check 直接改文件 |
 | 提交、commit、PR、收口 | `skills/tech-commit/SKILL.md` | 直接 git commit |
 | 初始化、新项目 | `skills/tech-init/SKILL.md` | 跳过检测步骤 |
-| 调试、排查问题 | `skills/tech-debug/SKILL.md` | 瞎猜原因不系统排查 |
 
 ### 强制检查清单
 

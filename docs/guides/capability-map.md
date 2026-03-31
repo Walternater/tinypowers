@@ -23,7 +23,6 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 | `tech-feature` | `research` | 需求分析、歧义检测、技术方案、任务拆解 |
 | `tech-code` | `dev` + `review` | Wave 执行、顺序审查、状态恢复 |
 | `tech-commit` | `review` | 收口提交、PR、文档同步 |
-| `tech-debug` | `debug` | 观察 → 假设 → 验证 → 修复 |
 
 ## Agents
 

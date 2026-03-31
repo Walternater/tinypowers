@@ -14,7 +14,6 @@
 
 ```
 /tech:init → /tech:feature → /tech:code → /tech:commit
-                                 ↗ /tech:debug
 ```
 
 ## 核心理念
@@ -48,7 +47,6 @@
 | `tech-feature` | 需求分析、歧义检测、技术方案、任务拆解 |
 | `tech-code` | Wave 并行执行、三阶段审查、状态恢复、TDD 循环 |
 | `tech-commit` | 文档同步、提交、PR 流程 |
-| `tech-debug` | 系统化调试：观察 → 假设 → 验证 → 修复 |
 
 ### Agents
 

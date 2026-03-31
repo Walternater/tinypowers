@@ -74,7 +74,6 @@ tinypowers 不是从零构建所有能力，而是站在 [obra/superpowers](http
 ┌────────────────────────▼────────────────────────────────┐
 │                    Skill 编排层                           │
 │  /tech:init → /tech:feature → /tech:code → /tech:commit │
-│         ↗ /tech:debug                                  │
 └────────────────────────┬────────────────────────────────┘
                          │ 委托 + 约束
 ┌────────────────────────▼────────────────────────────────┐
@@ -331,8 +330,7 @@ tinypowers/
 │   │   ├── tech-design-guide.md    # 技术方案模板 + 自检
 │   │   └── verification.md         # 各阶段验证标准
 │   ├── tech-commit/           # 提交收口流程
-│   ├── tech-init/             # 项目初始化
-│   └── tech-debug/            # 系统化调试
+│   └── tech-init/             # 项目初始化
 ├── agents/                    # 角色化 Agent（7 个）
 │   ├── architect.md           # 技术方案设计
 │   ├── decision-guardian.md   # 决策锁定防漂移
