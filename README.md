@@ -15,9 +15,6 @@
 ```
 /tech:init → /tech:feature → /tech:code → /tech:commit
                                  ↗ /tech:debug
-                                 ↗ /tech:quick
-                                 ↗ /tech:progress
-                                 ↗ /tech:note
 ```
 
 ## 核心理念
@@ -51,10 +48,7 @@
 | `tech-feature` | 需求分析、歧义检测、技术方案、任务拆解 |
 | `tech-code` | Wave 并行执行、三阶段审查、状态恢复、TDD 循环 |
 | `tech-commit` | 文档同步、提交、PR 流程 |
-| `tech-progress` | 读取 `STATE.md`，汇总当前进度和下一步建议 |
-| `tech-note` | 记录 note / todo / seed 三层想法资产 |
 | `tech-debug` | 系统化调试：观察 → 假设 → 验证 → 修复 |
-| `tech-quick` | 快速执行小任务，跳过 discuss 阶段 |
 
 ### Agents
 

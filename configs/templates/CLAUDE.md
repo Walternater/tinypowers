@@ -84,8 +84,6 @@ author: {{author}}
 | `/tech:feature` | 开始新功能分析 |
 | `/tech:code` | 执行编码、审查和验证 |
 | `/tech:commit` | 收口文档、提交和 PR |
-| `/tech:progress` | 查看当前进度 |
-| `/tech:note` | 快速记录想法和待办 |
 
 ## 模板变量
 

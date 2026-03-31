@@ -25,8 +25,6 @@
 | `/tech:feature` | 启动新需求分析、方案设计、任务拆解 |
 | `/tech:code` | 执行编码、审查、验证 |
 | `/tech:commit` | 同步文档、提交代码、创建 PR |
-| `/tech:progress` | 查看当前 Feature 进度 |
-| `/tech:note` | 记录 note / todo / seed |
 
 ## 需求目录结构
 
@@ -198,17 +196,8 @@ tinypowers 强制采用下面的顺序：
 ### 中断后继续
 
 ```text
-1. /tech:progress
-2. 查看当前 Feature 和阶段
-3. 按提示继续 /tech:feature 或 /tech:code
-```
-
-### 临时记录想法
-
-```text
-/tech:note
-/tech:note todo
-/tech:note seed
+1. 查看 features/ 目录下活跃的 Feature 和 SPEC-STATE.md
+2. 按当前阶段继续 /tech:feature 或 /tech:code
 ```
 
 ## 交付清单

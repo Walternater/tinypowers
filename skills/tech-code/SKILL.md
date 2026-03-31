@@ -52,7 +52,7 @@ Phase 5: Verify (delegate to superpowers)
 
 <TDD-GATE>
 **TDD 例外条款**（不强制 TDD）：
-- `tech:quick` 模式下的快速修复
+- 小任务快速修复
 - 纯配置变更（application.yml、properties 等）
 - 文档更新（README、API docs）
 - 基础设施/脚手架代码（Dockerfile、CI 配置等）

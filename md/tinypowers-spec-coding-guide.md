@@ -74,7 +74,7 @@ tinypowers 不是从零构建所有能力，而是站在 [obra/superpowers](http
 ┌────────────────────────▼────────────────────────────────┐
 │                    Skill 编排层                           │
 │  /tech:init → /tech:feature → /tech:code → /tech:commit │
-│         ↗ /tech:debug  ↗ /tech:quick  ↗ /tech:progress  │
+│         ↗ /tech:debug                                  │
 └────────────────────────┬────────────────────────────────┘
                          │ 委托 + 约束
 ┌────────────────────────▼────────────────────────────────┐
@@ -332,10 +332,7 @@ tinypowers/
 │   │   └── verification.md         # 各阶段验证标准
 │   ├── tech-commit/           # 提交收口流程
 │   ├── tech-init/             # 项目初始化
-│   ├── tech-debug/            # 系统化调试
-│   ├── tech-quick/            # 快速小任务
-│   ├── tech-progress/         # 进度查询
-│   └── tech-note/             # 想法资产管理
+│   └── tech-debug/            # 系统化调试
 ├── agents/                    # 角色化 Agent（7 个）
 │   ├── architect.md           # 技术方案设计
 │   ├── decision-guardian.md   # 决策锁定防漂移
@@ -460,7 +457,7 @@ npm run validate && npm test
 
 ### Q2：TDD 一定要写测试吗？
 
-`/tech:code` 的 TDD 门禁有例外条款：`tech:quick` 快速修复、纯配置变更、文档更新、基础设施代码、原型探索代码不强制 TDD。除此之外，每个任务必须遵循 RED-GREEN-REFACTOR 循环。
+`/tech:code` 的 TDD 门禁有例外条款：小任务快速修复、纯配置变更、文档更新、基础设施代码、原型探索代码不强制 TDD。除此之外，每个任务必须遵循 RED-GREEN-REFACTOR 循环。
 
 ### Q3：决策锁定后能改吗？
 
@@ -472,11 +469,7 @@ npm run validate && npm test
 
 ### Q5：怎么查看当前需求的进度？
 
-```bash
-/tech:progress
-```
-
-读取 `STATE.md`，汇总当前阶段、Wave、已完成任务、阻塞项和下一步建议。
+查看 `features/` 目录下活跃 Feature 的 `SPEC-STATE.md` 和 `STATE.md`，可以了解当前阶段、Wave、已完成任务、阻塞项和下一步建议。
 
 ---
 

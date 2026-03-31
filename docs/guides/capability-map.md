@@ -24,9 +24,6 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 | `tech-code` | `dev` + `review` | Wave 执行、顺序审查、状态恢复 |
 | `tech-commit` | `review` | 收口提交、PR、文档同步 |
 | `tech-debug` | `debug` | 观察 → 假设 → 验证 → 修复 |
-| `tech-quick` | `dev` | 快速处理小任务 |
-| `tech-progress` | `research` | 汇总 `STATE.md` 与下一步建议 |
-| `tech-note` | `research` | 记录 note / todo / seed |
 
 ## Agents
 
