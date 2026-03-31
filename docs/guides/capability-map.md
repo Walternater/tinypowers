@@ -33,13 +33,12 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 | Agent | 责任 |
 |------|------|
 | `architect` | 技术方案设计 |
-| `planner` | 任务拆解、Wave 规划 |
 | `decision-guardian` | 锁定关键决策，防止实现漂移 |
 | `tech-plan-checker` | 编码前检查任务表和依赖关系 |
 | `spec-compliance-reviewer` | 先审是否符合技术方案 |
 | `security-reviewer` | 再审安全风险 |
-| `code-reviewer` | 最后审代码质量 |
-| `tech-verifier` | 回到目标和验收标准做最终验证 |
+
+> **已委托 superpowers:** 任务拆解 → `superpowers:writing-plans`，代码审查 → `superpowers:code-reviewer`，完成验证 → `superpowers:verification-before-completion`
 
 ## Contexts
 

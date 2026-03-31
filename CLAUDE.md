@@ -29,7 +29,7 @@ build_command: npm run validate && npm test
 
 ```text
 tinypowers/
-├── agents/          # Agent 角色定义（10 个）
+├── agents/          # Agent 角色定义（7 个）
 ├── configs/
 │   ├── rules/       # 分层编码规范（common / java / mysql）
 │   └── templates/   # 文档模板（CLAUDE.md、PRD、技术方案等）

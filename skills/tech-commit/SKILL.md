@@ -37,6 +37,7 @@ Document Sync
   -> Git Commit
   -> PR Workflow
   -> Changelog Update
+  -> Branch Cleanup
 ```
 
 ## 硬约束
@@ -170,6 +171,14 @@ Confidence: high
 - 不对外暴露的微小整理
 
 详见 `changelog-update.md`。
+
+## 7. Branch Cleanup
+
+提交完成后，委托 `superpowers:finishing-a-development-branch` 清理工作分支。
+
+- 决定分支的去留（merge / keep / discard）
+- 清理 worktree（如果使用了 `superpowers:using-git-worktrees`）
+- 确认工作区恢复干净状态
 
 ## 输出
 

@@ -60,15 +60,14 @@
 
 #### 规划与设计
 - `architect`：技术方案设计
-- `planner`：任务拆解和 Wave 规划
 - `decision-guardian`：锁定关键决策，防止编码阶段擅自漂移
 
 #### 审查与验证
 - `tech-plan-checker`：执行前验证任务拆解表（含拓扑排序）
 - `spec-compliance-reviewer`：先审"是不是实现了方案要求的东西"
 - `security-reviewer`：再审安全风险
-- `code-reviewer`：最后审代码质量与可维护性
-- `tech-verifier`：目标回溯验证（4-Level 证据验证）
+
+> 委托 superpowers：`writing-plans`（任务拆解）、`code-reviewer`（代码审查）、`verification-before-completion`（完成验证）
 
 #### 语言特定
 - `agents/java/java-reviewer`
@@ -210,12 +209,8 @@ tinypowers/
 ├── skills/               # 主工作流定义
 │   ├── tech-code/
 │   │   ├── SKILL.md
-│   │   ├── wave-execution.md
 │   │   ├── context-preload.md
-│   │   ├── quality-gate.md
-│   │   ├── deviation-handling.md
-│   │   ├── state-management.md
-│   │   └── session-recovery.md
+│   │   └── pattern-scan.md
 │   └── tech-commit/
 │       ├── SKILL.md
 │       ├── commit-message-format.md

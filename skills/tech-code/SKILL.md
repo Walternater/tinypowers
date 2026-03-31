@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.2"
+  version: "6.0"
 ---
 
 # /tech:code
@@ -13,6 +13,8 @@ metadata:
 ## 作用
 
 把 `tech-feature` 产出的任务表和技术方案，落成可恢复、可审查、可验证的实现过程。
+
+本 skill 是**薄编排层**——定义 WHAT（门禁、缝合策略、上下文），委托 superpowers 定义 HOW（怎么派 subagent、怎么做 review、怎么验证）。
 
 ## 输入
 
@@ -33,125 +35,94 @@ metadata:
 ## 主流程
 
 ```text
-Plan Check
-  -> Wave Execution
-  -> Spec Compliance Review
-  -> Security Review
-  -> Code Quality Review
-  -> Verification
+Phase 0: Gate Check
+Phase 1: Context Preparation
+Phase 2: Pattern Scan
+Phase 3: Execute (delegate to superpowers)
+Phase 4: Review (delegate to superpowers + tinypowers agents)
+Phase 5: Verify (delegate to superpowers)
 ```
-
-这条链路必须顺序推进，不能跳步。
-
-## 默认 Context
-
-- Wave Execution 默认使用 `contexts/dev.md`
-- 顺序审查默认使用 `contexts/review.md`
-- 遇到疑难问题时，可临时切到 `contexts/debug.md`
 
 ## 硬约束
 
 - 禁止在 `/tech:commit` 之前自动执行 `git commit`
-- `STATE.md` 是执行期唯一真相源，Snapshot 只负责恢复提示
-- Phase 1 未通过前，禁止启动任何编码任务
-- 审查必须按"方案符合性 -> 安全 -> 代码质量"的顺序执行
-- 审查和最终验证必须通过独立 Agent 完成，禁止主 Agent 自审自批
-- 同一问题连续 3 次后，必须停止当前修补方向并上升到架构层讨论
 - **缝合优先**：任务执行前必须搜索项目中最相似的已有实现作为锚点，复制骨架 → 替换业务字段 → 只在差异点写新代码。纯新模块标记 `GREENFIELD` 后可从零编写
+- **TDD 强制门禁**：每个任务的实现必须遵循 RED-GREEN-REFACTOR 循环
+- **偏差 3 次升级**：同一问题连续失败 3 次后停止同方向尝试，上升到架构层讨论
 
-<HARD-GATE>
-**TDD 强制门禁** - 每个任务的实现必须遵循 RED-GREEN-REFACTOR 循环：
-1. RED：首先编写一个会失败的测试（测试目标行为而非实现）
-2. GREEN：编写最小代码使测试通过（不追求完美，只求通过）
-3. REFACTOR：重构代码消除重复、提升质量，但保持测试通过
-
-禁止在测试失败的情况下向主分支提交生产代码。违反此规则的代码必须回滚。
-
-**例外条款**（不强制 TDD）：
+<TDD-GATE>
+**TDD 例外条款**（不强制 TDD）：
 - `tech:quick` 模式下的快速修复
 - 纯配置变更（application.yml、properties 等）
 - 文档更新（README、API docs）
 - 基础设施/脚手架代码（Dockerfile、CI 配置等）
 - 原型探索阶段（feature flag 保护的实验性代码）
-</HARD-GATE>
+</TDD-GATE>
 
-## Phase 1: Plan Check
+## Phase 0: Gate Check
 
-确认任务表可靠，可进入执行。
+确认可以进入执行。
 
 - 如果 `SPEC-STATE.md` 存在，更新 phase 为 `EXEC`
 - 调用 `tech-plan-checker` 检查任务表格式、依赖关系、任务粒度
 - 对照 `技术方案.md` 锁定决策，确认无偏离 D-0N 约束
-- 执行依赖拓扑排序，检测循环依赖
 - 最多重试 3 次，仍失败则暂停
 
-## Phase 2: Wave Execution
+## Phase 1: Context Preparation
 
-把任务表按依赖推进分 Wave，每个 Wave 末尾完成一次收敛。详见 `wave-execution.md`。
+为后续 Phase 预加载上下文。详见 `context-preload.md`。
 
-- 启动前读取或创建 `STATE.md`
-- 同一 Wave 并行，不同 Wave 串行
-- 启动 Wave 前执行上下文预加载（见 `context-preload.md`）
-- 每个 Wave 完成后执行质量门禁（见 `quality-gate.md`）
+- 读取 `技术方案.md`、`任务拆解表.md`、`STATE.md`
+- 加载领域知识（`docs/knowledge.md`）
+- 加载 feature 级 learnings（`notepads/learnings.md`）
 
-### Deviation Rules
+## Phase 2: Pattern Scan
 
-| 规则 | 条件 | 动作 |
-|------|------|------|
-| Rule 1 | 发现 Bug | 自动修复 |
-| Rule 2 | 发现遗漏的关键功能（须引用技术方案条目号） | 自动补全 |
-| Rule 3 | 遇到阻塞问题 | 自动解决 |
-| Rule 4 | 架构变更 | 暂停，询问用户 |
+为每个任务搜索最相似的已有实现。详见 `pattern-scan.md`。
 
-同一 Wave 内 Rule 1-3 总计最多 3 次，超过升级到 Rule 4。所有自动修复记录到 `STATE.md`。
+- 按文件类型、业务域、功能模式三个维度搜索
+- 每个任务产出参考锚点或 `GREENFIELD` 标记
+- 缝合策略：标注保留/替换/新增
 
-### 任务分配要求
+## Phase 3: Execute
 
-每个任务的执行 prompt 至少包含：任务目标、验收标准、涉及文件、依赖接口、对应决策 ID、TDD 要求。
+**委托 `superpowers:subagent-driven-development` 执行。**
 
-### 运行中同步状态
+每个 subagent 的 task prompt 必须包含：
+- 任务描述和验收标准
+- 涉及文件和依赖接口
+- 锁定决策（D-0N）
+- Pattern Scan 结果（参考实现 + 缝合策略）
+- 领域知识（按任务裁剪）
+- TDD 要求
 
-当前阶段、Wave、已完成任务、阻塞项、偏差记录、上次操作。格式见 `state-management.md`。
+执行过程中发现的 learnings 实时记录到 `notepads/learnings.md`（格式见 `pattern-scan.md`）。
 
-## Phase 3: 顺序审查
+## Phase 4: Review
 
-依次回答三个不同问题，不能跳步。
+先做 tinypowers 专项审查（确认"做对了东西"），再做 superpowers 代码质量审查。
 
-### Step 1: 方案符合性审查
+```text
+1. agents/spec-compliance-reviewer      — 技术方案符合性（tinypowers 独有）
+2. agents/security-reviewer             — 安全风险审查（tinypowers 独有）
+3. superpowers:requesting-code-review    — 代码质量审查
+```
 
-调用 `spec-compliance-reviewer`：接口契约、业务流程、数据结构、验收标准是否与技术方案一致。只有 `COMPLIANT` 才进入下一步。
+每步最多重试 3 次，仍失败则暂停。
 
-### Step 2: 安全审查
+## Phase 5: Verify
 
-调用 `security-reviewer`：注入风险、鉴权缺失、敏感信息暴露、不安全依赖。只有 `APPROVE` 才进入下一步。
+**委托 `superpowers:verification-before-completion` 执行。**
 
-### Step 3: 代码质量审查
+铁律：没有验证证据就不算完成。
 
-调用代码质量审查 Agent：分层结构、命名、异常处理、性能、测试覆盖。
-
-### 审查失败处理
-
-每步最多重试 3 次，仍失败则暂停。修复后重跑对应 Step。
-
-## Phase 4: Verification
-
-确认"做完了"不只是代码写完，而是需求闭环。
-
-调用 `tech-verifier` 执行目标回溯验证，详见 `quality-gate.md` 中的 4-Level Verification 定义。
-
-每个验证点必须附带具体证据，没有证据视为未完成。
-
-### 默认目标
-
-行覆盖率 >= 80%，分支覆盖率 >= 70%，核心业务 >= 90%。项目有更严门槛则以项目为准。
+默认覆盖率目标：行覆盖率 >= 80%，分支覆盖率 >= 70%，核心业务 >= 90%。项目有更严门槛则以项目为准。
 
 ## 输出
 
 ```text
 features/{id}/
 ├── STATE.md
-├── code-review.md
-├── 测试报告.md
 ├── VERIFICATION.md
 └── notepads/learnings.md
 ```
@@ -160,24 +131,15 @@ features/{id}/
 
 ## 失败与恢复
 
-- 质量门禁失败：停止下一 Wave，先修复
-- 发现偏差：按 `deviation-handling.md` 处理
-- 上下文中断：按 `session-recovery.md` 恢复
+- 门禁失败：先修复再进
+- 执行失败：按 superpowers 的 subagent 失败处理
 - 连续 3 次失败：停止，转入架构质疑
 
 ## 配套文档
 
-`wave-execution.md` | `state-management.md` | `session-recovery.md` | `quality-gate.md` | `deviation-handling.md`
-
-## Gotchas
-
-- 修复后必须重跑对应审查 Step，不能跳步
-- STATE.md 和 Snapshot 不一致时，以 STATE.md 为准
-- 同一 Wave 连续 3 次失败后必须升级，换方向不算重置
+`pattern-scan.md` | `context-preload.md`
 
 ## Anti-Rationalization 自检
-
-跳过检查前先问：是不是在找借口？
 
 | 你可能在想 | 更可靠的判断 |
 |-----------|--------------|
@@ -187,8 +149,6 @@ features/{id}/
 | 这一步应该不会出问题 | "应该"不是证据，跑完检查才是 |
 
 ## 交接检查清单
-
-阶段转换或会话交接时，逐项确认以下内容：
 
 - [ ] **关键决策及依据**：列出所有 D-XXX 决策及其理由
 - [ ] **被拒绝方案及原因**：记录否决的替代方案及否决理由

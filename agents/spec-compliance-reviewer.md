@@ -162,6 +162,6 @@ triggers: [tech-code]
 
 ## When to Use
 
-- `/tech:code` Phase 3 的**第一步**（在 security-reviewer 和 code-reviewer 之前）
+- `/tech:code` Phase 3 的**第一步**（在 security-reviewer 和 superpowers:requesting-code-review 之前）
 - 任何 Wave 完成后的符合性核查
 - 技术方案变更后的影响面核查
