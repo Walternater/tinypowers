@@ -106,7 +106,7 @@ brainstorming 的输出直接作为技术方案的输入。
 
 ## Phase 3: 技术方案
 
-调用 `agents/architect` 生成技术方案。详见 `tech-design-guide.md`。
+调用 `agents/architect` 生成技术方案。详见 `tech-design-guide.md`、`@agents/decision-guardian.md`。
 
 ### 决策锁定
 
@@ -147,7 +147,7 @@ tinypowers 的补充要求（注入到 writing-plans 的上下文中）：
 
 ## 配套文档
 
-`requirements-guide.md` | `ambiguity-check.md` | `tech-design-guide.md` | `verification.md`
+`requirements-guide.md` | `ambiguity-check.md` | `tech-design-guide.md` | `verification.md` | `@configs/templates/tech-design.md`
 
 ## Gotchas
 
