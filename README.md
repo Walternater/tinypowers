@@ -209,12 +209,8 @@ tinypowers/
 ├── skills/               # 主工作流定义
 │   ├── tech-code/
 │   │   ├── SKILL.md
-│   │   ├── wave-execution.md
 │   │   ├── context-preload.md
-│   │   ├── quality-gate.md
-│   │   ├── deviation-handling.md
-│   │   ├── state-management.md
-│   │   └── session-recovery.md
+│   │   └── pattern-scan.md
 │   └── tech-commit/
 │       ├── SKILL.md
 │       ├── commit-message-format.md

@@ -218,12 +218,9 @@ echo 'export TINYPOWERS_HOOK_LEVEL=strict' >> ~/.zshrc
 - 不要把"配置保护"做成无法维护框架自身
 
 特别注意：
-- 如果改了恢复逻辑，请同步检查 `skills/tech-code/session-recovery.md`
 - 如果改了上下文门槛，请同步检查用户提示文案
 - 如果新增受保护文件类型，请确认不会误伤正常维护动作
 
 ## 相关文档
 
-- [tech-code session-recovery](../skills/tech-code/session-recovery.md)
-- [tech-code state-management](../skills/tech-code/state-management.md)
 - [README.md](../README.md)

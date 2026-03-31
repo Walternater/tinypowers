@@ -100,12 +100,12 @@ Phase 5: Verify (delegate to superpowers)
 
 ## Phase 4: Review
 
-先委托 superpowers 审查，再追加 tinypowers 专项审查。
+先做 tinypowers 专项审查（确认"做对了东西"），再做 superpowers 代码质量审查。
 
 ```text
-1. superpowers:requesting-code-review    — 代码质量审查
-2. agents/spec-compliance-reviewer      — 技术方案符合性（tinypowers 独有）
-3. agents/security-reviewer             — 安全风险审查（tinypowers 独有）
+1. agents/spec-compliance-reviewer      — 技术方案符合性（tinypowers 独有）
+2. agents/security-reviewer             — 安全风险审查（tinypowers 独有）
+3. superpowers:requesting-code-review    — 代码质量审查
 ```
 
 每步最多重试 3 次，仍失败则暂停。
