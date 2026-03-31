@@ -23,7 +23,7 @@ test('doctor succeeds on repository workspace', () => {
 test('validate succeeds on repository workspace', () => {
   const result = run('scripts/validate.js');
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /结果: 0 错误, \d+ 警告/);
+  assert.match(result.stdout, /结果: 0 错误, 0 警告/);
 });
 
 test('validate fails when manifest references generated artifacts', () => {
