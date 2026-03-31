@@ -43,7 +43,6 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 | `dev.md` | 编码与实现 | 先写代码，后解释 |
 | `research.md` | 只读分析、方案确认 | 只读，不写 |
 | `review.md` | 审查与验收 | 只看不改，输出结构化报告 |
-| `debug.md` | 疑难问题排查 | 科学方法验证根因 |
 
 ## Hooks
 
@@ -65,7 +64,7 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 | `rules-java` | Java / Spring Boot 规则 |
 | `rules-mysql` | MySQL DBA 规则 |
 | `templates` | `CLAUDE.md`、PRD、技术方案、测试报告模板 |
-| `contexts` | dev / research / review / debug 模式定义 |
+| `contexts` | dev / research / review 模式定义 |
 | `tests` | 仓库脚本与 hooks 的最小回归测试 |
 
 ## 运维入口

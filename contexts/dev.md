@@ -22,4 +22,3 @@ Focus: Implementation, coding, building features
 ## When to Switch
 - 需要调研新技术 → `/context:research`
 - 需要审查代码 → `/context:review`
-- 需要调试问题 → `/context:debug`

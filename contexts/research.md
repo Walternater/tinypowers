@@ -21,4 +21,3 @@ Focus: Understanding, analysis, documentation
 
 ## When to Switch
 - 调研完成，准备编码 → `/context:dev`
-- 发现问题需要调试 → `/context:debug`

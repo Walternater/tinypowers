@@ -33,13 +33,13 @@ tinypowers/
 ├── configs/
 │   ├── rules/       # 分层编码规范（common / java / mysql）
 │   └── templates/   # 文档模板（CLAUDE.md、PRD、技术方案等）
-├── contexts/        # 工作模式（dev / review / debug / research）
+├── contexts/        # 工作模式（dev / review / research）
 ├── docs/            # 使用指南和设计文档
 ├── features/        # Change set 工作区（运行时生成）
 ├── hooks/           # Claude Code hooks
 ├── manifests/       # 安装清单和组件定义
 ├── scripts/         # validate / doctor / repair / scaffold / update-spec-state
-├── skills/          # Skill 定义（tech:init / feature / code / commit / debug / note / progress / quick）
+├── skills/          # Skill 定义（tech:init / feature / code / commit）
 └── tests/           # 脚本和 hook 回归测试
 ```
 

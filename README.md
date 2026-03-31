@@ -214,7 +214,7 @@ tinypowers/
 ├── configs/
 │   ├── rules/            # 分层编码规范
 │   └── templates/        # 文档模板
-├── contexts/             # 工作模式（dev / research / review / debug）
+├── contexts/             # 工作模式（dev / research / review）
 ├── docs/                 # 使用指南
 ├── manifests/            # 安装组件定义
 └── scripts/              # 校验与工具脚本

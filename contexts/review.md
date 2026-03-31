@@ -50,7 +50,6 @@ Focus: Quality assessment, issue detection
 
 ## When to Switch
 - 审查通过，准备编码 → `/context:dev`
-- 发现需要调试的问题 → `/context:debug`
 
 ## Preferred Tools
 - Read, Grep, Glob 读取代码

@@ -55,7 +55,6 @@ tinypowers 当前的正式工作流命令模型仍是 `/tech:*`。
 | `dev` | 通过 skills 和 rules 引导 | 通过 SKILL.md discovery 引导 | 作为 instruction preset / prompt 片段映射 |
 | `research` | 同上 | 同上 | 同上 |
 | `review` | 同上 | 同上 | 同上 |
-| `debug` | 同上 | 同上 | 同上 |
 
 当前原则：
 - `contexts/` 是 tinypowers 的统一工作模式定义。

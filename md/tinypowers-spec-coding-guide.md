@@ -351,7 +351,7 @@ tinypowers/
 │   │   ├── java/              # Java/Spring Boot（继承 common）
 │   │   └── mysql/             # MySQL DBA 规范
 │   └── templates/             # 文档模板
-├── contexts/                  # 工作模式（dev / review / debug / research）
+├── contexts/                  # 工作模式（dev / review / research）
 ├── docs/                      # 使用指南
 ├── manifests/                 # 安装组件定义
 └── scripts/                   # validate / doctor / scaffold
