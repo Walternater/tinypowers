@@ -27,7 +27,6 @@ metadata:
 1. `SPEC-STATE.md` 存在且当前 phase 为 `TASKS` 或 `EXEC`
 2. `任务拆解表.md` 存在且通过 `tech-plan-checker` 验证
 3. `技术方案.md` 存在且包含已锁定决策（D-0N 格式）
-4. 上一阶段（Phase 3 审查）已通过
 
 如果不满足上述任一条件，禁止进入 Wave Execution，必须先完成对应阶段。
 </HARD-GATE>
@@ -39,7 +38,7 @@ Phase 0: Gate Check
 Phase 1: Context Preparation
 Phase 2: Pattern Scan
 Phase 3: Execute (delegate to superpowers)
-Phase 4: Review (delegate to superpowers + tinypowers agents)
+Phase 4: Review (tinypowers agents → superpowers)
 Phase 5: Verify (delegate to superpowers)
 ```
 
@@ -63,6 +62,7 @@ Phase 5: Verify (delegate to superpowers)
 
 确认可以进入执行。
 
+- 确认当前在 worktree 隔离环境中（由 `/tech:feature` Phase 0 建立）
 - 如果 `SPEC-STATE.md` 存在，更新 phase 为 `EXEC`
 - 调用 `tech-plan-checker` 检查任务表格式、依赖关系、任务粒度
 - 对照 `技术方案.md` 锁定决策，确认无偏离 D-0N 约束

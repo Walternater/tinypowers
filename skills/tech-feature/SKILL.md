@@ -12,7 +12,7 @@ metadata:
 
 ## 作用
 
-把一个模糊需求整理成"可执行的需求定义"。本 skill 是**薄编排层**——定义 WHAT（门禁、产物、决策锁定），需求探索委托 `superpowers:brainstorming`，任务拆解委托 `superpowers:writing-plans`。
+把一个模糊需求整理成"可执行的需求定义"。本 skill 是**薄编排层**——定义 WHAT（门禁、产物、决策锁定），需求探索遵循 `superpowers:brainstorming` 方法论，任务拆解委托 `superpowers:writing-plans`。
 
 ## 最终产物
 
@@ -51,9 +51,9 @@ INIT → REQ → DESIGN → TASKS → EXEC → REVIEW → VERIFY → CLOSED
 ## 主流程
 
 ```text
-Phase 0: 准备（tinypowers 独有）
+Phase 0: 准备（委托 superpowers:using-git-worktrees）
 Phase 1: 需求理解（tinypowers 独有）
-Phase 2: 歧义检测 + 多方案探索（委托 superpowers:brainstorming）
+Phase 2: 歧义检测 + 多方案探索（方法论: superpowers:brainstorming）
 Phase 3: 技术方案（tinypowers agents/architect）
 Phase 4: 任务拆解（委托 superpowers:writing-plans）
 Phase 5: 任务表验证（tinypowers agents/tech-plan-checker）
@@ -79,6 +79,10 @@ Phase 5: 任务表验证（tinypowers agents/tech-plan-checker）
 
 从输入中提炼：需求 ID、简短描述、对应目录名。
 
+### 建隔离环境
+
+**委托 `superpowers:using-git-worktrees` 创建隔离分支。**
+
 ### 创建目录和分支
 
 ```bash
@@ -98,9 +102,9 @@ node .claude/skills/tinypowers/scripts/scaffold-feature.js --id {id} --name {nam
 
 ## Phase 2: 歧义检测 + 多方案探索
 
-**委托 `superpowers:brainstorming` 完成。**
+**遵循 `superpowers:brainstorming` 方法论。**
 
-歧义检测先消除模糊点（详见 `ambiguity-check.md`），然后 brainstorming 探索 2-3 种可行方案并给出推荐。
+歧义检测先消除模糊点（详见 `ambiguity-check.md`），然后按 brainstorming 方法论探索 2-3 种可行方案并给出推荐。
 
 brainstorming 的输出直接作为技术方案的输入。
 
@@ -147,7 +151,19 @@ tinypowers 的补充要求（注入到 writing-plans 的上下文中）：
 
 ## 配套文档
 
-`requirements-guide.md` | `ambiguity-check.md` | `tech-design-guide.md` | `verification.md` | `@configs/templates/tech-design.md`
+| 文档 | 作用 |
+|------|------|
+| `requirements-guide.md` | 需求理解引导 |
+| `ambiguity-check.md` | 歧义检测规则 |
+| `tech-design-guide.md` | 技术方案设计引导 |
+| `verification.md` | 完成验证标准 |
+
+**委托 superpowers**:
+- Phase 0 → `superpowers:using-git-worktrees`
+- Phase 4 → `superpowers:writing-plans`
+
+**方法论引用**:
+- Phase 1+2 → `superpowers:brainstorming`
 
 ## Gotchas
 
