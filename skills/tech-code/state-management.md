@@ -126,3 +126,7 @@ T-001, T-002, T-003 (Gate OK)
 - 哪些任务已经完成
 - 哪些问题还没解决
 - 下一步应该做什么
+
+## Gotchas
+
+- **STATE.md 和 Snapshot 不一致**：以 STATE.md 为准。Snapshot 仅作恢复提示，不作权威源

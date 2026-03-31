@@ -75,3 +75,15 @@ Stop 和 PreCompact 时写入快照到 `/tmp/tinypowers-session-{session_id}.jso
 node hooks/gsd-session-manager.js Stop
 node hooks/gsd-session-manager.js SessionStart
 ```
+
+## 交接检查清单
+
+阶段转换或会话交接时，逐项确认以下内容：
+
+- [ ] **关键决策及依据**：列出所有 D-XXX 决策及其理由
+- [ ] **被拒绝方案及原因**：记录否决的替代方案及否决理由
+- [ ] **已识别风险**：当前已知的技术风险和阻塞项
+- [ ] **未完成项**：明确哪些任务/Wave 尚未完成
+- [ ] **验证证据**：附上测试通过、覆盖率、审查结论等证据
+- [ ] **偏差记录**：汇总已发生的偏差类型和处理结果
+- [ ] **下一步行动**：交接后应立即执行的第一个动作

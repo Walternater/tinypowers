@@ -131,6 +131,10 @@ function validateSkills() {
 
   for (const file of skillFiles) {
     const rel = path.relative(ROOT, file);
+
+    // Skip superpowers skills — they are external dependencies with their own path conventions
+    if (rel.startsWith('skills/superpowers/')) continue;
+
     const content = fs.readFileSync(file, 'utf8');
     const dir = path.dirname(file);
 
