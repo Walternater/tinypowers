@@ -9,3 +9,4 @@ hooks-settings-template.json
 # session state (survives sessions, generated at runtime)
 .tinypowers/
 
+.worktrees/
