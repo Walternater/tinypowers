@@ -23,7 +23,7 @@ test('hook-hierarchy strict mode includes code checker', () => {
   assert.match(commands, /gsd-code-checker\.js/);
 });
 
-test('residual-check reports console.log in modified files', () => {
+test('gsd-code-checker Stop detects console.log in modified files', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-residual-'));
 
   execFileSync('git', ['init'], { cwd: tempDir, stdio: 'ignore' });
@@ -37,7 +37,7 @@ test('residual-check reports console.log in modified files', () => {
 
   fs.writeFileSync(path.join(tempDir, 'demo.js'), 'console.log("debug");\n');
 
-  const result = spawnSync('node', [path.join(ROOT, 'hooks/residual-check.js')], {
+  const result = spawnSync('node', [path.join(ROOT, 'hooks/gsd-code-checker.js'), 'Stop'], {
     cwd: tempDir,
     encoding: 'utf8',
     input: JSON.stringify({ cwd: tempDir })

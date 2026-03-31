@@ -51,6 +51,37 @@ tinypowers/
 | `configs/rules/common/security.md` | 安全要求 |
 | `configs/rules/common/testing.md` | 测试要求 |
 
+## Skill 加载前置规则（强制）
+
+**任何涉及功能开发的工作，必须在开始前加载对应 Skill 并严格遵循其流程。**
+
+### 意图路由
+
+当用户的请求匹配以下模式时，必须立即用 Skill 工具加载对应的 SKILL.md 并遵循其流程，不允许跳步：
+
+| 用户意图关键词 | 必须加载的 Skill | 禁止行为 |
+|--------------|-----------------|---------|
+| 新功能、需求分析、PRD、规划、优化方案、重构计划 | `skills/tech-feature/SKILL.md` | 直接写代码或直接改文件 |
+| 编码、实现、开发、修复、写代码 | `skills/tech-code/SKILL.md` | 跳过 Plan Check 直接改文件 |
+| 提交、commit、PR、收口 | `skills/tech-commit/SKILL.md` | 直接 git commit |
+| 初始化、新项目 | `skills/tech-init/SKILL.md` | 跳过检测步骤 |
+| 调试、排查问题 | `skills/tech-debug/SKILL.md` | 瞎猜原因不系统排查 |
+
+### 强制检查清单
+
+在响应功能开发类请求前，逐项确认：
+
+1. **是否匹配某个 Skill 触发条件？** → 如果是，立即加载该 SKILL.md
+2. **是否存在 active feature 目录？** → 如果是，检查 SPEC-STATE.md 当前阶段
+3. **当前阶段是否允许我要执行的操作？** → 如果不允许，先推进阶段
+4. **我是否在跳步？** → 如果 SPEC-STATE 没到 EXEC 阶段，禁止编辑代码文件
+
+### 为什么这是强制的
+
+历史教训：AI 看到分析结果后直接跳到编码阶段，跳过了需求确认、技术方案、任务拆解等所有规划阶段。
+SPEC-STATE 门禁和意图路由是为了防止这种行为。Hook 层 (`spec-state-guard.js`) 会在运行时拦截违规操作，
+但更期望 AI 在 prompt 层就自觉遵循。
+
 ## 硬约束
 
 - 提交前必须通过 `npm run validate && npm test`
@@ -58,6 +89,7 @@ tinypowers/
 - `manifests/components.json` 的 source 路径禁止引用生成产物
 - 所有 Skill 和 Agent 必须有 `name` + `description` 元数据
 - 标签（HARD-GATE、ANTI-RATIONALIZATION、TOOL-REQUIREMENT）必须正确闭合
+- **功能开发类任务必须先加载对应 Skill**（见上方 Skill 加载前置规则）
 
 ## AI 编辑边界
 
