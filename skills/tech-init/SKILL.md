@@ -21,6 +21,7 @@ metadata:
 执行完成后，目标项目通常应具备：
 - `CLAUDE.md` 入口文件
 - `docs/guides/` 指南文档
+- `docs/knowledge.md` 领域知识库（从项目代码动态提取）
 - `configs/rules/` 规则目录
 - `configs/templates/` 模板目录
 - `features/` 需求工作目录
@@ -39,13 +40,15 @@ metadata:
 ```text
 0. 框架自举检测（是否在 tinypowers 仓库自身运行）
 1. 技术栈检测
-2. 检测结果确认
-3. 已初始化检查 + 项目级配置覆盖检测
-4. 选择更新策略
-5. 加载对应规则（覆盖配置优先）
-6. 复制模板并替换变量（覆盖配置优先）
-7. 执行初始化验证
-8. 输出结果与下一步建议
+2. 领域知识扫描
+3. 检测结果确认
+4. 已初始化检查 + 项目级配置覆盖检测
+5. 选择更新策略
+6. 加载对应规则（覆盖配置优先）
+7. 复制模板并替换变量（覆盖配置优先）
+8. 生成领域知识库
+9. 执行初始化验证
+10. 输出结果与下一步建议
 ```
 
 ## 详细步骤
@@ -85,7 +88,34 @@ metadata:
 检测细节见：
 - `stack-detection.md`
 
-### 2. 检测结果确认
+### 2. 领域知识扫描
+
+技术栈检测完成后，扫描项目代码提取领域知识，为 `docs/knowledge.md` 准备内容。
+
+**扫描目标**：只提取模型无法从公开资料获取的内容。
+
+| 扫描维度 | 怎么扫 | 举例 |
+|---------|--------|------|
+| 内部依赖 | 读 package.json/pom.xml，识别非公开包 | `@company/ui-lib`、内部 SDK |
+| 请求封装 | 采样 2-3 个 API 调用文件，看请求怎么发 | axios 封装、hostMap 架构、统一错误处理 |
+| 组件用法 | 采样 2-3 个页面文件，看组件怎么用 | Table 怎么配、Form 怎么联动、弹窗怎么开 |
+| 目录惯例 | 看页面/模块的文件拆分方式 | 按页面拆 vs 按功能拆、services 独立 vs 内联 |
+| 配置约束 | 读构建配置、路由配置 | URL 格式要求、代理规则、特殊 loader |
+
+**扫描方法**：
+1. 读依赖声明文件，标记非公开依赖
+2. 用 Glob 找到每种类型的代表文件，Read 采样 2-3 个
+3. 从采样文件中提取模式（不是复制代码，是提取"怎么组合"的知识）
+4. 整理成三类条目：组件用法 / 平台约束 / 踩坑记录
+
+**输出**：一份领域知识清单，在 Step 8 写入 `docs/knowledge.md`。
+
+**空项目处理**：如果项目没有足够的源码可供扫描（新项目、空目录），跳过此步骤，`docs/knowledge.md` 留空模板，后续由 `/tech:code` Phase 5 通过物料飞轮填充。
+
+扫描细节见：
+- `knowledge-scanning.md`
+
+### 3. 检测结果确认
 
 检测结果不是最终事实，用户确认才是。
 
@@ -94,7 +124,7 @@ metadata:
 - 推荐加载的规则集
 - 建议初始化的指南文档
 
-### 3. 已初始化检查
+### 4. 已初始化检查
 
 如果项目根目录已经有 `CLAUDE.md`，说明大概率不是首次接入。
 
@@ -102,7 +132,7 @@ metadata:
 
 同时检查项目根目录是否存在 `project-overrides.json`。如果存在，读取覆盖配置并在后续步骤中优先使用（详见 `init-steps.md` 项目级配置覆盖章节）。
 
-### 4. 更新策略
+### 5. 更新策略
 
 支持三种策略：
 
@@ -117,7 +147,7 @@ metadata:
 策略细节见：
 - `update-strategies.md`
 
-### 5. 规则加载
+### 6. 规则加载
 
 按确认后的技术栈加载：
 - `configs/rules/common-*`
@@ -128,7 +158,7 @@ metadata:
 - Java 项目加载 `configs/rules/java/`
 - 需要 MySQL 约束时加载 `configs/rules/mysql/`
 
-### 6. 模板复制与变量替换
+### 7. 模板复制与变量替换
 
 会用项目上下文替换模板变量，例如：
 - `{{project_name}}`
@@ -140,7 +170,19 @@ metadata:
 目录和变量细节见：
 - `init-steps.md`
 
-### 7. 初始化验证
+### 8. 生成领域知识库
+
+将 Step 2 扫描得到的领域知识写入 `docs/knowledge.md`。
+
+**生成规则**：
+- 使用 `configs/templates/knowledge.md` 作为骨架
+- 将扫描到的条目填入对应分区（组件用法 / 平台约束 / 踩坑记录）
+- 如果项目没有足够的源码，保留空模板
+- 如果 `docs/knowledge.md` 已存在，增量追加不覆盖
+
+**生成时机**：放在模板复制之后、验证之前，因为验证步骤需要检查 knowledge.md 是否存在。
+
+### 9. 初始化验证
 
 初始化完成后，要确认：
 - 目录存在
@@ -170,7 +212,13 @@ metadata:
 已创建:
 - CLAUDE.md
 - docs/guides/
+- docs/knowledge.md (领域知识: 3 组件用法, 2 平台约束)
 - features/
+
+领域知识扫描:
+- 内部依赖: @company/common-utils, @company/auth-sdk
+- 请求封装: 统一 Response<T> 包装, GlobalExceptionHandler 模式
+- 目录惯例: Controller → Service → Mapper 三层分包
 
 下一步:
 /tech:feature
@@ -196,6 +244,7 @@ build/
 
 - `init-steps.md`
 - `stack-detection.md`
+- `knowledge-scanning.md`
 - `update-strategies.md`
 - `verification.md`
 

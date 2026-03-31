@@ -1,11 +1,11 @@
 ---
 name: tech:commit
-description: 当用户要求提交代码、创建 PR、同步文档、或完成 feature 收口时触发。
+description: 当用户要求提交代码、创建 PR、同步文档、沉淀知识、或完成 feature 收口时触发。
 license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "2.0"
+  version: "2.1"
 ---
 
 # /tech:commit
@@ -32,6 +32,7 @@ metadata:
 
 ```text
 Document Sync
+  -> Knowledge Capture
   -> Commit Preparation
   -> Git Commit
   -> PR Workflow
@@ -59,7 +60,44 @@ Document Sync
 
 详见 `documenter-guide.md`。
 
-## 2. Commit Preparation
+## 2. Knowledge Capture（知识沉淀）
+
+把 `/tech:code` Wave 内捕获的学习经验沉淀到项目级知识库，形成物料飞轮。
+
+### 做什么
+
+1. 读取 `features/{id}/notepads/learnings.md`，评估每条学习是否值得沉淀到项目级
+2. 对值得沉淀的条目，归类写入 `docs/knowledge.md`（不存在则用模板创建）
+3. 不值得沉淀的条目保留在 feature 级 learnings 中不删除
+
+### 沉淀判断标准
+
+| 值得沉淀 | 不值得沉淀 |
+|---------|-----------|
+| 内部组件的非显而易见用法 | 公开文档可查的知识 |
+| 平台/框架级别的约束和陷阱 | 仅本次需求特有的业务逻辑 |
+| 调试发现的隐蔽 bug 模式 | 一次性的 typos 和格式问题 |
+| 跨需求可复用的编码模式 | 已在 `docs/knowledge.md` 中存在的条目 |
+
+### 沉淀格式
+
+按 `docs/knowledge.md` 的三类分区写入：
+
+```text
+## 组件用法 ← 内部组件的非标用法
+## 平台约束 ← 违反后会出问题的硬约束
+## 踩坑记录 ← 隐蔽 bug 模式和调试经验
+```
+
+每条沉淀附带来源标记：`→ 发现于 {feature_id}`
+
+### 设计原则
+
+- **增量追加**，不覆盖已有知识
+- **人确认**：沉淀内容应展示给用户，用户可删除或修改
+- **不阻断**：knowledge.md 不存在时自动创建，learnings 为空时跳过
+
+## 3. Commit Preparation
 
 收口检查清单：
 - [ ] 测试和验证结果是最新的（非历史通过）
@@ -72,7 +110,7 @@ Document Sync
 
 交接完整性确认：确保后续接手的人能从 commit 和 PR 中理解全部上下文。
 
-## 3. Git Commit
+## 4. Git Commit
 
 提交信息默认遵循 Conventional Commits，并结合项目自己的来源前缀使用。
 
@@ -107,7 +145,7 @@ Confidence: high
 
 提交格式细则见 `commit-message-format.md`。
 
-## 4. PR Workflow
+## 5. PR Workflow
 
 如果仓库使用 PR 流程，提交后进入此阶段。PR 目标是帮 reviewer 快速理解改动范围、原因和验证程度。
 
@@ -119,7 +157,7 @@ Confidence: high
 
 详见 `pr-workflow.md`。
 
-## 5. Changelog Update
+## 6. Changelog Update
 
 触发条件（全部满足才更新）：
 - 仓库明确维护 `CHANGELOG.md`
@@ -137,6 +175,7 @@ Confidence: high
 
 ```text
 features/{id}/: 技术方案.md, code-review.md, 测试报告.md, VERIFICATION.md
+docs/knowledge.md          ← 项目级知识沉淀（Step 2 更新）
 Git: commit history (含 trailers) + pushed branch
 PR: pull request (如适用)
 ```

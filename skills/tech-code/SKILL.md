@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.0"
+  version: "5.2"
 ---
 
 # /tech:code
@@ -56,7 +56,8 @@ Plan Check
 - Phase 1 未通过前，禁止启动任何编码任务
 - 审查必须按"方案符合性 -> 安全 -> 代码质量"的顺序执行
 - 审查和最终验证必须通过独立 Agent 完成，禁止主 Agent 自审自批
-- 同一问题连续失败 3 次后，必须停止当前修补方向并上升到架构层讨论
+- 同一问题连续 3 次后，必须停止当前修补方向并上升到架构层讨论
+- **缝合优先**：任务执行前必须搜索项目中最相似的已有实现作为锚点，复制骨架 → 替换业务字段 → 只在差异点写新代码。纯新模块标记 `GREENFIELD` 后可从零编写
 
 <HARD-GATE>
 **TDD 强制门禁** - 每个任务的实现必须遵循 RED-GREEN-REFACTOR 循环：
@@ -155,7 +156,7 @@ features/{id}/
 └── notepads/learnings.md
 ```
 
-代码变更统一由 `/tech:commit` 收口。
+代码变更统一由 `/tech:commit` 收口（包括知识沉淀）。
 
 ## 失败与恢复
 
