@@ -107,7 +107,7 @@ Verdict: [APPROVE / WARNING / BLOCK]
 
 ## When to Use
 
-- `/tech:code` 执行时（先于 code-reviewer 运行）
+- `/tech:code` 执行时（先于 superpowers:requesting-code-review 运行）
 - 新 API 端点创建后
 - 认证/授权代码变更后
 - 用户输入处理代码变更后
