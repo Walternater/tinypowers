@@ -102,6 +102,12 @@ Phase 5: Verify (delegate to superpowers)
 
 先做 tinypowers 专项审查（确认"做对了东西"），再做 superpowers 代码质量审查。
 
+<HARD-GATE>
+**审查顺序不可跳步** — 前一步未通过禁止进入下一步：
+1. 方案符合性未通过 → 禁止进入安全审查
+2. 安全审查未通过 → 禁止进入代码质量审查
+</HARD-GATE>
+
 ```text
 1. agents/spec-compliance-reviewer      — 技术方案符合性（tinypowers 独有）
 2. agents/security-reviewer             — 安全风险审查（tinypowers 独有）
@@ -137,23 +143,12 @@ features/{id}/
 
 ## 配套文档
 
-`pattern-scan.md` | `context-preload.md`
+| 文档 | 作用 |
+|------|------|
+| `context-preload.md` | 上下文预加载 + Anti-Rationalization + 交接检查 |
+| `pattern-scan.md` | 缝合扫描 + Wave 内学习捕获 |
 
-## Anti-Rationalization 自检
-
-| 你可能在想 | 更可靠的判断 |
-|-----------|--------------|
-| 这只是个小改动 | 小改动同样可能破坏边界条件 |
-| 我已经检查过了 | 自查不等于独立验证 |
-| 用户催得急 | 带着已知风险继续，返工成本更高 |
-| 这一步应该不会出问题 | "应该"不是证据，跑完检查才是 |
-
-## 交接检查清单
-
-- [ ] **关键决策及依据**：列出所有 D-XXX 决策及其理由
-- [ ] **被拒绝方案及原因**：记录否决的替代方案及否决理由
-- [ ] **已识别风险**：当前已知的技术风险和阻塞项
-- [ ] **未完成项**：明确哪些任务/Wave 尚未完成
-- [ ] **验证证据**：附上测试通过、覆盖率、审查结论等证据
-- [ ] **偏差记录**：汇总已发生的偏差类型和处理结果
-- [ ] **下一步行动**：交接后应立即执行的第一个动作
+**委托 superpowers**:
+- Phase 3 → `superpowers:subagent-driven-development`
+- Phase 4 → `superpowers:requesting-code-review`
+- Phase 5 → `superpowers:verification-before-completion`
