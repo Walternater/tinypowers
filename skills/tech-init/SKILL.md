@@ -14,7 +14,7 @@ metadata:
 
 `/tech:init` 用于在一个目标项目里落地 tinypowers 的基础工作流骨架。
 
-它解决的是“第一次接入框架时该放什么、怎么放、已有配置怎么处理”的问题，而不是业务初始化本身。
+本 skill 是 **tinypowers 独有**（无 superpowers 委托），负责项目首次接入时的骨架落地。
 
 ## 初始化目标
 
@@ -92,28 +92,13 @@ metadata:
 
 技术栈检测完成后，扫描项目代码提取领域知识，为 `docs/knowledge.md` 准备内容。
 
-**扫描目标**：只提取模型无法从公开资料获取的内容。
-
-| 扫描维度 | 怎么扫 | 举例 |
-|---------|--------|------|
-| 内部依赖 | 读 package.json/pom.xml，识别非公开包 | `@company/ui-lib`、内部 SDK |
-| 请求封装 | 采样 2-3 个 API 调用文件，看请求怎么发 | axios 封装、hostMap 架构、统一错误处理 |
-| 组件用法 | 采样 2-3 个页面文件，看组件怎么用 | Table 怎么配、Form 怎么联动、弹窗怎么开 |
-| 目录惯例 | 看页面/模块的文件拆分方式 | 按页面拆 vs 按功能拆、services 独立 vs 内联 |
-| 配置约束 | 读构建配置、路由配置 | URL 格式要求、代理规则、特殊 loader |
-
-**扫描方法**：
-1. 读依赖声明文件，标记非公开依赖
-2. 用 Glob 找到每种类型的代表文件，Read 采样 2-3 个
-3. 从采样文件中提取模式（不是复制代码，是提取"怎么组合"的知识）
-4. 整理成三类条目：组件用法 / 平台约束 / 踩坑记录
+**核心原则**：只提取模型无法从公开资料获取的内容。
 
 **输出**：一份领域知识清单，在 Step 8 写入 `docs/knowledge.md`。
 
-**空项目处理**：如果项目没有足够的源码可供扫描（新项目、空目录），跳过此步骤，`docs/knowledge.md` 留空模板，后续由 `/tech:code` Phase 5 通过物料飞轮填充。
+**空项目处理**：项目没有足够源码时跳过扫描，`docs/knowledge.md` 留空模板，后续由物料飞轮填充。
 
-扫描细节见：
-- `knowledge-scanning.md`
+扫描策略、采样方法和输出格式详见 `knowledge-scanning.md`。
 
 ### 3. 检测结果确认
 
@@ -240,13 +225,15 @@ build/
 *.key
 ```
 
-## 相关文档
+## 配套文档
 
-- `init-steps.md`
-- `stack-detection.md`
-- `knowledge-scanning.md`
-- `update-strategies.md`
-- `verification.md`
+| 文档 | 作用 |
+|------|------|
+| `init-steps.md` | 初始化步骤细节 + 项目级配置覆盖 |
+| `stack-detection.md` | 技术栈检测规则 |
+| `knowledge-scanning.md` | 领域知识扫描策略和输出格式 |
+| `update-strategies.md` | 更新策略（Update / Skip / Overwrite） |
+| `verification.md` | 初始化验证规则 |
 
 ## Gotchas
 

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "2.1"
+  version: "3.0"
 ---
 
 # /tech:commit
@@ -13,6 +13,8 @@ metadata:
 ## 作用
 
 把 `/tech:code` 阶段已完成但未提交的成果，收口成可审阅、可追踪的交付物。
+
+本 skill 是 **tinypowers 独有**（无 superpowers 方法论引用），仅 Step 4 委托 `superpowers:finishing-a-development-branch`。
 
 ## 前置条件
 
@@ -31,13 +33,10 @@ metadata:
 ## 主流程
 
 ```text
-Document Sync
-  -> Knowledge Capture
-  -> Commit Preparation
-  -> Git Commit
-  -> PR Workflow
-  -> Changelog Update
-  -> Branch Cleanup
+Step 1: Document Sync（tinypowers 独有）
+Step 2: Knowledge Capture / 物料飞轮（tinypowers 独有）
+Step 3: Git Commit（tinypowers 独有）
+Step 4: PR + Branch Cleanup（委托 superpowers:finishing-a-development-branch）
 ```
 
 ## 硬约束
@@ -98,9 +97,9 @@ Document Sync
 - **人确认**：沉淀内容应展示给用户，用户可删除或修改
 - **不阻断**：knowledge.md 不存在时自动创建，learnings 为空时跳过
 
-## 3. Commit Preparation
+## 3. Git Commit
 
-收口检查清单：
+提交前收口检查：
 - [ ] 测试和验证结果是最新的（非历史通过）
 - [ ] 工作区无无关改动（`git status` 干净或仅含预期文件）
 - [ ] 文件边界清楚（一个 commit 只做一件事）
@@ -109,33 +108,19 @@ Document Sync
 - [ ] 验证证据已附
 - [ ] 未解决项已标注
 
-交接完整性确认：确保后续接手的人能从 commit 和 PR 中理解全部上下文。
-
-## 4. Git Commit
-
 提交信息默认遵循 Conventional Commits，并结合项目自己的来源前缀使用。
 
 ### Commit Trailer 格式
 
 推荐包含结构化 trailer 记录决策上下文（不强制）：
 
-```
+```text
 type(scope): description
 
 Constraint: [设计约束或特殊情况]
 Rejected: [被拒绝的替代方案及原因]
 Evidence: [验证结果或测试通过证据]
 Confidence: [high/medium/low]
-```
-
-示例：
-```
-feat(auth): prevent silent session drops
-
-Constraint: Auth service does not support token introspection
-Rejected: Extend token TTL to 24h | security policy violation
-Evidence: 127 tests passed, coverage 94%
-Confidence: high
 ```
 
 ### 常见场景
@@ -146,37 +131,43 @@ Confidence: high
 
 提交格式细则见 `commit-message-format.md`。
 
-## 5. PR Workflow
+## 4. PR + Branch Cleanup
 
-如果仓库使用 PR 流程，提交后进入此阶段。PR 目标是帮 reviewer 快速理解改动范围、原因和验证程度。
+推送后根据 remote URL 自动检测平台，生成 PR/MR 创建链接。
 
-完成选项决策树：
-- 无远程或不使用 PR → **Merge locally**
-- 需要团队审查 → **Push and create PR**
-- 工作未完成但需保存进度 → **Keep branch**
-- 方案变更需重做 → **Discard**
+### 平台检测与链接生成
+
+从 `git remote get-url origin` 提取 host 判断平台：
+
+```text
+GitHub:  https://github.com/{group}/{repo}/compare/{base}...{head}?expand=1
+GitLab:  https://{host}/{group}/{repo}/-/merge_requests/new?merge_request[source_branch]={head}&merge_request[target_branch]={base}
+```
+
+self-hosted GitLab 同样适用。链接输出到终端，不自动打开浏览器。
+
+base 分支检测：
+1. `git symbolic-ref refs/remotes/origin/HEAD` → 取 `refs/remotes/origin/` 后面的部分
+2. 如果失败（新克隆、HEAD 未设置），提示用户指定
 
 详见 `pr-workflow.md`。
 
-## 6. Changelog Update
+### CHANGELOG
 
 触发条件（全部满足才更新）：
 - 仓库明确维护 `CHANGELOG.md`
 - 本次变更会出现在后续版本说明中
 - 新增、修复或变更会被项目使用者感知
 
-不必更新的场景：
-- 纯内部重构
-- 过程性提交
-- 不对外暴露的微小整理
+不必更新的场景：纯内部重构、过程性提交、不对外暴露的微小整理。
 
 详见 `changelog-update.md`。
 
-## 7. Branch Cleanup
+### Branch Cleanup
 
-提交完成后，委托 `superpowers:finishing-a-development-branch` 清理工作分支。
+**委托 `superpowers:finishing-a-development-branch` 执行。**
 
-- 决定分支的去留（merge / keep / discard）
+- 决定分支去留（merge / keep / discard）
 - 清理 worktree（如果使用了 `superpowers:using-git-worktrees`）
 - 确认工作区恢复干净状态
 
@@ -197,11 +188,18 @@ PR: pull request (如适用)
 
 ## 配套文档
 
-`documenter-guide.md` | `commit-message-format.md` | `pr-workflow.md` | `changelog-update.md`
+| 文档 | 作用 |
+|------|------|
+| `documenter-guide.md` | 文档同步检查项 |
+| `commit-message-format.md` | 提交信息格式细则 |
+| `pr-workflow.md` | 平台检测 + 链接生成规则 |
+| `changelog-update.md` | CHANGELOG 更新规则 |
+
+**委托 superpowers**:
+- Step 4 → `superpowers:finishing-a-development-branch`
 
 ## Gotchas
 
-- Commit 前必须确认本地验证通过
-- PR 描述必须包含改动范围和测试结论
-- 确认当前分支正确再提交
-- 所有 commit 应包含决策上下文 trailer
+- **Commit 后才发现文档没同步**：代码改了但 API 文档没更新 → reviewer 看到过时文档 → Document Sync 必须逐项检查不能跳过
+- **Knowledge 沉淀了公开知识**：把 React useState 用法写进 knowledge.md → 噪音淹没真正有用的内部知识 → 沉淀判断标准严格按"公开资料查不到"过滤
+- **推送到了错误分支**：本地在 feature-A 但 push 到了 feature-B 的远程 → `git push` 前必须确认当前分支与目标分支一致
