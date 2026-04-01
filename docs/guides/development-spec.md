@@ -152,7 +152,7 @@ docs(readme): 更新说明
 
 如果你在维护 tinypowers 本身：
 - 通用行为优先改 `configs/rules/common-*`
-- 技术栈特定行为优先改子目录规则
+- Java 特定行为优先改 `configs/rules/java/`
 - 改了规则入口，记得同步 `README.md`、`configs/templates/CLAUDE.md` 和本文件
 
 ## 相关文档
