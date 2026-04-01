@@ -51,6 +51,10 @@ function findActiveFeature(cwd) {
     return null;
   }
 
+  const featureDirs = fs.readdirSync(featuresDir, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name);
+
   let branchFeature = null;
   try {
     const { execSync } = require('child_process');
@@ -58,9 +62,9 @@ function findActiveFeature(cwd) {
       cwd, encoding: 'utf8', timeout: 5000
     }).trim();
     if (branch) {
-      const id = branch.startsWith('feature/') ? branch.replace('feature/', '') : null;
-      if (id && fs.existsSync(path.join(featuresDir, id, 'SPEC-STATE.md'))) {
-        branchFeature = id;
+      const matchedFeature = matchFeatureFromBranch(branch, featureDirs);
+      if (matchedFeature && fs.existsSync(path.join(featuresDir, matchedFeature, 'SPEC-STATE.md'))) {
+        branchFeature = matchedFeature;
       }
     }
   } catch (e) {}
@@ -87,6 +91,30 @@ function findActiveFeature(cwd) {
   } catch (e) {}
 
   return branchFeature || latestFeature;
+}
+
+function matchFeatureFromBranch(branch, featureDirs) {
+  if (!branch.startsWith('feature/')) {
+    return null;
+  }
+
+  const raw = branch.replace('feature/', '');
+  const normalized = raw.replace(/\//g, '-');
+  const idPrefix = raw.split('/')[0];
+
+  if (featureDirs.includes(raw)) {
+    return raw;
+  }
+  if (featureDirs.includes(normalized)) {
+    return normalized;
+  }
+
+  const prefixMatches = featureDirs.filter(name => name === idPrefix || name.startsWith(idPrefix + '-'));
+  if (prefixMatches.length === 1) {
+    return prefixMatches[0];
+  }
+
+  return null;
 }
 
 function extractPhase(content) {

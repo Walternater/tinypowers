@@ -18,7 +18,7 @@ metadata:
 
 ## 输入
 
-- `features/{id}/任务拆解表.md`、`技术方案.md`、`STATE.md`、`SPEC-STATE.md`
+- `features/{id}-{name}/任务拆解表.md`、`技术方案.md`、`STATE.md`、`SPEC-STATE.md`
 - `STATE.md` 不存在则启动时创建
 - `SPEC-STATE.md` 存在时，当前 phase 必须为 `TASKS` 或 `EXEC`
 
@@ -35,11 +35,12 @@ metadata:
 
 ```text
 Phase 0: Gate Check
-Phase 1: Context Preparation
-Phase 2: Pattern Scan
-Phase 3: Execute (delegate to superpowers)
-Phase 4: Review (tinypowers agents → superpowers)
-Phase 5: Verify (delegate to superpowers)
+Phase 1: Isolated Worktree Setup
+Phase 2: Context Preparation
+Phase 3: Pattern Scan
+Phase 4: Execute (delegate to superpowers)
+Phase 5: Review (tinypowers agents → superpowers)
+Phase 6: Verify (delegate to superpowers)
 ```
 
 ## 硬约束
@@ -62,13 +63,20 @@ Phase 5: Verify (delegate to superpowers)
 
 确认可以进入执行。
 
-- 确认当前在 worktree 隔离环境中（由 `/tech:feature` Phase 0 建立）
 - 如果 `SPEC-STATE.md` 存在，更新 phase 为 `EXEC`
 - 调用 `tech-plan-checker` 检查任务表格式、依赖关系、任务粒度
 - 对照 `技术方案.md` 锁定决策，确认无偏离 D-0N 约束
 - 最多重试 3 次，仍失败则暂停
 
-## Phase 1: Context Preparation
+## Phase 1: Isolated Worktree Setup
+
+默认在这里委托 `superpowers:using-git-worktrees` 创建或复用隔离环境。
+
+- `/tech:feature` 默认不建 worktree
+- 如果当前已经在正确的隔离 worktree 中，直接复用
+- 如果不存在隔离环境，完成 Gate Check 后再创建
+
+## Phase 2: Context Preparation
 
 为后续 Phase 预加载上下文。详见 `context-preload.md`。
 
@@ -76,7 +84,7 @@ Phase 5: Verify (delegate to superpowers)
 - 加载领域知识（`docs/knowledge.md`）
 - 加载 feature 级 learnings（`notepads/learnings.md`）
 
-## Phase 2: Pattern Scan
+## Phase 3: Pattern Scan
 
 为每个任务搜索最相似的已有实现。详见 `pattern-scan.md`。
 
@@ -84,7 +92,7 @@ Phase 5: Verify (delegate to superpowers)
 - 每个任务产出参考锚点或 `GREENFIELD` 标记
 - 缝合策略：标注保留/替换/新增
 
-## Phase 3: Execute
+## Phase 4: Execute
 
 **委托 `superpowers:subagent-driven-development` 执行。**
 
@@ -98,7 +106,7 @@ Phase 5: Verify (delegate to superpowers)
 
 执行过程中发现的 learnings 实时记录到 `notepads/learnings.md`（格式见 `pattern-scan.md`）。
 
-## Phase 4: Review
+## Phase 5: Review
 
 先做 tinypowers 专项审查（确认"做对了东西"），再做 superpowers 代码质量审查。
 
@@ -116,7 +124,7 @@ Phase 5: Verify (delegate to superpowers)
 
 每步最多重试 3 次，仍失败则暂停。
 
-## Phase 5: Verify
+## Phase 6: Verify
 
 **委托 `superpowers:verification-before-completion` 执行。**
 
@@ -127,7 +135,7 @@ Phase 5: Verify (delegate to superpowers)
 ## 输出
 
 ```text
-features/{id}/
+features/{id}-{name}/
 ├── STATE.md
 ├── VERIFICATION.md
 └── notepads/learnings.md
@@ -149,6 +157,7 @@ features/{id}/
 | `pattern-scan.md` | 缝合扫描 + Wave 内学习捕获 |
 
 **委托 superpowers**:
-- Phase 3 → `superpowers:subagent-driven-development`
-- Phase 4 → `superpowers:requesting-code-review`
-- Phase 5 → `superpowers:verification-before-completion`
+- Phase 1 → `superpowers:using-git-worktrees`
+- Phase 4 → `superpowers:subagent-driven-development`
+- Phase 5 → `superpowers:requesting-code-review`
+- Phase 6 → `superpowers:verification-before-completion`

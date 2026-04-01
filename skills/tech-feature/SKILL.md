@@ -51,7 +51,7 @@ INIT → REQ → DESIGN → TASKS → EXEC → REVIEW → VERIFY → CLOSED
 ## 主流程
 
 ```text
-Phase 0: 准备（委托 superpowers:using-git-worktrees）
+Phase 0: 准备（种子扫描 + change set 骨架）
 Phase 1: 需求理解（tinypowers 独有）
 Phase 2: 歧义检测 + 多方案探索（方法论: superpowers:brainstorming）
 Phase 3: 技术方案（tinypowers agents/architect）
@@ -79,15 +79,17 @@ Phase 5: 任务表验证（tinypowers agents/tech-plan-checker）
 
 从输入中提炼：需求 ID、简短描述、对应目录名。
 
-### 建隔离环境
-
-**委托 `superpowers:using-git-worktrees` 创建隔离分支。**
-
-### 创建目录和分支
+### 创建目录骨架
 
 ```bash
-node .claude/skills/tinypowers/scripts/scaffold-feature.js --id {id} --name {name}
+node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {name}
 ```
+
+如果未设置 `TINYPOWERS_DIR`，有两个 fallback：
+- 把 `TINYPOWERS_DIR` 替换成 tinypowers 的实际安装目录
+- 项目级安装时直接运行 `node .claude/skills/tinypowers/scripts/scaffold-feature.js --root . --id {id} --name {name}`
+
+默认**不**在 `/tech:feature` 阶段创建 worktree。隔离环境由 `/tech:code` Phase 0 在正式开工前创建。
 
 ## Phase 1: 需求理解
 
@@ -159,7 +161,6 @@ tinypowers 的补充要求（注入到 writing-plans 的上下文中）：
 | `verification.md` | 完成验证标准 |
 
 **委托 superpowers**:
-- Phase 0 → `superpowers:using-git-worktrees`
 - Phase 4 → `superpowers:writing-plans`
 
 **方法论引用**:

@@ -59,7 +59,7 @@
 - `spec-compliance-reviewer`：先审"是不是实现了方案要求的东西"
 - `security-reviewer`：再审安全风险
 
-> 委托 superpowers：`writing-plans`（任务拆解）、`code-reviewer`（代码审查）、`verification-before-completion`（完成验证）
+> 委托 superpowers：`writing-plans`（任务拆解）、`requesting-code-review`（代码审查）、`verification-before-completion`（完成验证）
 
 #### 语言特定
 - `agents/java/java-reviewer`
@@ -120,8 +120,8 @@ configs/rules/
 
 ## 统一约定
 
-- 需求工作目录：`features/{id}/`
-- 执行状态主文件：`features/{id}/STATE.md`
+- 需求工作目录：`features/{id}-{name}/`
+- 执行状态主文件：`features/{id}-{name}/STATE.md`
 - 工作流命令：`/tech:*`
 - 审查顺序：方案符合性 -> 安全 -> 代码质量
 - 决策格式：D-XXX（锁定决策编号）

@@ -101,6 +101,7 @@ Verification
 - 锁定关键决策
 - 生成任务拆解表
 - 再次确认任务拆解是否可执行
+- 默认不创建 worktree，隔离环境留到 `/tech:code`
 
 关键产物：
 - `需求理解确认.md`
@@ -110,8 +111,8 @@ Verification
 阶段推进建议同步更新 `SPEC-STATE.md`：
 
 ```bash
-node .claude/skills/tinypowers/scripts/update-spec-state.js \
-  --feature features/{id} \
+node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
+  --feature features/{id}-{name} \
   --to REQ|DESIGN|TASKS|EXEC \
   --note "阶段推进说明"
 ```
@@ -135,6 +136,7 @@ node .claude/skills/tinypowers/scripts/update-spec-state.js \
 
 关键规则：
 - 编码前必须先过 `tech-plan-checker`
+- Gate Check 通过后再创建或复用 worktree
 - 执行时以 `STATE.md` 追踪当前位置
 - 审查顺序不能交换
 - 在 `/tech:commit` 之前不自动 `git commit`
@@ -174,7 +176,7 @@ tinypowers 强制采用下面的顺序：
 
 会话恢复时：
 - hook 先从 `/tmp` Snapshot 发现“有未完成工作”
-- 真正恢复时再读取 `features/{id}/STATE.md`
+- 真正恢复时再读取 `features/{id}-{name}/STATE.md`
 
 换句话说：
 - Snapshot 负责提醒
@@ -203,12 +205,12 @@ tinypowers 强制采用下面的顺序：
 ## 交付清单
 
 一个完整需求通常至少应包含：
-- `features/{id}/CHANGESET.md`
-- `features/{id}/SPEC-STATE.md`
-- `features/{id}/技术方案.md`
-- `features/{id}/任务拆解表.md`
-- `features/{id}/STATE.md`
-- `features/{id}/code-review.md`
+- `features/{id}-{name}/CHANGESET.md`
+- `features/{id}-{name}/SPEC-STATE.md`
+- `features/{id}-{name}/技术方案.md`
+- `features/{id}-{name}/任务拆解表.md`
+- `features/{id}-{name}/STATE.md`
+- `features/{id}-{name}/code-review.md`
 - 代码实现
 - 测试结果
 - 提交记录 / PR

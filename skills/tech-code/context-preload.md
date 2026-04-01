@@ -10,11 +10,11 @@
 
 一次性读取共享文档：
 
-- `features/{id}/技术方案.md`
-- `features/{id}/任务拆解表.md`
-- `features/{id}/SPEC-STATE.md`
-- `features/{id}/STATE.md`
-- `features/{id}/notepads/learnings.md`（如果存在）
+- `features/{id}-{name}/技术方案.md`
+- `features/{id}-{name}/任务拆解表.md`
+- `features/{id}-{name}/SPEC-STATE.md`
+- `features/{id}-{name}/STATE.md`
+- `features/{id}-{name}/notepads/learnings.md`（如果存在）
 
 ### 裁剪规则
 
