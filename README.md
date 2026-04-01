@@ -203,11 +203,7 @@ tinypowers/
 │   │   ├── context-preload.md
 │   │   └── pattern-scan.md
 │   └── tech-commit/
-│       ├── SKILL.md
-│       ├── commit-message-format.md
-│       ├── documenter-guide.md
-│       ├── pr-workflow.md
-│       └── changelog-update.md
+│       └── SKILL.md
 ├── agents/               # 角色化 Agent 提示词
 ├── hooks/                # 运行期 hook 实现
 ├── configs/
@@ -218,6 +214,8 @@ tinypowers/
 ├── manifests/            # 安装组件定义
 └── scripts/              # 校验与工具脚本
 ```
+
+`tech:commit` 和 `tech:init` 的提交 / PR / 文档同步 / 更新策略规则现在都直接内联在各自的 `SKILL.md` 中。
 
 ## 贡献建议
 

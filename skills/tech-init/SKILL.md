@@ -115,7 +115,19 @@ metadata:
 
 这时不应直接覆盖，而应进入更新策略选择。
 
-同时检查项目根目录是否存在 `project-overrides.json`。如果存在，读取覆盖配置并在后续步骤中优先使用（详见 `init-steps.md` 项目级配置覆盖章节）。
+同时检查项目根目录是否存在 `project-overrides.json`。如果存在，读取覆盖配置并在后续步骤中优先使用。
+
+支持的覆盖项：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `review_checklist` | string | 替换默认审查清单路径 |
+| `acceptance_criteria_template` | string | 验收标准模板（EARS / EARS_RELAXED / FREEFORM） |
+| `commit_prefix` | string | 提交消息前缀 |
+| `quality_gate_command` | string | 替换默认构建/验证命令 |
+| `skip_phases` | string[] | 初始化时跳过的 SPEC-STATE 阶段 |
+| `rules_dir` | string | 自定义规则目录路径 |
+| `templates_dir` | string | 自定义模板目录路径 |
 
 ### 5. 更新策略
 
@@ -129,8 +141,12 @@ metadata:
 
 默认推荐 `Update`。
 
-策略细节见：
-- `update-strategies.md`
+策略选择规则：
+- `Update`：项目已有 `CLAUDE.md` 或部分 guides / rules，只想补齐缺失项
+- `Skip`：用户只想看检测结果，或当前项目已有自定义体系不希望接入
+- `Overwrite`：旧入口和 guides 明显过时，且用户明确接受重建
+
+`Overwrite` 必须二次确认，并清楚提示将被替换的内容，例如 `CLAUDE.md`、`docs/guides/*.md`、`configs/rules/*`。
 
 ### 6. 规则加载
 
@@ -152,8 +168,16 @@ metadata:
 - `{{branch_pattern}}`
 - `{{author}}`
 
-目录和变量细节见：
-- `init-steps.md`
+默认目录与复制规则：
+- 推荐创建 `docs/`、`docs/guides/`、`configs/rules/`、`configs/templates/`、`features/`、`.claude/`
+- `configs/templates/` 本身属于框架资源，不必整目录复制到目标项目；真正立即有价值的是入口、guides 和 rules
+- 目标不存在时创建；已存在时优先保留用户内容；仅在明显还是模板变量未替换时做替换
+
+常见变量来源：
+- 当前工作目录
+- 技术栈检测结果
+- `git config user.name`
+- 当前系统时间
 
 ### 8. 生成领域知识库
 
@@ -229,10 +253,8 @@ build/
 
 | 文档 | 作用 |
 |------|------|
-| `init-steps.md` | 初始化步骤细节 + 项目级配置覆盖 |
 | `stack-detection.md` | 技术栈检测规则 |
 | `knowledge-scanning.md` | 领域知识扫描策略和输出格式 |
-| `update-strategies.md` | 更新策略（Update / Skip / Overwrite） |
 | `verification.md` | 初始化验证规则 |
 
 ## Gotchas
