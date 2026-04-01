@@ -128,6 +128,7 @@ function checkHooks(projectRoot, installRoot, findings) {
 
   const commands = flattenHookCommands(settings);
   const requiredHooks = [
+    'spec-state-guard.js',
     'gsd-session-manager.js',
     'gsd-context-monitor.js',
     'config-protection.js',
@@ -144,9 +145,9 @@ function checkHooks(projectRoot, installRoot, findings) {
 
   const envPath = path.join(projectRoot, '.env');
   const hookLevel = process.env.TINYPOWERS_HOOK_LEVEL || '(未设置，默认 standard)';
-  findings.info.push(`当前 Hook Level: ${hookLevel}`);
+  findings.info.push(`当前 gsd-code-checker 提醒模式: ${hookLevel}`);
   if (!process.env.TINYPOWERS_HOOK_LEVEL && exists(envPath)) {
-    findings.info.push('提示: 如果你通过 shell profile 设置 Hook Level，本次 doctor 不会自动读取 .env');
+    findings.info.push('提示: doctor 不会主动读取 .env；如需 strict 提醒，请在 shell 环境中导出 TINYPOWERS_HOOK_LEVEL');
   }
 
   const templatePath = path.join(installRoot, 'hooks-settings-template.json');

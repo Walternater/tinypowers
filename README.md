@@ -69,11 +69,11 @@
 
 | Hook | 作用 |
 |------|------|
+| `spec-state-guard.js` | SPEC-STATE 门禁，禁止在错误阶段直接写代码 |
 | `gsd-context-monitor.js` | 监控上下文压力，提醒压缩 |
 | `gsd-session-manager.js` | SessionStart / Stop / PreCompact 生命周期管理 |
 | `gsd-code-checker.js` | 严格模式验证提醒 + Stop 时检测残留调试代码 |
 | `config-protection.js` | 防止为了过检查而弱化配置 |
-| `hook-hierarchy.js` | 根据 `TINYPOWERS_HOOK_LEVEL` 切换最小 / 标准 / 严格模式 |
 
 ### Rules（分层）
 
@@ -102,7 +102,7 @@ configs/rules/
 /tech:code
   -> Plan Check -> Wave Execution（TDD + Deviation Rules）
   -> Spec Review -> Security Review -> Code Review
-  -> Verification（4-Level 证据验证）
+  -> Verification（证据验证）
 
 /tech:commit
   -> Document Sync -> Commit -> PR -> Changelog

@@ -40,7 +40,6 @@ features/{需求编号}-{需求名称}/
 ├── 任务拆解表.md
 ├── 评审记录.md
 ├── STATE.md
-├── code-review.md
 ├── notes/
 ├── todos/
 ├── seeds/
@@ -210,7 +209,6 @@ tinypowers 强制采用下面的顺序：
 - `features/{id}-{name}/技术方案.md`
 - `features/{id}-{name}/任务拆解表.md`
 - `features/{id}-{name}/STATE.md`
-- `features/{id}-{name}/code-review.md`
 - 代码实现
 - 测试结果
 - 提交记录 / PR

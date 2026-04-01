@@ -48,11 +48,11 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 
 | Hook | 默认状态 | 作用 |
 |------|----------|------|
+| `spec-state-guard.js` | 默认启用 | 基于 SPEC-STATE 拦截越阶段代码编辑 |
 | `gsd-session-manager.js` | 默认启用 | 管理 SessionStart / Stop / PreCompact |
 | `gsd-context-monitor.js` | 默认启用 | 监控上下文压力 |
 | `config-protection.js` | 默认启用 | 防止弱化配置来“过检查” |
 | `gsd-code-checker.js` | 默认接线，`strict` 生效 | 验证命令提醒 + Stop 时检查调试残留 |
-| `hook-hierarchy.js` | 工具脚本 | 生成 hook level 配置说明 |
 
 ## 安装组件
 
@@ -62,7 +62,7 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 | `rules-common` | 通用实现与审查规则 |
 | `rules-java` | Java / Spring Boot 规则 |
 | `rules-mysql` | MySQL DBA 规则 |
-| `templates` | `CLAUDE.md`、PRD、技术方案、测试报告模板 |
+| `templates` | `CLAUDE.md`、PRD、技术方案等模板 |
 | `contexts` | dev / research / review 模式定义 |
 | `tests` | 仓库脚本与 hooks 的最小回归测试 |
 

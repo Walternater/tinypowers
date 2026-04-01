@@ -14,7 +14,6 @@ const ARTIFACTS = [
   { label: '生命周期状态', file: 'SPEC-STATE.md', special: 'spec-state' },
   { label: 'STATE', file: 'STATE.md', special: 'state' },
   { label: '阶段评审', file: '评审记录.md' },
-  { label: '审查记录', file: 'code-review.md' },
   { label: '验证报告', file: 'VERIFICATION.md' }
 ];
 
@@ -155,12 +154,6 @@ function validatePrerequisites(featureDir, targetPhase, note, force) {
       return fs.existsSync(filePath)
         ? null
         : '进入 REVIEW 需要 STATE.md 已存在';
-    },
-    VERIFY() {
-      const filePath = path.join(featureDir, 'code-review.md');
-      return fs.existsSync(filePath)
-        ? null
-        : '进入 VERIFY 需要 code-review.md 已存在';
     },
     CLOSED() {
       const filePath = path.join(featureDir, 'VERIFICATION.md');

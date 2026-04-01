@@ -114,3 +114,41 @@ test('update-spec-state reads mode from SPEC-STATE file', () => {
   const updated = fs.readFileSync(specPath, 'utf8');
   assert.match(updated, /phase: TASKS/);
 });
+
+test('update-spec-state no longer requires code-review artifact to enter VERIFY', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-verify-'));
+
+  runNode([
+    path.join(ROOT, 'scripts/scaffold-feature.js'),
+    '--id', 'CSS-7777',
+    '--name', '验证阶段',
+    '--root', projectRoot
+  ]);
+
+  const featureName = 'CSS-7777-验证阶段';
+  const specPath = path.join(projectRoot, 'features', featureName, 'SPEC-STATE.md');
+  let content = fs.readFileSync(specPath, 'utf8');
+  content = content.replace('mode: strict', 'mode: relaxed');
+  fs.writeFileSync(specPath, content);
+
+  let result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'REVIEW',
+    '--note', 'jump to review'
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'VERIFY',
+    '--note', 'start verify without review file'
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const updated = fs.readFileSync(specPath, 'utf8');
+  assert.match(updated, /phase: VERIFY/);
+});

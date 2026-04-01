@@ -41,9 +41,7 @@ features/{需求编号}-{需求名称}/
 
 ```text
 STATE.md
-code-review.md
 VERIFICATION.md
-测试报告.md
 ```
 
 ## 每个文件的职责

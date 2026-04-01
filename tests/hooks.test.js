@@ -7,22 +7,6 @@ const { execFileSync, spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 
-test('hook-hierarchy strict mode includes code checker', () => {
-  const output = execFileSync('node', [path.join(ROOT, 'hooks/hook-hierarchy.js')], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      TINYPOWERS_HOOK_LEVEL: 'strict'
-    }
-  });
-
-  const parsed = JSON.parse(output);
-  const config = parsed.config;
-  const commands = JSON.stringify(config.settings.hooks.PostToolUse);
-  assert.match(commands, /gsd-code-checker\.js/);
-});
-
 test('gsd-code-checker Stop detects console.log in modified files', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-residual-'));
 

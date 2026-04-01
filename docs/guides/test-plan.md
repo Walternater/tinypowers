@@ -141,9 +141,6 @@ mvn test jacoco:report
 - 已知缺陷列表
 - 测试结论
 
-测试报告模板见：
-[test-report.md](../../configs/templates/test-report.md)
-
 ## TDD 建议
 
 如果团队采用 TDD，建议遵守：

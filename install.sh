@@ -156,6 +156,18 @@ SETTINGS_FILE="$INSTALL_DIR/hooks-settings-template.json"
 cat > "$SETTINGS_FILE" << 'SETTINGS_EOF'
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${TINYPOWERS_DIR}/hooks/spec-state-guard.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "matcher": "*",

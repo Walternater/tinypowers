@@ -34,10 +34,8 @@ const VIRTUAL_OUTPUT_REFERENCES = new Set([
   'SPEC-STATE.md',
   'STATE.md',
   'VERIFICATION.md',
-  'code-review.md',
   '任务拆解表.md',
   '技术方案.md',
-  '测试报告.md',
   'learnings.md'
 ]);
 
@@ -221,13 +219,11 @@ function validateHooks() {
   for (const file of hookFiles) {
     const rel = path.relative(ROOT, file);
     const content = fs.readFileSync(file, 'utf8');
-    const isStandaloneConfigTool = path.basename(file) === 'hook-hierarchy.js';
-
     // Check for basic structure
-    if (!content.includes('process.stdin') && !isStandaloneConfigTool) {
+    if (!content.includes('process.stdin')) {
       warn(rel, 0, 'Hook 缺少 stdin 读取逻辑');
     }
-    if (!content.includes('process.exit(0)') && !isStandaloneConfigTool) {
+    if (!content.includes('process.exit(0)')) {
       warn(rel, 0, 'Hook 缺少 process.exit(0) — 可能无法正常退出');
     }
 

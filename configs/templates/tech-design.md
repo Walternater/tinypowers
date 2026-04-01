@@ -134,12 +134,10 @@
 ## 测试与验证
 
 提测前应补齐：
-- 测试报告
 - 关键测试结果
 - 覆盖率或核心验证结果
 
 可引用：
-- `configs/templates/test-report.md`
 - `features/{id}/VERIFICATION.md`
 
 ## 评审记录
