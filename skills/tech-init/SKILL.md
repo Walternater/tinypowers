@@ -197,3 +197,5 @@ Step 6: 验证
 - **在空目录下初始化**：无构建文件 → 栈检测失效 → 需用户确认技术栈
 - **覆盖已有配置而不备份**：init 默认 Update 策略不覆盖 → Overwrite 会替换但不自动备份
 - **settings.json merge 不完整**：已存在复杂配置时 merge 可能遗漏 → 展示 merge 结果供用户确认
+- **project-overrides.json 不再支持**：v3 的 project-overrides.json 机制在 v4 中移除。该功能从未被代码实现（仅在规划文档中提及）。如有自定义需求，直接编辑目标项目的 CLAUDE.md 和 configs/rules/ 即可
+- **只支持 Java**：v4 的自动检测仅覆盖 Java（Maven / Gradle）。Node.js / Go / Python 项目无法自动检测，但仍可手动创建 CLAUDE.md 和 configs/rules/ 来接入 tinypowers 工作流
