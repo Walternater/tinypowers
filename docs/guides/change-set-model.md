@@ -90,6 +90,12 @@ tinypowers 现在提供最小脚手架：
 node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id CSS-1234 --name 用户登录
 ```
 
+如果未设置 `TINYPOWERS_DIR`，项目级安装可改用：
+
+```bash
+node .claude/skills/tinypowers/scripts/scaffold-feature.js --root . --id CSS-1234 --name 用户登录
+```
+
 它会创建：
 - `CHANGESET.md`
 - `SPEC-STATE.md`

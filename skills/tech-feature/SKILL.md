@@ -85,7 +85,9 @@ Phase 5: 任务表验证（tinypowers agents/tech-plan-checker）
 node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {name}
 ```
 
-如果未设置 `TINYPOWERS_DIR`，把它替换成 tinypowers 的实际安装目录。
+如果未设置 `TINYPOWERS_DIR`，有两个 fallback：
+- 把 `TINYPOWERS_DIR` 替换成 tinypowers 的实际安装目录
+- 项目级安装时直接运行 `node .claude/skills/tinypowers/scripts/scaffold-feature.js --root . --id {id} --name {name}`
 
 默认**不**在 `/tech:feature` 阶段创建 worktree。隔离环境由 `/tech:code` Phase 0 在正式开工前创建。
 
