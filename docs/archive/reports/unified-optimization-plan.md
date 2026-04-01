@@ -281,6 +281,6 @@ features/{id}/
 |------|------|------|
 | `simplify-plan.md` | kilo code | 12 步简化计划，聚焦删除和简化 |
 | `audit-report.md` | kilo code | 根因分析，激进简化（50 行 Agent、删除 4-Level） |
-| `review-and-optimization-report.md` | opencode | 状态核对，增量优化建议 |
+| opencode 审查稿（原文未保留） | opencode | 状态核对，增量优化建议 |
 | `audit-report-claude.md` | Claude | 文件级审查，逐行分析，平衡的优化建议 |
 | **本报告** | **综合** | **共识提取 + 分歧裁决 + 统一行动计划** |
