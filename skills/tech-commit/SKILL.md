@@ -231,11 +231,6 @@ PR: pull request (如适用)
 - commit history 能说明交付内容
 - reviewer 可以只看 PR 就理解改动
 
-## 配套文档
-
-| 文档 | 作用 |
-|------|------|
-
 **委托 superpowers**:
 - Step 4 → `superpowers:finishing-a-development-branch`
 
