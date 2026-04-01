@@ -25,7 +25,6 @@ metadata:
 - `docs/guides/` 指南文档
 - `docs/knowledge.md` 领域知识库（从项目代码动态提取）
 - `configs/rules/` 规则目录
-- `configs/templates/` 模板目录
 - `features/` 需求工作目录
 - `.claude/` 本地配置目录（hooks + settings）
 
@@ -42,14 +41,7 @@ metadata:
 
 ## 主流程
 
-进入主流程前，先执行一轮非交互预检。
-
-预检只处理边界场景，不占用主流程编号，例如：
-- tinypowers 框架仓库自身运行
-- 非支持技术栈
-- 初始化所需基础资源缺失
-
-只有通过预检后，才进入下面的 6 步主流程。
+进入主流程前，先执行一轮非交互预检；只有通过预检后，才进入下面的 6 步主流程。
 
 ```text
 1. 技术栈检测
@@ -66,9 +58,7 @@ metadata:
 
 预检是 guard clause，不属于用户感知的主流程步骤。
 
-它的目标是先拦住“继续执行只会产出错误结果”的场景，让 happy path 保持稳定。
-
-当前预检覆盖：
+它的目标是先拦住“继续执行只会产出错误结果”的场景。当前覆盖：
 - 框架仓库自举保护
 - 非 Java 项目短路退出
 - `.claude/` 初始化依赖缺失时停止落地
@@ -155,10 +145,6 @@ metadata:
 | `configs/rules/java/java-coding-style.md` | `configs/rules/java/java-coding-style.md` |
 | `configs/rules/java/testing.md` | `configs/rules/java/testing.md` |
 
-例如：
-- Java 项目加载 `configs/rules/java/`
-- 需要 MySQL 约束时加载 `configs/rules/mysql/`
-
 Guide 产出要求：
 
 - `docs/guides/development-spec.md` 必须与 Java 项目匹配
@@ -175,7 +161,7 @@ Guide 产出要求：
 - `{{hooks_dir}}`
 
 默认目录与复制规则：
-- 推荐创建 `docs/`、`docs/guides/`、`configs/rules/`、`configs/templates/`、`features/`、`.claude/`
+- 推荐创建 `docs/`、`docs/guides/`、`configs/rules/`、`features/`、`.claude/`
 - `configs/templates/` 本身属于框架资源，不必整目录复制到目标项目；真正立即有价值的是入口、guides 和 rules
 - 目标不存在时创建；已存在时优先保留用户内容；仅在明显还是模板变量未替换时做替换
 

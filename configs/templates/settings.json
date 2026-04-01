@@ -20,11 +20,9 @@
       "Bash(curl *)",
       "Write(*.pem)",
       "Write(.env*)",
-      "Write(node_modules/**/*)",
-      "ToolCreation"
+      "Write(node_modules/**/*)"
     ]
   },
-  "skipDangerousModePermissionPrompt": true,
   "tools": {
     "useRelated": true,
     "maxTurns": 50
