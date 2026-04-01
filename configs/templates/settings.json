@@ -1,0 +1,124 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(mvn *)",
+      "Bash(./gradlew *)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(rg:*)",
+      "Bash(date:*)",
+      "Write(src/**/*)",
+      "Write(test/**/*)",
+      "Write(tests/**/*)",
+      "Write(features/**/*)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Bash(curl *)",
+      "Write(*.pem)",
+      "Write(.env*)",
+      "Write(node_modules/**/*)",
+      "ToolCreation"
+    ]
+  },
+  "skipDangerousModePermissionPrompt": true,
+  "tools": {
+    "useRelated": true,
+    "maxTurns": 50
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{{hooks_dir}}/spec-state-guard.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{{hooks_dir}}/gsd-session-manager.js\" SessionStart",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{{hooks_dir}}/gsd-session-manager.js\" PreCompact",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{{hooks_dir}}/gsd-context-monitor.js\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{{hooks_dir}}/config-protection.js\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{{hooks_dir}}/gsd-code-checker.js\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{{hooks_dir}}/gsd-session-manager.js\" Stop",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{{hooks_dir}}/gsd-code-checker.js\" Stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

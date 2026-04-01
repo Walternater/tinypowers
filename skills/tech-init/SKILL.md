@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "3.0"
+  version: "4.0"
 ---
 
 # /tech:init
@@ -16,6 +16,8 @@ metadata:
 
 本 skill 是 **tinypowers 独有**（无 superpowers 委托），负责项目首次接入时的骨架落地。
 
+从 `v4.0` 开始，`/tech:init` 明确只支持 Java 项目初始化，避免“检测到多栈，但只能生成 Java 产物”的误导。
+
 ## 初始化目标
 
 执行完成后，目标项目通常应具备：
@@ -25,54 +27,54 @@ metadata:
 - `configs/rules/` 规则目录
 - `configs/templates/` 模板目录
 - `features/` 需求工作目录
-- `.claude/` 本地配置目录
+- `.claude/` 本地配置目录（hooks + settings）
 
 ## 核心特性
 
-- 自动检测技术栈
+- 自动检测 Java 技术栈
 - 初始化前让用户确认检测结果
 - 支持增量更新，不默认覆盖已有内容
 - 自动替换模板变量
+- 空项目可用的变量回退策略
+- 直接生成可工作的 `.claude/` 配置
+- 边界场景通过预检静默分流
 - 保持 `CLAUDE.md` 精简，只做入口
 
 ## 主流程
 
+进入主流程前，先执行一轮非交互预检。
+
+预检只处理边界场景，不占用主流程编号，例如：
+- tinypowers 框架仓库自身运行
+- 非支持技术栈
+- 初始化所需基础资源缺失
+
+只有通过预检后，才进入下面的 6 步主流程。
+
 ```text
-0. 框架自举检测（是否在 tinypowers 仓库自身运行）
 1. 技术栈检测
 2. 领域知识扫描
-3. 检测结果确认
-4. 已初始化检查 + 项目级配置覆盖检测
-5. 选择更新策略
-6. 加载对应规则（覆盖配置优先）
-7. 复制模板并替换变量（覆盖配置优先）
-8. 生成领域知识库
-9. 执行初始化验证
-10. 输出结果与下一步建议
+3. 确认检测结果 + 选择更新策略
+4. 落地入口、规则、guide、.claude/
+5. 生成领域知识库
+6. 执行初始化验证并输出下一步建议
 ```
 
 ## 详细步骤
 
-### 0. 框架自举检测
+### 执行前预检
 
-在执行任何初始化动作之前，先判断当前项目是否是 tinypowers 框架自身。
+预检是 guard clause，不属于用户感知的主流程步骤。
 
-判断条件（满足任意两个即为框架仓库）：
-- 存在 `skills/` 目录且包含 `SKILL.md` 文件
-- 存在 `agents/` 目录且包含多个 md 文件
-- 存在 `manifests/components.json`
-- 存在 `hooks/` 目录
+它的目标是先拦住“继续执行只会产出错误结果”的场景，让 happy path 保持稳定。
 
-如果判定为框架仓库：
+当前预检覆盖：
+- 框架仓库自举保护
+- 非 Java 项目短路退出
+- `.claude/` 初始化依赖缺失时停止落地
 
-- **跳过**：创建 .claude/agents/（框架的 Agent 定义在 agents/ 而不是 .claude/agents/）
-- **跳过**：创建 docs/templates/（框架模板在 configs/templates/）
-- **跳过**：创建 code-review-checklist（框架已有 configs/rules/common/ 下的审查清单）
-- **跳过**：复制通用 Agent 定义（框架已有完整的 agents/ 目录）
-- **保留**：技术栈检测、CLAUDE.md 更新、规则加载、features/ 创建等正常流程
-- **提示**：明确告知用户"检测到框架仓库，已跳过重复创建"
-
-这一步的目的是防止框架用自己的 init 流程创建出重复的 Agent 和模板。
+判定规则和分流动作见：
+- `bootstrap-guard.md`
 
 ### 1. 技术栈检测
 
@@ -81,12 +83,16 @@ metadata:
 常见识别来源：
 - `pom.xml`
 - `build.gradle`
-- `package.json`
-- `go.mod`
 - `src/main/java`
 
 检测细节见：
 - `stack-detection.md`
+
+支持范围：
+- `Java (Maven)`
+- `Java (Gradle)`
+
+如果检测结果不是 Java，默认不要继续初始化，而是明确提示当前规则集尚未覆盖该栈。
 
 ### 2. 领域知识扫描
 
@@ -94,13 +100,13 @@ metadata:
 
 **核心原则**：只提取模型无法从公开资料获取的内容。
 
-**输出**：一份领域知识清单，在 Step 8 写入 `docs/knowledge.md`。
+**输出**：一份领域知识清单，在 Step 5 写入 `docs/knowledge.md`。
 
 **空项目处理**：项目没有足够源码时跳过扫描，`docs/knowledge.md` 留空模板，后续由物料飞轮填充。
 
 扫描策略、采样方法和输出格式详见 `knowledge-scanning.md`。
 
-### 3. 检测结果确认
+### 3. 确认检测结果 + 选择更新策略
 
 检测结果不是最终事实，用户确认才是。
 
@@ -108,28 +114,11 @@ metadata:
 - 检测到的主技术栈
 - 推荐加载的规则集
 - 建议初始化的指南文档
+- 建议生成的 `.claude/` 内容
 
-### 4. 已初始化检查
+如果项目根目录已经有 `CLAUDE.md` 或 `.claude/settings.json`，说明大概率不是首次接入。
 
-如果项目根目录已经有 `CLAUDE.md`，说明大概率不是首次接入。
-
-这时不应直接覆盖，而应进入更新策略选择。
-
-同时检查项目根目录是否存在 `project-overrides.json`。如果存在，读取覆盖配置并在后续步骤中优先使用。
-
-支持的覆盖项：
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `review_checklist` | string | 替换默认审查清单路径 |
-| `acceptance_criteria_template` | string | 验收标准模板（EARS / EARS_RELAXED / FREEFORM） |
-| `commit_prefix` | string | 提交消息前缀 |
-| `quality_gate_command` | string | 替换默认构建/验证命令 |
-| `skip_phases` | string[] | 初始化时跳过的 SPEC-STATE 阶段 |
-| `rules_dir` | string | 自定义规则目录路径 |
-| `templates_dir` | string | 自定义模板目录路径 |
-
-### 5. 更新策略
+这时不应直接覆盖，而应进入策略选择。
 
 支持三种策略：
 
@@ -146,20 +135,25 @@ metadata:
 - `Skip`：用户只想看检测结果，或当前项目已有自定义体系不希望接入
 - `Overwrite`：旧入口和 guides 明显过时，且用户明确接受重建
 
-`Overwrite` 必须二次确认，并清楚提示将被替换的内容，例如 `CLAUDE.md`、`docs/guides/*.md`、`configs/rules/*`。
+`Overwrite` 必须二次确认，并清楚提示将被替换的内容，例如 `CLAUDE.md`、`docs/guides/*.md`、`.claude/settings.json`。
 
-### 6. 规则加载
+### 4. 落地入口、规则、guide、`.claude/`
 
 按确认后的技术栈加载：
-- `configs/rules/common-*`
-- 技术栈对应子目录规则
-- 如果 `project-overrides.json` 指定了 `rules_dir`，从该目录加载
+- `configs/rules/common/`
+- `configs/rules/java/`
+- 如检测到 MySQL 相关特征，再加载 `configs/rules/mysql/`
 
 例如：
 - Java 项目加载 `configs/rules/java/`
 - 需要 MySQL 约束时加载 `configs/rules/mysql/`
 
-### 7. 模板复制与变量替换
+Guide 产出要求：
+
+- `docs/guides/development-spec.md` 必须与 Java 项目匹配
+- 不得继续输出 Node.js / Go / Python 的误导性内容
+
+模板复制与变量替换要求：
 
 会用项目上下文替换模板变量，例如：
 - `{{project_name}}`
@@ -167,19 +161,23 @@ metadata:
 - `{{build_tool}}`
 - `{{branch_pattern}}`
 - `{{author}}`
+- `{{hooks_dir}}`
 
 默认目录与复制规则：
 - 推荐创建 `docs/`、`docs/guides/`、`configs/rules/`、`configs/templates/`、`features/`、`.claude/`
 - `configs/templates/` 本身属于框架资源，不必整目录复制到目标项目；真正立即有价值的是入口、guides 和 rules
 - 目标不存在时创建；已存在时优先保留用户内容；仅在明显还是模板变量未替换时做替换
 
-常见变量来源：
-- 当前工作目录
-- 技术栈检测结果
-- `git config user.name`
-- 当前系统时间
+变量回退策略和 `.claude/` 初始化细节见：
+- `claude-init.md`
 
-### 8. 生成领域知识库
+`.claude/` 初始化至少包括：
+
+- 复制核心 hooks 到 `.claude/hooks/`
+- 基于模板生成 `.claude/settings.json`
+- 如果 `.claude/settings.json` 已存在，默认 merge，不覆盖用户已有 `permissions` 和 `tools`
+
+### 5. 生成领域知识库
 
 将 Step 2 扫描得到的领域知识写入 `docs/knowledge.md`。
 
@@ -189,19 +187,39 @@ metadata:
 - 如果项目没有足够的源码，保留空模板
 - 如果 `docs/knowledge.md` 已存在，增量追加不覆盖
 
-**生成时机**：放在模板复制之后、验证之前，因为验证步骤需要检查 knowledge.md 是否存在。
+**生成时机**：放在模板复制之后、验证之前，因为验证步骤需要检查知识库文件是否存在。
 
-### 9. 初始化验证
+### 6. 初始化验证
 
 初始化完成后，要确认：
 - 目录存在
 - 关键文件存在
 - 模板变量已替换
 - 规则和技术栈匹配
+- `.claude/` 已可工作
 - 链接没有明显断裂
 
-验证细节见：
-- `verification.md`
+至少检查：
+
+- `CLAUDE.md` 存在且不包含未替换变量
+- `docs/guides/development-spec.md` 存在
+- `docs/knowledge.md` 存在
+- `features/` 存在
+- `.claude/hooks/spec-state-guard.js` 存在
+- `.claude/settings.json` 存在且可解析
+- `configs/rules/common/coding-style.md` 存在
+- `configs/rules/java/java-coding-style.md` 存在
+
+可以用类似方式快速检查：
+
+```bash
+test -f CLAUDE.md
+test -f docs/guides/development-spec.md
+test -f docs/knowledge.md
+test -d features
+test -f .claude/settings.json
+! grep -q '{{project_name}}' CLAUDE.md
+```
 
 ## 典型输出
 
@@ -223,11 +241,13 @@ metadata:
 - docs/guides/
 - docs/knowledge.md (领域知识: 3 组件用法, 2 平台约束)
 - features/
+- .claude/hooks/
+- .claude/settings.json
 
 领域知识扫描:
 - 内部依赖: @company/common-utils, @company/auth-sdk
 - 请求封装: 统一 Response<T> 包装, GlobalExceptionHandler 模式
-- 目录惯例: Controller → Service → Mapper 三层分包
+- 目录惯例: Controller -> Service -> Mapper 三层分包
 
 下一步:
 /tech:feature
@@ -253,14 +273,16 @@ build/
 
 | 文档 | 作用 |
 |------|------|
+| `bootstrap-guard.md` | 主流程前的边界场景预检与 repo 自举保护 |
 | `stack-detection.md` | 技术栈检测规则 |
 | `knowledge-scanning.md` | 领域知识扫描策略和输出格式 |
-| `verification.md` | 初始化验证规则 |
+| `claude-init.md` | `.claude/` 初始化、merge 与变量回退规则 |
 
 ## Gotchas
 
 > 已知失败模式，从实际使用中发现，有机增长。
 
-- **检测到已存在文件就跳过初始化**：但已存在的 CLAUDE.md 可能过时 → 配置不同步：在更新策略（Step 5）选择 `Overwrite` 可强制重建，或手动检查 `CLAUDE.md` 与当前 tinypowers 版本的差异
-- **在空目录下初始化**：没有任何源码文件 → 栈检测失效：至少需要有 `package.json` 或 `pom.xml` 等标记文件
-- **覆盖已有配置而不备份**：强制覆盖后原配置丢失 → 无法回滚：init 默认跳过已存在文件，不会自动备份
+- **检测到已存在文件就跳过初始化**：但已存在的 `CLAUDE.md` 或 `.claude/settings.json` 可能过时，配置会不同步。优先使用 `Update` 补齐缺失项，或在明确确认后使用 `Overwrite`
+- **在空目录下初始化**：没有任何源码文件，栈检测失效。至少需要有 `pom.xml`、`build.gradle` 或 `src/main/java`
+- **对非 Java 项目继续初始化**：会生成不匹配的 guide 和规则。应在 Step 1 后直接停止，而不是硬着头皮继续
+- **覆盖已有配置而不备份**：强制覆盖后原配置丢失，无法回滚。init 默认跳过已存在文件，不会自动备份
