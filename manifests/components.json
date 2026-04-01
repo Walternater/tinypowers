@@ -17,7 +17,6 @@
         "docs/",
         ".claude-plugin/",
         ".codex/",
-        ".opencode/",
         "manifests/",
         "install.sh",
         "scripts/validate.js",

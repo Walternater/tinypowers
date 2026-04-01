@@ -488,8 +488,6 @@ function validateRuntimeSupport() {
   const requiredFiles = [
     ['.claude-plugin/plugin.json', 'Claude Code 插件元数据'],
     ['.codex/INSTALL.md', 'Codex 安装说明'],
-    ['.opencode/README.md', 'OpenCode 接入说明'],
-    ['.opencode/INSTALL.md', 'OpenCode 安装入口'],
     ['docs/guides/runtime-matrix.md', 'Runtime Matrix 文档'],
     ['docs/guides/generated-vs-curated-policy.md', 'Generated vs Curated Policy 文档']
   ];
@@ -519,7 +517,7 @@ function validateRuntimeSupport() {
 
   const runtimeMatrix = readTextIfExists('docs/guides/runtime-matrix.md');
   if (runtimeMatrix) {
-    const requiredHosts = ['Claude Code', 'Codex', 'OpenCode'];
+    const requiredHosts = ['Claude Code', 'Codex'];
     const missingHosts = requiredHosts.filter(host => !runtimeMatrix.includes(host));
     if (missingHosts.length > 0) {
       warn('docs/guides/runtime-matrix.md', 0, '未明确提到宿主: ' + missingHosts.join(', '));
