@@ -32,10 +32,9 @@
 ## 目录约定
 
 ```text
-notes/   -> 即时记录
-todos/   -> 待执行事项
-seeds/   -> 暂不纳入本次变更的想法
-archive/ -> 后续归档材料
+notepads/learnings.md -> feature 级经验沉淀
+seeds/               -> 暂不纳入本次变更的想法
+archive/             -> 后续归档材料
 ```
 
 ## 当前结论

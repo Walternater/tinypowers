@@ -25,8 +25,8 @@ features/{需求编号}-{需求名称}/
 ├── 技术方案.md
 ├── 任务拆解表.md
 ├── 评审记录.md
-├── notes/
-├── todos/
+├── notepads/
+│   └── learnings.md
 ├── seeds/
 └── archive/
 ```
