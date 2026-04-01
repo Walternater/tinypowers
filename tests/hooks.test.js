@@ -71,6 +71,37 @@ test('spec-state-guard matches gitflow feature branches to feature directories',
   assert.match(result.stdout, /CSS-1234-login/);
 });
 
+test('spec-state-guard allows tinypowers lifecycle scripts before EXEC', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-allow-'));
+
+  execFileSync('git', ['init'], { cwd: tempDir, stdio: 'ignore' });
+  fs.writeFileSync(path.join(tempDir, 'README.md'), 'demo\n');
+  execFileSync('git', ['add', 'README.md'], { cwd: tempDir, stdio: 'ignore' });
+  execFileSync(
+    'git',
+    ['-c', 'user.name=Tinypowers', '-c', 'user.email=tinypowers@example.com', 'commit', '-m', 'init'],
+    { cwd: tempDir, stdio: 'ignore' }
+  );
+  execFileSync('git', ['checkout', '-b', 'feature/CSS-1234/login'], { cwd: tempDir, stdio: 'ignore' });
+
+  const guardedFeatureDir = path.join(tempDir, 'features', 'CSS-1234-login');
+  fs.mkdirSync(guardedFeatureDir, { recursive: true });
+  fs.writeFileSync(path.join(guardedFeatureDir, 'SPEC-STATE.md'), 'phase: TASKS\n');
+
+  const result = spawnSync('node', [path.join(ROOT, 'hooks/spec-state-guard.js')], {
+    cwd: tempDir,
+    encoding: 'utf8',
+    input: JSON.stringify({
+      cwd: tempDir,
+      tool_name: 'Bash',
+      tool_args: { command: 'node .claude/skills/tinypowers/scripts/update-spec-state.js --feature features/CSS-1234-login --to EXEC --note "plan check passed"' }
+    })
+  });
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout.trim(), '');
+});
+
 test('gsd-session-manager matches gitflow feature branches to feature directories', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-session-guard-'));
   const sessionId = 'gitflow-match';

@@ -45,6 +45,11 @@ const CODE_BASH_PATTERNS = [
   { pattern: /\bbun\s+(run|build)\s+/, label: 'bun 运行/构建' },
 ];
 
+const ALLOWED_BASH_PATTERNS = [
+  /\b(node|bun)\s+\S*(scaffold-feature|update-spec-state|doctor|validate|install-manifest|repair)\.js\b/,
+  /\b(npm|pnpm|yarn)\s+(run\s+)?(validate|doctor|check|lint|test|typecheck|ci)\b/
+];
+
 function findActiveFeature(cwd) {
   const featuresDir = path.join(cwd, 'features');
   if (!fs.existsSync(featuresDir)) {
@@ -140,6 +145,11 @@ function isCodeBashCommand(command) {
   return null;
 }
 
+function isAllowedBashCommand(command) {
+  const trimmed = command.trim();
+  return ALLOWED_BASH_PATTERNS.some(pattern => pattern.test(trimmed));
+}
+
 function block(msg) {
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: {
@@ -200,6 +210,9 @@ process.stdin.on('end', () => {
 
     if (toolName === 'Bash') {
       const command = String(toolArgs.command || '');
+      if (isAllowedBashCommand(command)) {
+        process.exit(0);
+      }
       const codeLabel = isCodeBashCommand(command);
       if (!codeLabel) {
         process.exit(0);
