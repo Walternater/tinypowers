@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js (tinypowers 框架自身)
 
-**Design doc:** `docs/plans/2026-03-31-thin-orchestration-refactor-design.md`
+**Design doc:** `docs/archive/designs/2026-03-31-thin-orchestration-refactor-design.md`
 
 ---
 
