@@ -86,13 +86,16 @@ Step 6: 验证
 
 ### 4a. 规则加载
 
-从 tinypowers 安装目录复制规则到目标项目 `configs/rules/`：
-- `common/coding-style.md`
-- `common/security.md`
-- `common/testing.md`
-- `common/code-review-checklist.md`
-- `java/java-coding-style.md`
-- `java/testing.md`
+从 tinypowers 安装目录复制规则到目标项目 configs/rules/：
+
+| 源路径 | 目标路径 |
+|--------|----------|
+| configs/rules/common/coding-style.md | configs/rules/common/coding-style.md |
+| configs/rules/common/security.md | configs/rules/common/security.md |
+| configs/rules/common/testing.md | configs/rules/common/testing.md |
+| configs/rules/common/code-review-checklist.md | configs/rules/common/code-review-checklist.md |
+| configs/rules/java/java-coding-style.md | configs/rules/java/java-coding-style.md |
+| configs/rules/java/testing.md | configs/rules/java/testing.md |
 
 如检测到 MySQL 使用，额外复制 `configs/rules/mysql/`。
 
