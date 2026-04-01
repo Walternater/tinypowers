@@ -204,8 +204,7 @@ tinypowers/
 │   │   └── pattern-scan.md
 │   └── tech-commit/
 │       ├── SKILL.md
-│       ├── documenter-guide.md
-│       └── (内联提交/PR/CHANGELOG 规则)
+│       └── (内联提交/PR/文档同步/CHANGELOG 规则)
 ├── agents/               # 角色化 Agent 提示词
 ├── hooks/                # 运行期 hook 实现
 ├── configs/

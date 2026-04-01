@@ -115,7 +115,19 @@ metadata:
 
 这时不应直接覆盖，而应进入更新策略选择。
 
-同时检查项目根目录是否存在 `project-overrides.json`。如果存在，读取覆盖配置并在后续步骤中优先使用（详见 `init-steps.md` 项目级配置覆盖章节）。
+同时检查项目根目录是否存在 `project-overrides.json`。如果存在，读取覆盖配置并在后续步骤中优先使用。
+
+支持的覆盖项：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `review_checklist` | string | 替换默认审查清单路径 |
+| `acceptance_criteria_template` | string | 验收标准模板（EARS / EARS_RELAXED / FREEFORM） |
+| `commit_prefix` | string | 提交消息前缀 |
+| `quality_gate_command` | string | 替换默认构建/验证命令 |
+| `skip_phases` | string[] | 初始化时跳过的 SPEC-STATE 阶段 |
+| `rules_dir` | string | 自定义规则目录路径 |
+| `templates_dir` | string | 自定义模板目录路径 |
 
 ### 5. 更新策略
 
@@ -156,8 +168,16 @@ metadata:
 - `{{branch_pattern}}`
 - `{{author}}`
 
-目录和变量细节见：
-- `init-steps.md`
+默认目录与复制规则：
+- 推荐创建 `docs/`、`docs/guides/`、`configs/rules/`、`configs/templates/`、`features/`、`.claude/`
+- `configs/templates/` 本身属于框架资源，不必整目录复制到目标项目；真正立即有价值的是入口、guides 和 rules
+- 目标不存在时创建；已存在时优先保留用户内容；仅在明显还是模板变量未替换时做替换
+
+常见变量来源：
+- 当前工作目录
+- 技术栈检测结果
+- `git config user.name`
+- 当前系统时间
 
 ### 8. 生成领域知识库
 
@@ -233,7 +253,6 @@ build/
 
 | 文档 | 作用 |
 |------|------|
-| `init-steps.md` | 初始化步骤细节 + 项目级配置覆盖 |
 | `stack-detection.md` | 技术栈检测规则 |
 | `knowledge-scanning.md` | 领域知识扫描策略和输出格式 |
 | `verification.md` | 初始化验证规则 |
