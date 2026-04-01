@@ -3,7 +3,7 @@
 > 日期: 2026-03-30
 > 基线: main 分支（合并 PR #1 + PR #2 后）
 > 总量: ~14,900 行，115 个文件
-> 参考: `plans/simplify-plan.md`（kilo code 简化计划）、`plans/audit-report.md`（kilo code 审查）
+> 参考: `docs/archive/reports/simplify-plan.md`（kilo code 简化计划）、`docs/archive/reports/audit-report.md`（kilo code 审查）
 
 ---
 

@@ -11,10 +11,10 @@
 
 | # | 文件 | 作者 | 视角 |
 |---|------|------|------|
-| 1 | `archive/simplify-plan.md` | kilo code | 激进简化——删 9 项、精简 6 项 |
-| 2 | `archive/audit-report.md` | kilo code | 状态核对——PR #2 后的差距分析 |
-| 3 | `archive/audit-report-claude.md` | Claude | 逐文件审查——CORE/USEFUL/BLOAT 分级 |
-| 4 | `archive/review-and-optimization-report.md` | opencode | 增量优化——在现有基础上改进 |
+| 1 | `docs/archive/reports/simplify-plan.md` | kilo code | 激进简化——删 9 项、精简 6 项 |
+| 2 | `docs/archive/reports/audit-report.md` | kilo code | 状态核对——PR #2 后的差距分析 |
+| 3 | `docs/archive/reports/audit-report-claude.md` | Claude | 逐文件审查——CORE/USEFUL/BLOAT 分级 |
+| 4 | `docs/archive/reports/review-and-optimization-report.md` | opencode | 增量优化——在现有基础上改进 |
 | 5 | `unified-optimization-plan.md` | 综合 | 共识报告——裁决上述 4 份分歧 |
 | 6 | `reference-projects-analysis.md` | kilo code | 11 项目对比——22 项改进建议 |
 | 7 | `reference-driven-optimization.md` | Claude | 精选建议——4 项值得借用的模式 |
