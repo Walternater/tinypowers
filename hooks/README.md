@@ -19,30 +19,24 @@ hooks 解决的不是"怎么写代码"，而是"怎么不把流程写歪"。
 - 为了让检查通过去改 lint / tsconfig / hook 配置
 - 在不适合的场景运行额外检查，拖慢体验
 
-## Hook 级别
+## Hook 模式
 
-通过环境变量 `TINYPOWERS_HOOK_LEVEL` 控制：
+默认通过 `hooks-settings-template.json` 接线全部核心 hook。
+
+`TINYPOWERS_HOOK_LEVEL` 现在只影响 `gsd-code-checker.js` 的提醒强度：
 
 ```bash
 export TINYPOWERS_HOOK_LEVEL=standard
 ```
 
-| 级别 | 用途 | 包含 |
-|------|------|------|
-| `minimal` | 最轻量保护 | 安全拦截 |
-| `standard` | 默认开发体验 | 安全拦截 + 上下文监控 |
-| `strict` | 更强约束 | 安全拦截 + 上下文监控 + 验证提醒 |
-
-推荐：
-- 日常开发：`standard`
-- 审查或关键迭代：`strict`
-- CI 或最小环境：`minimal`
+- `standard`：保留 Stop 残留代码检测，不主动频繁提醒验证命令
+- `strict`：额外开启 PostToolUse 验证提醒
 
 ## 文件说明
 
 | 文件 | 作用 |
 |------|------|
-| `hook-hierarchy.js` | 按级别输出对应 hook 配置 |
+| `spec-state-guard.js` | 基于 SPEC-STATE 阻止越阶段代码编辑 |
 | `gsd-context-monitor.js` | 监控上下文占用，提醒 `/compact` |
 | `gsd-session-manager.js` | SessionStart / Stop / PreCompact 生命周期管理 |
 | `gsd-code-checker.js` | strict 模式验证提醒 + Stop 时残留代码检测 |
@@ -117,6 +111,18 @@ SessionStart
 ```json
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{HOOKS_DIR}/spec-state-guard.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
@@ -196,12 +202,6 @@ SessionStart
 ```
 
 ## 配置方式
-
-### 项目内
-
-```bash
-echo "TINYPOWERS_HOOK_LEVEL=standard" > .env
-```
 
 ### 全局 shell
 

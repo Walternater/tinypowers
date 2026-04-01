@@ -174,7 +174,7 @@ base 分支检测：
 ## 输出
 
 ```text
-features/{id}-{name}/: 技术方案.md, code-review.md, 测试报告.md, VERIFICATION.md
+features/{id}-{name}/: 技术方案.md, VERIFICATION.md
 docs/knowledge.md          ← 项目级知识沉淀（Step 2 更新）
 Git: commit history (含 trailers) + pushed branch
 PR: pull request (如适用)

@@ -49,7 +49,7 @@ function main() {
   const featureDir = path.join(args.root, 'features', `${featureId}-${featureName}`);
 
   fs.mkdirSync(featureDir, { recursive: true });
-  for (const dir of ['notes', 'todos', 'seeds', 'archive', 'notepads', 'commands']) {
+  for (const dir of ['seeds', 'archive', 'notepads']) {
     fs.mkdirSync(path.join(featureDir, dir), { recursive: true });
   }
 

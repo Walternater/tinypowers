@@ -32,7 +32,6 @@ test('validate fails when manifest references generated artifacts', () => {
   fs.mkdirSync(path.join(fixtureRoot, 'manifests'), { recursive: true });
   fs.mkdirSync(path.join(fixtureRoot, '.claude-plugin'), { recursive: true });
   fs.mkdirSync(path.join(fixtureRoot, '.codex'), { recursive: true });
-  fs.mkdirSync(path.join(fixtureRoot, '.opencode'), { recursive: true });
   fs.mkdirSync(path.join(fixtureRoot, 'docs', 'guides'), { recursive: true });
 
   fs.writeFileSync(
@@ -58,9 +57,7 @@ test('validate fails when manifest references generated artifacts', () => {
     JSON.stringify({ name: 'fixture', version: '1.0.0', description: 'fixture' }, null, 2)
   );
   fs.writeFileSync(path.join(fixtureRoot, '.codex', 'INSTALL.md'), '# fixture\n');
-  fs.writeFileSync(path.join(fixtureRoot, '.opencode', 'README.md'), '# fixture\n');
-  fs.writeFileSync(path.join(fixtureRoot, '.opencode', 'INSTALL.md'), '# fixture\n');
-  fs.writeFileSync(path.join(fixtureRoot, 'docs', 'guides', 'runtime-matrix.md'), 'Claude Code\nCodex\nOpenCode\n');
+  fs.writeFileSync(path.join(fixtureRoot, 'docs', 'guides', 'runtime-matrix.md'), 'Claude Code\nCodex\n');
   fs.writeFileSync(path.join(fixtureRoot, 'docs', 'guides', 'generated-vs-curated-policy.md'), '# fixture\n');
 
   const result = run('scripts/validate.js', ['--root', fixtureRoot]);

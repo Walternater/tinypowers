@@ -31,8 +31,8 @@ features/{需求编号}-{需求名称}/
 ├── 技术方案.md
 ├── 任务拆解表.md
 ├── 评审记录.md
-├── notes/
-├── todos/
+├── notepads/
+│   └── learnings.md
 ├── seeds/
 └── archive/
 ```
@@ -41,9 +41,7 @@ features/{需求编号}-{需求名称}/
 
 ```text
 STATE.md
-code-review.md
 VERIFICATION.md
-测试报告.md
 ```
 
 ## 每个文件的职责
@@ -104,7 +102,7 @@ node .claude/skills/tinypowers/scripts/scaffold-feature.js --root . --id CSS-123
 - `技术方案.md`
 - `任务拆解表.md`
 - `评审记录.md`
-- `notes/`、`todos/`、`seeds/`、`archive/`
+- `notepads/learnings.md`、`seeds/`、`archive/`
 
 阶段推进也可以用脚本更新：
 

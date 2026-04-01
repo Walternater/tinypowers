@@ -40,9 +40,8 @@ features/{需求编号}-{需求名称}/
 ├── 任务拆解表.md
 ├── 评审记录.md
 ├── STATE.md
-├── code-review.md
-├── notes/
-├── todos/
+├── notepads/
+│   └── learnings.md
 ├── seeds/
 └── archive/
 ```
@@ -52,6 +51,7 @@ features/{需求编号}-{需求名称}/
 - `SPEC-STATE.md` 负责跨阶段生命周期状态
 - `技术方案.md` 是方案与决策锁定的主文档
 - `任务拆解表.md` 是执行入口
+- `notepads/learnings.md` 用于沉淀 feature 级经验
 - `STATE.md` 在进入执行态后成为主状态数据源
 
 ## 全流程总览
@@ -210,7 +210,6 @@ tinypowers 强制采用下面的顺序：
 - `features/{id}-{name}/技术方案.md`
 - `features/{id}-{name}/任务拆解表.md`
 - `features/{id}-{name}/STATE.md`
-- `features/{id}-{name}/code-review.md`
 - 代码实现
 - 测试结果
 - 提交记录 / PR

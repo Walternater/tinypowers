@@ -17,7 +17,6 @@
         "docs/",
         ".claude-plugin/",
         ".codex/",
-        ".opencode/",
         "manifests/",
         "install.sh",
         "scripts/validate.js",
@@ -52,7 +51,7 @@
       ]
     },
     "templates": {
-      "description": "文档模板：CLAUDE.md、PRD、技术方案、测试报告",
+      "description": "文档模板：CLAUDE.md、PRD、技术方案等",
       "required": false,
       "sources": [
         "configs/templates/"

@@ -36,9 +36,11 @@ test('scaffold-feature creates a change set skeleton', () => {
     assert.equal(fs.existsSync(path.join(featureDir, file)), true, file);
   }
 
-  for (const dir of ['notes', 'todos', 'seeds', 'archive']) {
+  for (const dir of ['seeds', 'archive', 'notepads']) {
     assert.equal(fs.existsSync(path.join(featureDir, dir)), true, dir);
   }
+
+  assert.equal(fs.existsSync(path.join(featureDir, 'notepads', 'learnings.md')), true, 'notepads/learnings.md');
 
   const changeSet = fs.readFileSync(path.join(featureDir, 'CHANGESET.md'), 'utf8');
   assert.match(changeSet, /CSS-1234/);

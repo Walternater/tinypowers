@@ -41,7 +41,6 @@ updated: {date}
 | 生命周期状态 | SPEC-STATE.md | active |
 | STATE | STATE.md | pending |
 | 阶段评审 | 评审记录.md | pending |
-| 审查记录 | code-review.md | pending |
 | 验证报告 | VERIFICATION.md | pending |
 
 ## 判断规则
@@ -54,7 +53,7 @@ REQ -> DESIGN:    需求理解确认.md 存在且包含"已确认"标记
 DESIGN -> TASKS:  技术方案.md 存在且包含"已锁定决策"章节
 TASKS -> EXEC:    任务拆解表.md 存在且 plan-check 通过
 EXEC -> REVIEW:   STATE.md 标记所有 Wave DONE
-REVIEW -> VERIFY: 审查报告 Verdict = APPROVE 或 WARNING
+REVIEW -> VERIFY: 验证阶段已启动
 VERIFY -> CLOSED: VERIFICATION.md 结论 = PASS
 ```
 

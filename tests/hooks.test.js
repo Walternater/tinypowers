@@ -7,22 +7,6 @@ const { execFileSync, spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 
-test('hook-hierarchy strict mode includes code checker', () => {
-  const output = execFileSync('node', [path.join(ROOT, 'hooks/hook-hierarchy.js')], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      TINYPOWERS_HOOK_LEVEL: 'strict'
-    }
-  });
-
-  const parsed = JSON.parse(output);
-  const config = parsed.config;
-  const commands = JSON.stringify(config.settings.hooks.PostToolUse);
-  assert.match(commands, /gsd-code-checker\.js/);
-});
-
 test('gsd-code-checker Stop detects console.log in modified files', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-residual-'));
 
@@ -85,6 +69,37 @@ test('spec-state-guard matches gitflow feature branches to feature directories',
   assert.equal(result.status, 0);
   assert.match(result.stdout, /SPEC-STATE 门禁拦截/);
   assert.match(result.stdout, /CSS-1234-login/);
+});
+
+test('spec-state-guard allows tinypowers lifecycle scripts before EXEC', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-allow-'));
+
+  execFileSync('git', ['init'], { cwd: tempDir, stdio: 'ignore' });
+  fs.writeFileSync(path.join(tempDir, 'README.md'), 'demo\n');
+  execFileSync('git', ['add', 'README.md'], { cwd: tempDir, stdio: 'ignore' });
+  execFileSync(
+    'git',
+    ['-c', 'user.name=Tinypowers', '-c', 'user.email=tinypowers@example.com', 'commit', '-m', 'init'],
+    { cwd: tempDir, stdio: 'ignore' }
+  );
+  execFileSync('git', ['checkout', '-b', 'feature/CSS-1234/login'], { cwd: tempDir, stdio: 'ignore' });
+
+  const guardedFeatureDir = path.join(tempDir, 'features', 'CSS-1234-login');
+  fs.mkdirSync(guardedFeatureDir, { recursive: true });
+  fs.writeFileSync(path.join(guardedFeatureDir, 'SPEC-STATE.md'), 'phase: TASKS\n');
+
+  const result = spawnSync('node', [path.join(ROOT, 'hooks/spec-state-guard.js')], {
+    cwd: tempDir,
+    encoding: 'utf8',
+    input: JSON.stringify({
+      cwd: tempDir,
+      tool_name: 'Bash',
+      tool_args: { command: 'node .claude/skills/tinypowers/scripts/update-spec-state.js --feature features/CSS-1234-login --to EXEC --note "plan check passed"' }
+    })
+  });
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout.trim(), '');
 });
 
 test('gsd-session-manager matches gitflow feature branches to feature directories', () => {
