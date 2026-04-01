@@ -155,7 +155,7 @@ docs/plans/
 
 注意：
 - 不要默认忽略整个 `features/`
-- `features/{id}/STATE.md` 和需求产物通常需要被版本控制追踪
+- `features/{id}-{name}/STATE.md` 和需求产物通常需要被版本控制追踪
 
 ## Git 初始化
 

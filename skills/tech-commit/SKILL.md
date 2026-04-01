@@ -67,7 +67,7 @@ Document Sync
 
 ### 做什么
 
-1. 读取 `features/{id}/notepads/learnings.md`，评估每条学习是否值得沉淀到项目级
+1. 读取 `features/{id}-{name}/notepads/learnings.md`，评估每条学习是否值得沉淀到项目级
 2. 对值得沉淀的条目，归类写入 `docs/knowledge.md`（不存在则用模板创建）
 3. 不值得沉淀的条目保留在 feature 级 learnings 中不删除
 
@@ -183,7 +183,7 @@ Confidence: high
 ## 输出
 
 ```text
-features/{id}/: 技术方案.md, code-review.md, 测试报告.md, VERIFICATION.md
+features/{id}-{name}/: 技术方案.md, code-review.md, 测试报告.md, VERIFICATION.md
 docs/knowledge.md          ← 项目级知识沉淀（Step 2 更新）
 Git: commit history (含 trailers) + pushed branch
 PR: pull request (如适用)

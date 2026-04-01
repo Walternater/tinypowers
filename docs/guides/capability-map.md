@@ -34,7 +34,7 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 | `spec-compliance-reviewer` | 先审是否符合技术方案 |
 | `security-reviewer` | 再审安全风险 |
 
-> **已委托 superpowers:** 任务拆解 → `superpowers:writing-plans`，代码审查 → `superpowers:code-reviewer`，完成验证 → `superpowers:verification-before-completion`
+> **已委托 superpowers:** 任务拆解 → `superpowers:writing-plans`，代码审查 → `superpowers:requesting-code-review`，完成验证 → `superpowers:verification-before-completion`
 
 ## Contexts
 

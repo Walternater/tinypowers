@@ -22,7 +22,7 @@
 - `@configs/templates/tech-design.md`
 
 默认输出位置：
-- `features/{id}/技术方案.md`
+- `features/{id}-{name}/技术方案.md`
 
 ## 方案阶段最重要的事
 

@@ -66,7 +66,7 @@ export TINYPOWERS_HOOK_LEVEL=standard
 - `PreCompact`
 
 当前约定：
-- `features/{id}/STATE.md` 是恢复主数据源
+- `features/{id}-{name}/STATE.md` 是恢复主数据源
 - `/tmp/tinypowers-session-{session_id}.json` 是恢复入口快照
 
 恢复流程：
@@ -75,7 +75,7 @@ export TINYPOWERS_HOOK_LEVEL=standard
 SessionStart
   -> 检测 /tmp 快照
   -> 提示是否恢复
-  -> 用户确认后读取 features/{id}/STATE.md
+  -> 用户确认后读取 features/{id}-{name}/STATE.md
   -> 从断点继续
 ```
 

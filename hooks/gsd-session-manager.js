@@ -170,9 +170,13 @@ function detectCurrentFeature(cwd, featuresDir) {
     const { execSync } = require('child_process');
     const branch = execSync('git branch --show-current', { cwd, encoding: 'utf8', timeout: 5000 }).trim();
     if (branch && branch.startsWith('feature/')) {
-      const id = branch.replace('feature/', '');
-      if (featuresDir && fs.existsSync(path.join(featuresDir, id))) return id;
-      return id;
+      const featureDirs = featuresDir && fs.existsSync(featuresDir)
+        ? fs.readdirSync(featuresDir, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name)
+        : [];
+      const matched = matchFeatureFromBranch(branch, featureDirs);
+      if (matched) return matched;
+
+      return branch.replace('feature/', '').replace(/\//g, '-');
     }
   } catch (e) {}
 
@@ -195,6 +199,22 @@ function detectCurrentFeature(cwd, featuresDir) {
   }
 
   return 'unknown';
+}
+
+function matchFeatureFromBranch(branch, featureDirs) {
+  if (!branch.startsWith('feature/')) return null;
+
+  const raw = branch.replace('feature/', '');
+  const normalized = raw.replace(/\//g, '-');
+  const idPrefix = raw.split('/')[0];
+
+  if (featureDirs.includes(raw)) return raw;
+  if (featureDirs.includes(normalized)) return normalized;
+
+  const prefixMatches = featureDirs.filter(name => name === idPrefix || name.startsWith(idPrefix + '-'));
+  if (prefixMatches.length === 1) return prefixMatches[0];
+
+  return null;
 }
 
 function detectCurrentWave(cwd, featureId) {
