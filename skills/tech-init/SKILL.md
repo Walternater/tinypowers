@@ -144,6 +144,17 @@ metadata:
 - `configs/rules/java/`
 - 如检测到 MySQL 相关特征，再加载 `configs/rules/mysql/`
 
+默认规则映射：
+
+| 源路径 | 目标路径 |
+|--------|----------|
+| `configs/rules/common/coding-style.md` | `configs/rules/common/coding-style.md` |
+| `configs/rules/common/security.md` | `configs/rules/common/security.md` |
+| `configs/rules/common/testing.md` | `configs/rules/common/testing.md` |
+| `configs/rules/common/code-review-checklist.md` | `configs/rules/common/code-review-checklist.md` |
+| `configs/rules/java/java-coding-style.md` | `configs/rules/java/java-coding-style.md` |
+| `configs/rules/java/testing.md` | `configs/rules/java/testing.md` |
+
 例如：
 - Java 项目加载 `configs/rules/java/`
 - 需要 MySQL 约束时加载 `configs/rules/mysql/`
