@@ -8,7 +8,7 @@
 
 ```yaml
 version: 1.0.0
-init_version: 4.0
+init_version: "4.0"
 last_updated: {{date}}
 framework: tinypowers
 project_name: {{project_name}}

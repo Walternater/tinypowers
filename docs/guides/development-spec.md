@@ -26,20 +26,20 @@
 
 ## 推荐分层
 
-默认 Java 服务分层：
+默认后端分层：
 
 ```text
-Controller -> Application Service -> Domain Service -> Repository (Mapper)
+Controller -> Service -> Business -> DAO (Mapper)
 ```
 
 ### 层级职责
 
 | 层级 | 职责 | 不应做的事 |
 |------|------|-----------|
-| Controller | HTTP / RPC 请求接入、参数校验、响应组装 | 承载核心业务逻辑 |
-| Application Service | 服务编排、事务边界、跨对象协调 | 承担底层 SQL 细节 |
-| Domain Service | 核心业务规则、领域约束 | 持有控制器或持久化细节 |
-| Repository / Mapper | 数据访问 | 承担业务判断 |
+| Controller | HTTP 请求接入、参数校验、响应组装 | 承载核心业务逻辑 |
+| Service | 服务编排、事务边界、跨对象协调 | 直接堆砌数据库细节 |
+| Business | 核心业务规则 | 持有框架耦合的接入逻辑 |
+| DAO / Mapper | 数据访问 | 承担业务判断 |
 
 ## 命名约定
 
@@ -47,9 +47,8 @@ Controller -> Application Service -> Domain Service -> Repository (Mapper)
 
 | 形式 | 用途 | 示例 |
 |------|------|------|
-| `BaseXxx` | 基类 | `BaseRepository` |
-| `XxxService` | 应用服务 / 领域服务 | `TaskService` |
-| `XxxRepository` / `XxxMapper` | 数据访问 | `TaskRepository` |
+| `BaseXxx` | 基类 | `BaseBusiness` |
+| `XxxBusiness` | 业务逻辑 | `TaskBusiness` |
 | `XxxVO` / `XxxDTO` | 数据传输对象 | `TaskVO` |
 | `XxxRequest` / `XxxResponse` | 请求响应模型 | `TaskRequest` |
 
@@ -75,7 +74,7 @@ Controller -> Application Service -> Domain Service -> Repository (Mapper)
 ### 输入校验
 
 - 在系统边界校验所有输入
-- 尽量使用注解校验或显式校验对象
+- 尽量使用 schema 或注解校验
 - 失败要快速、明确
 - 默认不信任用户输入、外部接口返回、文件内容
 
@@ -104,7 +103,7 @@ Controller -> Application Service -> Domain Service -> Repository (Mapper)
 
 feat(task): 添加任务优先级功能
 fix(task): 修复任务创建校验问题
-refactor(service): 重构任务服务层
+refactor(business): 重构任务业务层
 test(task): 补充任务服务单元测试
 docs(readme): 更新说明
 ```
@@ -154,7 +153,7 @@ docs(readme): 更新说明
 
 如果你在维护 tinypowers 本身：
 - 通用行为优先改 `configs/rules/common-*`
-- 技术栈特定行为优先改子目录规则
+- Java 特定行为优先改 `configs/rules/java/`
 - 改了规则入口，记得同步 `README.md`、`configs/templates/CLAUDE.md` 和本文件
 
 ## 相关文档
