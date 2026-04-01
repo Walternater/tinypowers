@@ -35,6 +35,10 @@ function loadJson(p) {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
+function readFile(p) {
+  return fs.readFileSync(p, 'utf8');
+}
+
 function detectInstallRoot(args) {
   if (args['install-root']) {
     return path.resolve(args['install-root']);
@@ -109,7 +113,17 @@ function summarizeComponents(installRoot, manifest, findings) {
   return installed;
 }
 
-function checkHooks(projectRoot, installRoot, findings) {
+function checkHooks(projectRoot, installRoot, findings, installedComponents) {
+  const hasTemplates = installedComponents.includes('templates');
+  const settingsTemplatePath = path.join(installRoot, 'configs', 'templates', 'settings.json');
+  if (hasTemplates && exists(settingsTemplatePath)) {
+    findings.pass.push('已提供 configs/templates/settings.json');
+  } else if (hasTemplates) {
+    findings.warn.push('缺少 configs/templates/settings.json，/tech:init 无法直接生成 .claude/settings.json');
+  } else {
+    findings.info.push('当前安装未包含 templates 组件，不要求提供 configs/templates/settings.json');
+  }
+
   const settingsPath = path.join(projectRoot, SETTINGS_FILE);
   if (!exists(settingsPath)) {
     findings.warn.push(`未找到 ${path.relative(projectRoot, settingsPath)}，需要手动接入 hooks`);
@@ -158,6 +172,7 @@ function checkHooks(projectRoot, installRoot, findings) {
   } else {
     findings.info.push('仓库模式下不要求存在 hooks-settings-template.json（由 install.sh 生成）');
   }
+
 }
 
 function checkProjectArtifacts(projectRoot, findings, installRoot) {
@@ -172,6 +187,13 @@ function checkProjectArtifacts(projectRoot, findings, installRoot) {
 
   if (exists(claudePath)) {
     findings.pass.push('目标项目已初始化 CLAUDE.md');
+    const claudeContent = readFile(claudePath);
+    const initVersionMatch = claudeContent.match(/init_version:\s*"?([0-9.]+)"?/);
+    if (initVersionMatch) {
+      findings.pass.push(`CLAUDE.md init_version: ${initVersionMatch[1]}`);
+    } else {
+      findings.warn.push('CLAUDE.md 缺少 init_version，后续升级无法判断初始化版本');
+    }
   } else {
     findings.warn.push('目标项目尚未初始化 CLAUDE.md（如未执行 /tech:init 属正常）');
   }
@@ -235,7 +257,7 @@ function main() {
     findings.info.push('当前安装未包含 templates 组件');
   }
 
-  checkHooks(projectRoot, installRoot, findings);
+  checkHooks(projectRoot, installRoot, findings, installedComponents);
   checkProjectArtifacts(projectRoot, findings, installRoot);
 
   console.log('tinypowers doctor');

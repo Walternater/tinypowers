@@ -1,6 +1,6 @@
 # 开发规范
 
-本文档面向被 tinypowers 初始化后的目标项目，定义默认开发约束。
+本文档面向被 tinypowers 初始化后的 Java 项目，定义默认开发约束。
 
 它不是技术方案模板，也不是某个需求的执行记录，而是所有实现都应共享的“基础规则层”。
 
@@ -13,6 +13,8 @@
 - 规则索引入口
 
 更细的技术栈细节，请继续看 `configs/rules/` 下的对应规则文件。
+
+如果你的项目不是 Java，请不要直接复用本文件；当前 `/tech:init` 默认只为 Java 项目生成这份指南。
 
 ## 基本原则
 
@@ -147,12 +149,11 @@ docs(readme): 更新说明
 | MySQL 规范 | `configs/rules/mysql/` |
 | 代码审查清单 | `configs/rules/common/code-review-checklist.md` |
 
-
 ## 给维护者的建议
 
 如果你在维护 tinypowers 本身：
 - 通用行为优先改 `configs/rules/common-*`
-- 技术栈特定行为优先改子目录规则
+- Java 特定行为优先改 `configs/rules/java/`
 - 改了规则入口，记得同步 `README.md`、`configs/templates/CLAUDE.md` 和本文件
 
 ## 相关文档
