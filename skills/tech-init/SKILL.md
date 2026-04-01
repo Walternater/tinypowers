@@ -129,8 +129,12 @@ metadata:
 
 默认推荐 `Update`。
 
-策略细节见：
-- `update-strategies.md`
+策略选择规则：
+- `Update`：项目已有 `CLAUDE.md` 或部分 guides / rules，只想补齐缺失项
+- `Skip`：用户只想看检测结果，或当前项目已有自定义体系不希望接入
+- `Overwrite`：旧入口和 guides 明显过时，且用户明确接受重建
+
+`Overwrite` 必须二次确认，并清楚提示将被替换的内容，例如 `CLAUDE.md`、`docs/guides/*.md`、`configs/rules/*`。
 
 ### 6. 规则加载
 
@@ -232,7 +236,6 @@ build/
 | `init-steps.md` | 初始化步骤细节 + 项目级配置覆盖 |
 | `stack-detection.md` | 技术栈检测规则 |
 | `knowledge-scanning.md` | 领域知识扫描策略和输出格式 |
-| `update-strategies.md` | 更新策略（Update / Skip / Overwrite） |
 | `verification.md` | 初始化验证规则 |
 
 ## Gotchas

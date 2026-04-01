@@ -128,13 +128,19 @@ Evidence: [验证结果或测试通过证据]
 Confidence: [high/medium/low]
 ```
 
+默认结构：
+- prefix：`[AI-Gen]`、`[AI-Review]`、`[Manual]`
+- type：`feat`、`fix`、`docs`、`refactor`、`test`、`chore`、`perf`、`ci`、`revert`
+- scope：优先用 feature id 或领域模块；如果会让标题更模糊可以省略
+- description：动作导向、简短明确，不写 `update code`、`fix bugs` 这类空话
+
+body / footer 用来补“为什么这样改”、重要权衡、`Closes #123` 或 `BREAKING CHANGE` 等上下文。
+
 ### 常见场景
 
 - 新功能：`[AI-Gen] feat({id}): ...`
 - 审查修复：`[AI-Review] fix({id}): ...`
 - 文档同步：`[AI-Gen] docs({id}): ...`
-
-提交格式细则见 `commit-message-format.md`。
 
 ## 4. PR + Branch Cleanup
 
@@ -155,7 +161,17 @@ base 分支检测：
 1. `git symbolic-ref refs/remotes/origin/HEAD` → 取 `refs/remotes/origin/` 后面的部分
 2. 如果失败（新克隆、HEAD 未设置），提示用户指定
 
-详见 `pr-workflow.md`。
+PR 描述至少应包含：
+- `Summary`：一句话概括改动目标
+- `Changes`：最重要的 2-4 个改动点
+- `Testing`：验证命令或验证方式
+- `Docs` / `Notes`：文档同步情况和剩余注意事项
+
+合并前再确认：
+- reviewer 已完成必要审查
+- 关键反馈已处理
+- CI 或项目门禁状态正常
+- PR 描述没有过期
 
 ### CHANGELOG
 
@@ -166,7 +182,7 @@ base 分支检测：
 
 不必更新的场景：纯内部重构、过程性提交、不对外暴露的微小整理。
 
-详见 `changelog-update.md`。
+如果仓库采用 Keep a Changelog 风格，优先按 `Added / Changed / Fixed / Security` 归类，按“读者会感知到的变化”聚合，不按 commit 历史机械照抄。
 
 ### Branch Cleanup
 
@@ -196,9 +212,6 @@ PR: pull request (如适用)
 | 文档 | 作用 |
 |------|------|
 | `documenter-guide.md` | 文档同步检查项 |
-| `commit-message-format.md` | 提交信息格式细则 |
-| `pr-workflow.md` | 平台检测 + 链接生成规则 |
-| `changelog-update.md` | CHANGELOG 更新规则 |
 
 **委托 superpowers**:
 - Step 4 → `superpowers:finishing-a-development-branch`
