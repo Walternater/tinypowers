@@ -1,0 +1,74 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn *)",
+      "Bash(git *)",
+      "Bash(./gradlew *)",
+      "Bash(date *)",
+      "Bash(echo *)",
+      "Bash(ls *)",
+      "Bash(mkdir *)",
+      "Bash(wc *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(sort *)",
+      "Bash(grep *)",
+      "Write(src/**/*)",
+      "Write(tests/**/*)",
+      "Write(features/**/*)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Write(*.pem)",
+      "Write(.env*)",
+      "Write(node_modules/**/*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{{hooks_dir}}/spec-state-guard.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{{hooks_dir}}/gsd-context-monitor.js\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{{hooks_dir}}/config-protection.js\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"{{hooks_dir}}/gsd-code-checker.js\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
