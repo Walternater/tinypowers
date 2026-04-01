@@ -113,12 +113,15 @@ function summarizeComponents(installRoot, manifest, findings) {
   return installed;
 }
 
-function checkHooks(projectRoot, installRoot, findings) {
+function checkHooks(projectRoot, installRoot, findings, installedComponents) {
+  const hasTemplates = installedComponents.includes('templates');
   const settingsTemplatePath = path.join(installRoot, 'configs', 'templates', 'settings.json');
-  if (exists(settingsTemplatePath)) {
+  if (hasTemplates && exists(settingsTemplatePath)) {
     findings.pass.push('已提供 configs/templates/settings.json');
-  } else {
+  } else if (hasTemplates) {
     findings.warn.push('缺少 configs/templates/settings.json，/tech:init 无法直接生成 .claude/settings.json');
+  } else {
+    findings.info.push('当前安装未包含 templates 组件，不要求提供 configs/templates/settings.json');
   }
 
   const settingsPath = path.join(projectRoot, SETTINGS_FILE);
@@ -254,7 +257,7 @@ function main() {
     findings.info.push('当前安装未包含 templates 组件');
   }
 
-  checkHooks(projectRoot, installRoot, findings);
+  checkHooks(projectRoot, installRoot, findings, installedComponents);
   checkProjectArtifacts(projectRoot, findings, installRoot);
 
   console.log('tinypowers doctor');
