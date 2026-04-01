@@ -24,6 +24,11 @@ metadata:
 
 <HARD-GATE>
 **提交前门禁** - 上述条件必须全部满足才能提交。
+
+不满足时：暂停提交，先修复对应前置条件：
+- `VERIFICATION.md` 不存在 → 先完成 `/tech:code` Phase 5 Verify
+- 测试未通过 → 修复失败测试，重新运行验证
+- 工作区有无关改动 → `git stash` 或 discard 无关变更后再提交
 </HARD-GATE>
 
 ## 输入
@@ -174,7 +179,7 @@ base 分支检测：
 ## 输出
 
 ```text
-features/{id}-{name}/: 技术方案.md, VERIFICATION.md
+features/{id}-{name}/: 技术方案.md, VERIFICATION.md, notepads/learnings.md
 docs/knowledge.md          ← 项目级知识沉淀（Step 2 更新）
 Git: commit history (含 trailers) + pushed branch
 PR: pull request (如适用)
