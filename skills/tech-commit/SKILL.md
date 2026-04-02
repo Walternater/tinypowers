@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "4.2"
+  version: "4.3"
 ---
 
 # /tech:commit
@@ -26,14 +26,22 @@ metadata:
 ```text
 Fast Route:
   Step 1F: Document Sync + Git Commit + Push
-  Step 2F: Knowledge Capture（被动，如有 learnings）
 
 Medium / Standard Route:
   Step 1: Document Sync
   Step 2: SPEC-STATE → DONE（提交前推进，避免额外 commit）
   Step 3: Git Commit + PR + Branch Cleanup
-  Step 4: Knowledge Capture（被动，如有 learnings）
 ```
+
+## 交付后可选动作
+
+如果 `notepads/learnings.md` 中有明确的沉淀价值，可以在提交后同步到 `docs/knowledge.md`。
+
+原则：
+- 不为沉淀而沉淀——只有真正对后续 feature 有帮助的内容才写入知识库
+- 空 `learnings.md` 不触发，不创建/不修改 `knowledge.md`
+- Fast 路径通常没有 learnings，可直接跳过
+- 这是可选收尾动作，**不阻塞提交**
 
 ## Document Sync
 
@@ -47,21 +55,6 @@ Medium / Standard Route:
 - 实现与文档一致
 - 状态描述与真实交付一致
 - 不把未完成项写成已完成
-
-## Knowledge Capture（被动模式）
-
-从 `notepads/learnings.md` 中挑出值得沉淀的内容写入 `docs/knowledge.md`。
-
-值得沉淀的内容：
-- 内部组件的非显而易见用法
-- 平台级硬约束
-- 隐蔽 bug 模式和调试经验
-
-**被动原则**：
-- 只在 `notepads/learnings.md` 有实质内容时才触发
-- Fast 路径直接跳过（没有 learnings 就不做）
-- Standard 路径有 learnings 时才写入 `docs/knowledge.md`
-- 不为沉淀而沉淀——空 learnings 不创建/不修改 knowledge.md
 
 ## Git Commit
 
@@ -86,7 +79,7 @@ Evidence: [验证结果]
 **关键：在 Git Commit 之前推进 SPEC-STATE 到 DONE**，避免产生额外的 DONE commit。
 
 提交顺序：
-1. 完成 Document Sync 和 Knowledge Capture
+1. 完成 Document Sync
 2. 推进 `SPEC-STATE` → `DONE`（`update-spec-state.js --to DONE`）
 3. 将 SPEC-STATE 变更与代码一起提交
 4. 保留 `VERIFICATION.md`

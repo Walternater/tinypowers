@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "8.1"
+  version: "8.2"
 ---
 
 # /tech:code
@@ -20,13 +20,13 @@ metadata:
 - `features/{id}-{name}/技术方案.md`
 - `features/{id}-{name}/任务拆解表.md`
 - `features/{id}-{name}/SPEC-STATE.md`
-- `features/{id}-{name}/STATE.md`（不存在时进入 `EXEC` 自动生成）
+- `features/{id}-{name}/STATE.md`（可选，多任务/跨 Wave/跨会话时维护）
 
 ## 生命周期约束
 
 - 进入本 skill 时，`SPEC-STATE` 必须为 `PLAN` 或 `EXEC`
 - 开始执行后推进到 `EXEC`
-- **★ 完成审查和验证后暂停，等待用户确认**，确认后推进到 `REVIEW`
+- **★ 测试报告输出后暂停，等待用户确认**，确认后继续 Review + Verify，再推进到 `REVIEW`
 - 禁止在 `/tech:commit` 前自动提交
 
 ## 主流程
@@ -36,19 +36,21 @@ Fast / Medium Route:
   Phase 0F: Gate Check
   Phase 1F: Context Preparation（含快速参考扫描）
   Phase 2F: Execute
-  Phase 3F: Review + Verify
-  ★ 人工确认：测试通过后暂停，等待用户确认后推进 SPEC-STATE → REVIEW
+  Phase 3F: Test
+  ★ 人工确认：测试报告输出后暂停，等待用户确认后继续
+  Phase 4F: Review + Verify → SPEC-STATE → REVIEW
 
 Standard Route:
   Phase 0: Gate Check
   Phase 1: Worktree Setup（可选，视需求规模决定）
   Phase 2: Context Preparation（含参考扫描）
   Phase 3: Execute
-  Phase 4: Review + Verify
-  ★ 人工确认：测试通过后暂停，等待用户确认后推进 SPEC-STATE → REVIEW
+  Phase 4: Test
+  ★ 人工确认：测试报告输出后暂停，等待用户确认后继续
+  Phase 5: Review + Verify → SPEC-STATE → REVIEW
 ```
 
-> `Medium` 和 `Fast` 共用同一条执行路径（0F→1F→2F→3F），区别仅在于任务数量（Medium 允许 3-5 个）。
+> `Medium` 和 `Fast` 共用同一条执行路径，区别仅在于任务数量（Medium 允许 3-5 个）。
 
 ## Gate Check
 
@@ -90,6 +92,19 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 
 缝合策略：先复用已有骨架，再替换业务字段，只在差异点写新逻辑。
 
+## Test（所有路径）
+
+编码完成后、Review 之前，执行测试阶段：
+
+- 编写测试用例并运行
+- 产出 `测试报告.md`（覆盖：测试范围、用例数、通过率、失败原因）
+
+**Fast 路径**：至少覆盖核心逻辑的正向和反向用例，测试结果也可记录在 `STATE.md` 对应 Task 的验收栏；`测试报告.md` 可选。
+
+**Medium / Standard 路径**：必须产出 `测试报告.md`，覆盖核心路径。
+
+> 这是关键确认点——测试报告（或 Fast 路径的验收记录）输出后，**暂停等待用户确认**，再进入 Review。
+
 ## Fast / Medium Route
 
 Fast/Medium 路径目标是减少委托和切换成本：
@@ -101,12 +116,10 @@ Fast 路径审查与验证（一轮快速检查）：
 - 方案符合性 + 代码质量合并为一次自检
 - 安全风险检查（仅关注输入验证、权限、敏感信息泄露）
 - 验证证据写入 `STATE.md` 的对应 Task 状态中，**不单独创建 `VERIFICATION.md`**
-- 测试：至少覆盖核心逻辑的正向和反向用例，测试结果记录在 Task 验收栏
 
 Medium 路径审查与验证：
 - Review 用 `compliance-reviewer` 统一审查
 - Verify 用 `superpowers:verification-before-completion`
-- 测试：编写测试计划，覆盖核心路径，产出简要测试报告
 
 这些底线不变：
 - 缝合优先
@@ -143,10 +156,9 @@ compliance-reviewer（方案符合性 + 安全） -> superpowers:requesting-code
 
 ```text
 features/{id}-{name}/
-├── STATE.md
+├── STATE.md                 # 可选，多任务/跨 Wave/跨会话时维护
 ├── VERIFICATION.md          # Medium/Standard 产出，Fast 路径不创建
-├── 测试计划.md              # Medium/Standard 产出
-├── 测试报告.md              # Medium/Standard 产出
+├── 测试报告.md              # Medium/Standard 产出，Fast 路径可选
 └── notepads/
     └── learnings.md
 ```
@@ -155,7 +167,7 @@ features/{id}-{name}/
 
 ## 配套说明
 
-- `STATE.md` 是执行期唯一真相源
+- `STATE.md` 是可选的执行期跟踪文档；建议在多任务、跨 Wave、跨会话执行时维护
 - Fast 路径：Task 验收记录即为验证证据，无需额外文档
 - Medium/Standard 路径：`VERIFICATION.md` 是进入 `/tech:commit` 的前置条件
 - 同一问题连续失败 3 次，应停止并上升到架构讨论
