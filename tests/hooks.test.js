@@ -48,7 +48,7 @@ test('spec-state-guard matches gitflow feature branches to feature directories',
   const latestFeatureDir = path.join(tempDir, 'features', 'CSS-9999-other');
   fs.mkdirSync(guardedFeatureDir, { recursive: true });
   fs.mkdirSync(latestFeatureDir, { recursive: true });
-  fs.writeFileSync(path.join(guardedFeatureDir, 'SPEC-STATE.md'), 'phase: TASKS\n');
+  fs.writeFileSync(path.join(guardedFeatureDir, 'SPEC-STATE.md'), 'phase: PLAN\n');
   fs.writeFileSync(path.join(latestFeatureDir, 'SPEC-STATE.md'), 'phase: EXEC\n');
 
   const older = new Date('2026-04-01T00:00:00Z');
@@ -86,7 +86,7 @@ test('spec-state-guard allows tinypowers lifecycle scripts before EXEC', () => {
 
   const guardedFeatureDir = path.join(tempDir, 'features', 'CSS-1234-login');
   fs.mkdirSync(guardedFeatureDir, { recursive: true });
-  fs.writeFileSync(path.join(guardedFeatureDir, 'SPEC-STATE.md'), 'phase: TASKS\n');
+  fs.writeFileSync(path.join(guardedFeatureDir, 'SPEC-STATE.md'), 'phase: PLAN\n');
 
   const result = spawnSync('node', [path.join(ROOT, 'hooks/spec-state-guard.js')], {
     cwd: tempDir,

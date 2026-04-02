@@ -24,19 +24,23 @@ test('update-spec-state advances one phase and appends history', () => {
     '--root', projectRoot
   ]);
 
+  // Create 任务拆解表.md so EXEC prerequisite passes
   const featureName = 'CSS-1234-用户登录';
+  const featureDir = path.join(projectRoot, 'features', featureName);
+  fs.writeFileSync(path.join(featureDir, '任务拆解表.md'), '# 任务拆解表\n\n## Epic 1\n\n- Task 1\n');
+
   const result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
     '--root', projectRoot,
-    '--to', 'REQ',
-    '--note', 'PRD ready'
+    '--to', 'EXEC',
+    '--note', 'tasks ready'
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const specState = fs.readFileSync(path.join(projectRoot, 'features', featureName, 'SPEC-STATE.md'), 'utf8');
-  assert.match(specState, /phase: REQ/);
-  assert.match(specState, /\| INIT \| REQ \| PRD ready \|/);
+  const specState = fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
+  assert.match(specState, /phase: EXEC/);
+  assert.match(specState, /\| PLAN \| EXEC \| tasks ready \|/);
 });
 
 test('update-spec-state prevents skipping phases without force', () => {
@@ -54,7 +58,7 @@ test('update-spec-state prevents skipping phases without force', () => {
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
     '--root', projectRoot,
-    '--to', 'DESIGN'
+    '--to', 'REVIEW'
   ]);
 
   assert.equal(result.status, 1);
@@ -97,26 +101,30 @@ test('update-spec-state reads mode from SPEC-STATE file', () => {
   ]);
 
   const featureName = 'CSS-9999-文件模式';
-  const specPath = path.join(projectRoot, 'features', featureName, 'SPEC-STATE.md');
+  const featureDir = path.join(projectRoot, 'features', featureName);
+  const specPath = path.join(featureDir, 'SPEC-STATE.md');
   let content = fs.readFileSync(specPath, 'utf8');
   content = content.replace('mode: strict', 'mode: relaxed');
   fs.writeFileSync(specPath, content);
+
+  // Create STATE.md so REVIEW prerequisite passes
+  fs.writeFileSync(path.join(featureDir, 'STATE.md'), '# STATE\n');
 
   const result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
     '--root', projectRoot,
-    '--to', 'TASKS',
+    '--to', 'REVIEW',
     '--note', 'file says relaxed'
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const updated = fs.readFileSync(specPath, 'utf8');
-  assert.match(updated, /phase: TASKS/);
+  assert.match(updated, /phase: REVIEW/);
 });
 
-test('update-spec-state no longer requires code-review artifact to enter VERIFY', () => {
-  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-verify-'));
+test('update-spec-state DONE requires VERIFICATION with PASS', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-done-'));
 
   runNode([
     path.join(ROOT, 'scripts/scaffold-feature.js'),
@@ -126,11 +134,16 @@ test('update-spec-state no longer requires code-review artifact to enter VERIFY'
   ]);
 
   const featureName = 'CSS-7777-验证阶段';
-  const specPath = path.join(projectRoot, 'features', featureName, 'SPEC-STATE.md');
+  const featureDir = path.join(projectRoot, 'features', featureName);
+  const specPath = path.join(featureDir, 'SPEC-STATE.md');
   let content = fs.readFileSync(specPath, 'utf8');
   content = content.replace('mode: strict', 'mode: relaxed');
   fs.writeFileSync(specPath, content);
 
+  // Create STATE.md so REVIEW prerequisite passes
+  fs.writeFileSync(path.join(featureDir, 'STATE.md'), '# STATE\n');
+
+  // Advance to REVIEW first
   let result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
@@ -140,15 +153,33 @@ test('update-spec-state no longer requires code-review artifact to enter VERIFY'
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
+  // Reset mode to strict so DONE prerequisite check is enforced
+  content = fs.readFileSync(specPath, 'utf8');
+  content = content.replace('mode: relaxed', 'mode: strict');
+  fs.writeFileSync(specPath, content);
+
+  // Without VERIFICATION.md, DONE should fail
   result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
     '--root', projectRoot,
-    '--to', 'VERIFY',
-    '--note', 'start verify without review file'
+    '--to', 'DONE',
+    '--note', 'try done without verification'
+  ]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /VERIFICATION/);
+
+  // With VERIFICATION.md containing PASS, DONE should succeed
+  fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), '# Verification\n\nConclusion: PASS\n');
+  result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'DONE',
+    '--note', 'done with verification'
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const updated = fs.readFileSync(specPath, 'utf8');
-  assert.match(updated, /phase: VERIFY/);
+  assert.match(updated, /phase: DONE/);
 });

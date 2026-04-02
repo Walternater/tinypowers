@@ -7,13 +7,14 @@ const ROOT = path.resolve(__dirname, '..');
 const TEMPLATE_DIR = path.join(ROOT, 'configs', 'templates');
 
 function parseArgs(argv) {
-  const args = { root: process.cwd(), force: false };
+  const args = { root: process.cwd(), force: false, mode: 'standard' };
   for (let i = 2; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--id') { args.id = argv[i + 1]; i += 1; continue; }
     if (arg === '--name') { args.name = argv[i + 1]; i += 1; continue; }
     if (arg === '--root') { args.root = path.resolve(argv[i + 1]); i += 1; continue; }
     if (arg === '--force') { args.force = true; }
+    if (arg === '--mode') { args.mode = argv[i + 1]; i += 1; continue; }
   }
   return args;
 }
@@ -34,13 +35,30 @@ function render(content, ctx) {
     .replaceAll('{{date}}', ctx.date)
     .replaceAll('{Feature ID}', ctx.featureId)
     .replaceAll('{date}', ctx.date)
-    .replaceAll('{phase}', 'INIT');
+    .replaceAll('{phase}', 'PLAN');
 }
+
+const TEMPLATES_STANDARD = [
+  ['SPEC-STATE.md', 'spec-state.md'],
+  ['PRD.md', 'prd-template.md'],
+  ['技术方案.md', 'tech-design.md'],
+  ['任务拆解表.md', 'task-breakdown.md']
+];
+
+const TEMPLATES_FAST = [
+  ['SPEC-STATE.md', 'spec-state.md'],
+  ['PRD.md', 'prd-template.md'],
+  ['任务拆解表.md', 'task-breakdown.md']
+];
 
 function main() {
   const args = parseArgs(process.argv);
   if (!args.id || !args.name) {
-    fail('用法: node scripts/scaffold-feature.js --id CSS-1234 --name 用户登录 [--root /path/to/project] [--force]');
+    fail('用法: node scripts/scaffold-feature.js --id CSS-1234 --name 用户登录 [--root /path/to/project] [--mode fast|standard] [--force]');
+  }
+
+  if (args.mode !== 'fast' && args.mode !== 'standard') {
+    fail('--mode 允许值: fast, standard');
   }
 
   const featureId = sanitizeSegment(args.id);
@@ -49,12 +67,11 @@ function main() {
   const featureDir = path.join(args.root, 'features', `${featureId}-${featureName}`);
 
   fs.mkdirSync(featureDir, { recursive: true });
-  for (const dir of ['seeds', 'archive', 'notepads']) {
-    fs.mkdirSync(path.join(featureDir, dir), { recursive: true });
-  }
+  fs.mkdirSync(path.join(featureDir, 'notepads'), { recursive: true });
 
   const ctx = { featureId, featureName, date };
 
+  // Create learnings.md
   const learningsPath = path.join(featureDir, 'notepads', 'learnings.md');
   fs.writeFileSync(learningsPath, [
     '# 【' + featureId + '】Learnings',
@@ -72,16 +89,8 @@ function main() {
     '- '
   ].join('\n'));
 
-  const templates = [
-    ['CHANGESET.md', 'change-set.md'],
-    ['SPEC-STATE.md', 'spec-state.md'],
-    ['PRD.md', 'prd-template.md'],
-    ['需求理解确认.md', 'requirements-confirmation.md'],
-    ['技术方案.md', 'tech-design.md'],
-    ['任务拆解表.md', 'task-breakdown.md'],
-    ['评审记录.md', 'review-log.md']
-  ];
-
+  // Create template files based on mode
+  const templates = args.mode === 'fast' ? TEMPLATES_FAST : TEMPLATES_STANDARD;
   for (const [outputName, templateName] of templates) {
     const dest = path.join(featureDir, outputName);
     if (fs.existsSync(dest) && !args.force) continue;
@@ -91,6 +100,7 @@ function main() {
 
   console.log('Feature change set 已创建:');
   console.log(featureDir);
+  console.log('模式: ' + args.mode + ' | 文件数: ' + templates.length);
 }
 
 main();

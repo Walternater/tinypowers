@@ -4,16 +4,13 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const PHASES = ['INIT', 'REQ', 'DESIGN', 'TASKS', 'EXEC', 'REVIEW', 'VERIFY', 'CLOSED'];
+const PHASES = ['PLAN', 'EXEC', 'REVIEW', 'DONE'];
 const ARTIFACTS = [
-  { label: 'CHANGESET', file: 'CHANGESET.md' },
   { label: 'PRD', file: 'PRD.md' },
-  { label: '需求理解确认', file: '需求理解确认.md' },
   { label: '技术方案', file: '技术方案.md' },
   { label: '任务拆解表', file: '任务拆解表.md' },
   { label: '生命周期状态', file: 'SPEC-STATE.md', special: 'spec-state' },
   { label: 'STATE', file: 'STATE.md', special: 'state' },
-  { label: '阶段评审', file: '评审记录.md' },
   { label: '验证报告', file: 'VERIFICATION.md' }
 ];
 
@@ -46,8 +43,8 @@ function parseArgs(argv) {
     }
     if (arg === '--mode') {
       const mode = argv[i + 1];
-      if (mode !== 'strict' && mode !== 'relaxed') {
-        fail('--mode 允许值: strict, relaxed');
+      if (mode !== 'strict' && mode !== 'relaxed' && mode !== 'fast') {
+        fail('--mode 允许值: strict, relaxed, fast');
       }
       args.mode = mode;
       i += 1;
@@ -81,7 +78,7 @@ function phaseIndex(phase) {
 }
 
 function getCurrentPhase(content) {
-  const match = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|EXEC|REVIEW|VERIFY|CLOSED)/);
+  const match = content.match(/phase:\s*(PLAN|EXEC|REVIEW|DONE)/);
   if (!match) {
     fail('SPEC-STATE.md 中缺少合法的 phase');
   }
@@ -89,7 +86,7 @@ function getCurrentPhase(content) {
 }
 
 function getCurrentMode(content) {
-  const match = content.match(/mode:\s*(strict|relaxed)/);
+  const match = content.match(/mode:\s*(strict|relaxed|fast)/);
   return match ? match[1] : 'strict';
 }
 
@@ -125,29 +122,11 @@ function validatePrerequisites(featureDir, targetPhase, note, force) {
   }
 
   const checks = {
-    REQ() {
-      const prdPath = path.join(featureDir, 'PRD.md');
-      return fs.existsSync(prdPath) && read(prdPath).trim().length > 0
-        ? null
-        : '进入 REQ 需要 PRD.md 存在且非空';
-    },
-    DESIGN() {
-      const filePath = path.join(featureDir, '需求理解确认.md');
-      return fs.existsSync(filePath) && /已确认/.test(read(filePath))
-        ? null
-        : '进入 DESIGN 需要 需求理解确认.md 包含“已确认”标记';
-    },
-    TASKS() {
-      const filePath = path.join(featureDir, '技术方案.md');
-      return fs.existsSync(filePath) && /(已锁定决策|决策记录)/.test(read(filePath))
-        ? null
-        : '进入 TASKS 需要 技术方案.md 包含决策记录';
-    },
     EXEC() {
       const filePath = path.join(featureDir, '任务拆解表.md');
-      return fs.existsSync(filePath) && (note || '').trim().length > 0
+      return fs.existsSync(filePath) && read(filePath).trim().length > 0
         ? null
-        : '进入 EXEC 需要 任务拆解表.md 存在，并通过 --note 记录 plan-check 或放行说明';
+        : '进入 EXEC 需要 任务拆解表.md 存在且非空';
     },
     REVIEW() {
       const filePath = path.join(featureDir, 'STATE.md');
@@ -155,11 +134,11 @@ function validatePrerequisites(featureDir, targetPhase, note, force) {
         ? null
         : '进入 REVIEW 需要 STATE.md 已存在';
     },
-    CLOSED() {
+    DONE() {
       const filePath = path.join(featureDir, 'VERIFICATION.md');
       return fs.existsSync(filePath) && /(PASS|通过)/.test(read(filePath))
         ? null
-        : '进入 CLOSED 需要 VERIFICATION.md 存在且结论为 PASS/通过';
+        : '进入 DONE 需要 VERIFICATION.md 存在且结论为 PASS/通过';
     }
   };
 
@@ -177,7 +156,7 @@ function validatePrerequisites(featureDir, targetPhase, note, force) {
 function updatePhaseBlock(content, targetPhase, date) {
   return content
     .replace(/^> 最后更新: .*?\| 当前阶段: .*$/m, `> 最后更新: ${date} | 当前阶段: ${targetPhase}`)
-    .replace(/phase:\s*(INIT|REQ|DESIGN|TASKS|EXEC|REVIEW|VERIFY|CLOSED)/, `phase: ${targetPhase}`)
+    .replace(/phase:\s*(PLAN|EXEC|REVIEW|DONE)/, `phase: ${targetPhase}`)
     .replace(/updated:\s*[^\n]+/, `updated: ${date}`);
 }
 
@@ -266,8 +245,8 @@ function main() {
   const currentIndex = phaseIndex(currentPhase);
   const targetIndex = phaseIndex(targetPhase);
 
-  const effectiveMode = args.mode !== 'strict' || fileMode === 'relaxed'
-    ? 'relaxed'
+  const effectiveMode = args.mode !== 'strict' || fileMode === 'relaxed' || fileMode === 'fast'
+    ? args.mode !== 'strict' ? args.mode : fileMode
     : args.mode;
 
   if (targetIndex === -1) {

@@ -615,7 +615,7 @@ function validateSpecState() {
     }
 
     const content = fs.readFileSync(specStatePath, 'utf8');
-    const phaseMatch = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|EXEC|REVIEW|VERIFY|CLOSED)/);
+    const phaseMatch = content.match(/phase:\s*(PLAN|EXEC|REVIEW|DONE)/);
 
     if (!phaseMatch) {
       warn(rel, 0, 'phase 字段缺失或值无效');
@@ -623,13 +623,10 @@ function validateSpecState() {
     }
 
     const phase = phaseMatch[1];
-    const phaseOrder = ['INIT', 'REQ', 'DESIGN', 'TASKS', 'EXEC', 'REVIEW', 'VERIFY', 'CLOSED'];
+    const phaseOrder = ['PLAN', 'EXEC', 'REVIEW', 'DONE'];
     const phaseIndex = phaseOrder.indexOf(phase);
 
     const requiredArtifacts = [
-      { minPhase: 'REQ', file: 'PRD.md' },
-      { minPhase: 'DESIGN', file: '需求理解确认.md' },
-      { minPhase: 'TASKS', file: '技术方案.md' },
       { minPhase: 'EXEC', file: '任务拆解表.md' },
     ];
 
