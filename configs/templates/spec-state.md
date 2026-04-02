@@ -8,8 +8,8 @@
 |------|------|------|------|
 | planning | PLAN | 规划中 | PRD.md、技术方案.md、任务拆解表.md |
 | executing | EXEC | 执行中 | STATE.md 已创建、Wave 执行中 |
-| reviewing | REVIEW | 审查中 | 审查全部通过 |
-| done | DONE | 已完成 | VERIFICATION.md 结论 = PASS |
+| reviewing | REVIEW | 审查中 | 审查全部通过、VERIFICATION.md |
+| done | DONE | 已完成 | git commit 已存在 + VERIFICATION.md PASS |
 
 ## 当前状态
 
@@ -30,7 +30,6 @@ updated: {date}
 | 产物 | 路径 | 状态 |
 |------|------|------|
 | PRD | PRD.md | pending |
-| 需求理解确认 | 需求理解确认.md | pending |
 | 技术方案 | 技术方案.md | pending |
 | 任务拆解表 | 任务拆解表.md | pending |
 | 生命周期状态 | SPEC-STATE.md | active |
@@ -45,7 +44,9 @@ updated: {date}
 → PLAN:     目录已创建、PRD 已就位
 PLAN → EXEC: 技术方案 + 任务拆解表已确认
 EXEC → REVIEW: 代码实现完成、测试通过
-REVIEW → DONE: VERIFICATION.md 结论 = PASS
+REVIEW → DONE: VERIFICATION.md PASS + git commit 已存在
 ```
+
+> **DONE 为推导态**：当 git log 中存在本次 feature 的 commit 且 VERIFICATION.md 结论为 PASS 时，自动视为 DONE，无需额外修改 SPEC-STATE.md。
 
 禁止跳步。任何阶段产物缺失，等于该阶段未完成。

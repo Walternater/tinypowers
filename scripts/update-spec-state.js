@@ -169,7 +169,7 @@ function updatePhaseBlock(content, targetPhase, date) {
 }
 
 function appendHistoryRow(content, currentPhase, targetPhase, date, note) {
-  const row = `| ${date} | ${currentPhase} | ${targetPhase} | ${note || '阶段推进'} |`;
+  const row = `| ${date} | ${currentPhase === '-' ? '—' : currentPhase} | ${targetPhase} | ${note || '阶段推进'} |`;
   const lines = content.split('\n');
   const historyHeaderIndex = lines.findIndex(line => line.trim() === '## 阶段历史');
   if (historyHeaderIndex === -1) {
@@ -178,28 +178,30 @@ function appendHistoryRow(content, currentPhase, targetPhase, date, note) {
       : `${content}\n${row}\n`;
   }
 
-  let insertIndex = historyHeaderIndex + 1;
-  let foundSeparator = false;
-  while (insertIndex < lines.length) {
-    const trimmed = lines[insertIndex].trim();
-    if (trimmed.startsWith('|') && trimmed.includes('---')) {
-      insertIndex += 1;
-      foundSeparator = true;
+  // Find the table separator line (contains ---)
+  let tableStartIndex = -1;
+  for (let i = historyHeaderIndex + 1; i < lines.length; i++) {
+    if (lines[i].includes('---')) {
+      tableStartIndex = i;
       break;
     }
-    if (!trimmed.startsWith('|')) {
-      break;
-    }
+  }
+
+  // If no table exists yet, create one
+  if (tableStartIndex === -1) {
+    const tableHeader = '| 时间 | 从 | 到 | 备注 |';
+    const separator = '|------|-----|-----|------|';
+    lines.splice(historyHeaderIndex + 1, 0, tableHeader, separator, row);
+    return lines.join('\n');
+  }
+
+  // Find the end of the table (first non-pipe line after separator)
+  let insertIndex = tableStartIndex + 1;
+  while (insertIndex < lines.length && lines[insertIndex].trim().startsWith('|')) {
     insertIndex += 1;
   }
 
-  if (!foundSeparator) {
-    insertIndex = historyHeaderIndex + 1;
-    while (insertIndex < lines.length && lines[insertIndex].trim().startsWith('|')) {
-      insertIndex += 1;
-    }
-  }
-
+  // Insert the new row at the end of the table
   lines.splice(insertIndex, 0, row);
   return lines.join('\n');
 }

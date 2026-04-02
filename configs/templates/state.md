@@ -1,19 +1,25 @@
 # STATE: {{feature_id}}
 
-> 最后更新: {{date}} | 当前阶段: Phase 2 - Wave Execution
+> 最后更新: {{date}} | 当前阶段: EXEC
 
-## 进度
+## 执行状态
 
-### Wave 0 PENDING
+```yaml
+phase: EXEC
+current_wave: 1
+updated: {{date}}
+```
 
-- [ ] 待根据 `任务拆解表.md` 填充
+## Wave 进度
 
-## 决策
+| Wave | 任务 | 状态 |
+|------|------|------|
+| - | 待根据 `任务拆解表.md` 填充 | pending |
 
-| ID | 内容 | 日期 |
-|----|------|------|
-| D-01 | 初始执行状态已创建 | {{date}} |
+## 偏差记录
 
-## 阻塞 / 偏差
+无。
 
-- 无
+## 阻塞项
+
+无。

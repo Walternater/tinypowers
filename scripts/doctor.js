@@ -59,7 +59,14 @@ function detectInstallRoot(args) {
 
 function detectProjectRoot(args, installRoot) {
   if (args.project) {
-    return path.resolve(args.project);
+    // Normalize macOS /tmp vs /private/tmp symlink inconsistency
+    let resolved = path.resolve(args.project);
+    try {
+      resolved = fs.realpathSync(resolved);
+    } catch (e) {
+      // If realpath fails, use resolved path as-is
+    }
+    return resolved;
   }
 
   if (installRoot === ROOT) {
