@@ -27,6 +27,7 @@ metadata:
 - 进入本 skill 时，`SPEC-STATE` 必须为 `PLAN` 或 `EXEC`
 - 开始执行后推进到 `EXEC`
 - 完成审查和验证后推进到 `REVIEW`
+- **★ 完成审查和验证后暂停，等待用户确认**，确认后推进到 `REVIEW`
 - 禁止在 `/tech:commit` 前自动提交
 
 ## 主流程
@@ -37,12 +38,14 @@ Fast Route:
   Phase 1F: Context Preparation
   Phase 2F: Execute
   Phase 3F: Quick Self-Check + Verify
+  ★ 人工确认：审查验证通过后暂停，等待用户确认后推进 SPEC-STATE → REVIEW
 
 Medium Route:
   Phase 0M: Gate Check
   Phase 1M: Context Preparation + Pattern Scan
   Phase 2M: Execute
   Phase 3M: Review + Verify
+  ★ 人工确认：审查验证通过后暂停，等待用户确认后推进 SPEC-STATE → REVIEW
 
 Standard Route:
   Phase 0: Gate Check
@@ -50,6 +53,7 @@ Standard Route:
   Phase 2: Context Preparation + Pattern Scan
   Phase 3: Execute
   Phase 4: Review + Verify
+  ★ 人工确认：测试通过后暂停，等待用户确认后推进 SPEC-STATE → REVIEW
 ```
 
 > `Fast` 路径将 3 轮 review 合并为 1 次快速自检。

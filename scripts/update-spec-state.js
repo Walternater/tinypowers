@@ -296,16 +296,7 @@ function ensureStateFile(featureDir, context) {
     return;
   }
 
-  const templatePath = path.join(ROOT, 'configs', 'templates', 'state.md');
-  if (!fs.existsSync(templatePath)) {
-    return;
-  }
-
-  const rendered = read(templatePath)
-    .replaceAll('{{feature_id}}', context.featureId)
-    .replaceAll('{{feature_name}}', context.featureName)
-    .replaceAll('{{date}}', context.date);
-  write(statePath, rendered);
+  // state.md template removed — STATE.md now generated from task breakdown only
 }
 
 function validatePrerequisites(featureDir, targetPhase, note, force, track) {

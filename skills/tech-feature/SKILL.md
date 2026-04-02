@@ -75,16 +75,19 @@ Phase 0: 准备（解析需求 + 分级 + 脚手架）
 Fast Route:
   Phase 1F: 需求理解 + 最小方案
   Phase 2F: 最小任务拆解 + PLAN 收口
+  ★ 人工确认：方案与任务确认后方可进入 /tech:code
 
 Medium Route:
   Phase 1M: 需求理解（批量确认）
   Phase 2M: 精简技术方案 + 任务拆解
   Phase 3M: PLAN 收口
+  ★ 人工确认：方案与任务确认后方可进入 /tech:code
 
 Standard Route:
   Phase 1: 需求理解 + 歧义检测
   Phase 2: 技术方案 + 决策锁定
   Phase 3: 任务拆解 + PLAN 收口
+  ★ 人工确认：方案与任务确认后方可进入 /tech:code
 ```
 
 ## Phase 0: 准备
@@ -118,6 +121,8 @@ node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {
 - 每个任务必须写清验收标准和涉及文件
 - 更新 `plan_step: ready`，保持 `SPEC-STATE = PLAN`
 
+**★ 关键确认点**：输出技术方案和任务拆解表后，**暂停等待用户确认**。用户确认后再执行 PLAN 收口。
+
 ## Medium Route
 
 适用于中等复杂度需求，有 DB 变更但不涉及跨系统。跳过歧义检测和 brainstorming，批量确认需求后直接出精简方案。
@@ -146,6 +151,8 @@ node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {
 - 检查三个文档完整性和一致性
 - 完成后保持 `SPEC-STATE = PLAN`
 - Medium 路由的 `mode: relaxed` 允许 `PLAN → EXEC` 直达（无需额外的 plan-check 说明）
+
+**★ 关键确认点**：输出技术方案和任务拆解表后，**暂停等待用户确认**。用户确认后再执行 PLAN 收口。
 
 Medium 路径一旦出现这些信号，应升级为 `Standard`：
 - 需求有跨系统依赖
@@ -187,6 +194,8 @@ Medium 路径一旦出现这些信号，应升级为 `Standard`：
 - 依赖关系明确
 
 更新 `plan_step: ready`，保持 `SPEC-STATE = PLAN`，进入 `/tech:code`。
+
+**★ 关键确认点**：输出技术方案和任务拆解表后，**暂停等待用户确认**。用户确认后再执行 PLAN 收口。
 
 ## PLAN 阶段门禁
 
