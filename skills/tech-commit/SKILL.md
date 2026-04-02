@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "4.1"
+  version: "4.2"
 ---
 
 # /tech:commit
@@ -16,10 +16,10 @@ metadata:
 
 ## 前置条件
 
-- `VERIFICATION.md` 已存在且结论为 PASS/通过
-- 测试结果是最新的
-- 工作区无无关改动
-- `SPEC-STATE` 当前为 `REVIEW`
+按路径分级检查：
+
+- **Fast 路径**：`STATE.md` 中所有 Task 验收记录已完整填写，工作区无无关改动，`SPEC-STATE` 当前为 `REVIEW`
+- **Medium / Standard 路径**：`VERIFICATION.md` 已存在且结论为 PASS/通过，测试结果是最新的，工作区无无关改动，`SPEC-STATE` 当前为 `REVIEW`
 
 ## 主流程
 
@@ -28,7 +28,7 @@ Fast Route:
   Step 1F: Document Sync + Git Commit + Push
   Step 2F: Knowledge Capture（被动，如有 learnings）
 
-Standard Route:
+Medium / Standard Route:
   Step 1: Document Sync
   Step 2: SPEC-STATE → DONE（提交前推进，避免额外 commit）
   Step 3: Git Commit + PR + Branch Cleanup

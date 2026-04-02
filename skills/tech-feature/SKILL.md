@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "7.0"
+  version: "7.1"
 ---
 
 # /tech:feature
@@ -74,18 +74,20 @@ Phase 0: 准备（解析需求 + 分级 + 脚手架）
 
 Fast Route:
   Phase 1F: 需求理解 + 最小方案
-  Phase 2F: 最小任务拆解 + PLAN 收口
+  Phase 2F: 最小任务拆解
+  ★ 人工确认：方案与任务确认后方可进入 /tech:code
 
 Medium Route:
   Phase 1M: 需求理解（批量确认）
   Phase 2M: 精简技术方案 + 任务拆解
-  Phase 3M: PLAN 收口
+  ★ 人工确认：方案与任务确认后方可进入 /tech:code
 
 Standard Route:
   Phase 1: 需求理解
   Phase 2: 歧义检测 + 方案探索
   Phase 3: 技术方案 + 决策锁定
-  Phase 4: 任务拆解 + PLAN 收口
+  Phase 4: 任务拆解
+  ★ 人工确认：方案与任务确认后方可进入 /tech:code
 ```
 
 ## Phase 0: 准备
@@ -113,10 +115,13 @@ node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {
   - 锁定决策（至少 1 条 D-01，状态=已确认）
 - 更新 `plan_step: tech-design`
 
-### Phase 2F: 最小任务拆解 + PLAN 收口
+### Phase 2F: 最小任务拆解
 
 - 在 `任务拆解表.md` 中压缩为 1-2 个最小可执行任务
 - 每个任务必须写清验收标准和涉及文件
+- 更新 `plan_step: tasks`
+
+**★ 关键确认点**：输出技术方案和任务拆解表后，**暂停等待用户确认**。用户确认后再执行 PLAN 收口：
 - 更新 `plan_step: ready`，保持 `SPEC-STATE = PLAN`
 
 ## Medium Route
@@ -145,7 +150,9 @@ node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {
 ### Phase 3M: PLAN 收口
 
 - 检查三个文档完整性和一致性
-- 完成后保持 `SPEC-STATE = PLAN`
+
+**★ 关键确认点**：输出技术方案和任务拆解表后，**暂停等待用户确认**。用户确认后再执行 PLAN 收口：
+- 保持 `SPEC-STATE = PLAN`，更新 `plan_step: ready`
 - Medium 路由的 `mode: relaxed` 允许 `PLAN → EXEC` 直达（无需额外的 plan-check 说明）
 
 Medium 路径一旦出现这些信号，应升级为 `Standard`：
@@ -167,7 +174,7 @@ Medium 路径一旦出现这些信号，应升级为 `Standard`：
 
 ### Phase 2: 歧义检测 + 方案探索
 
-遵循 `ambiguity-check.md`，先识别高优先级歧义，再用 `superpowers:brainstorming` 探索 2-3 个可行方案。更新 `plan_step: tech-design`。
+遵循 `ambiguity-check.md`，先识别高优先级歧义，再探索 2-3 个可行方案（可选：用 `superpowers:brainstorming` 辅助）。更新 `plan_step: tech-design`。
 
 ### Phase 3: 技术方案 + 决策锁定
 
@@ -187,14 +194,19 @@ Medium 路径一旦出现这些信号，应升级为 `Standard`：
 
 更新 `plan_step: tech-design`。
 
-### Phase 4: 任务拆解 + PLAN 收口
+### Phase 4: 任务拆解
 
-复杂需求可委托 `superpowers:writing-plans`，但输出必须满足：
+输出必须满足：
 - 层级清晰（Wave / Task）
 - 每个 Task 可验证
 - 依赖关系明确
 
-更新 `plan_step: ready`，保持 `SPEC-STATE = PLAN`，进入 `/tech:code`。
+> 复杂需求可选：委托 `superpowers:writing-plans` 辅助生成初稿，但最终内容须人工校验。
+
+更新 `plan_step: tasks`。
+
+**★ 关键确认点**：输出技术方案和任务拆解表后，**暂停等待用户确认**。用户确认后再执行 PLAN 收口：
+- 更新 `plan_step: ready`，保持 `SPEC-STATE = PLAN`，进入 `/tech:code`。
 
 ## PLAN 阶段门禁
 
@@ -220,9 +232,9 @@ Medium 路径一旦出现这些信号，应升级为 `Standard`：
 | `requirements-guide.md` | 需求理解引导 |
 | `ambiguity-check.md` | 歧义检测规则 |
 
-**委托 superpowers**:
-- Standard Phase 2 → `superpowers:brainstorming`
-- Standard Phase 4 → `superpowers:writing-plans`
+**委托 superpowers（均为可选）**:
+- Standard Phase 2 → `superpowers:brainstorming`（方案探索辅助）
+- Standard Phase 4 → `superpowers:writing-plans`（任务拆解初稿辅助）
 - Medium 不委托 superpowers，直接用精简模板完成
 
 ## Gotchas
