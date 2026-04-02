@@ -48,6 +48,6 @@
 
 | 构建工具 | build_command | service_port |
 |----------|---------------|--------------|
-| Maven | `mvn checkstyleMain testClasses` | 8080 |
+| Maven | `mvn test` | 8080 |
 | Gradle | `./gradlew check` | 8080 |
 | unknown | `mvn test` | 8080 |

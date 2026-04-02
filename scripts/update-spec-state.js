@@ -191,12 +191,14 @@ function appendHistoryRow(content, currentPhase, targetPhase, date, note) {
       : `${content}\n${row}\n`;
   }
 
+  // Find the table header (|------|-----|-----|------|) and insert after it
   let insertIndex = historyHeaderIndex + 1;
-  while (insertIndex < lines.length) {
-    const trimmed = lines[insertIndex].trim();
-    if (!trimmed.startsWith('|')) {
-      break;
-    }
+  // Skip the column header row (| 时间 | 从 | 到 | 备注 |)
+  if (insertIndex < lines.length && lines[insertIndex].trim().startsWith('|')) {
+    insertIndex += 1;
+  }
+  // Skip the separator row (|------|-----|-----|------|)
+  if (insertIndex < lines.length && lines[insertIndex].trim().startsWith('|-')) {
     insertIndex += 1;
   }
 

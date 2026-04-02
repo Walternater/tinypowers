@@ -88,15 +88,16 @@ author: {{author}}
 
 ## 模板变量
 
-| 变量 | 含义 | 示例 |
-|------|------|------|
-| `{{project_name}}` | 项目目录名 | `my-project` |
-| `{{ProjectName}}` | 首字母大写项目名 | `MyProject` |
-| `{{tech_stack}}` | 技术栈描述 | `Java (Maven)` |
-| `{{tech_stack_short}}` | 技术栈简称 | `java` |
-| `{{build_tool}}` | 构建工具 | `Maven` |
-| `{{build_command}}` | 构建命令 | `mvn test` |
-| `{{service_port}}` | 服务端口 | `8080` |
-| `{{branch_pattern}}` | 分支命名模式 | `feature/{id}-{short-desc}` |
-| `{{author}}` | Git 用户名 | `John Doe` |
-| `{{date}}` | 当前日期 | `2026-03-28` |
+以下变量在 init 时自动替换，替换后此节可删除。
+
+```text
+{{project_name}}  → 项目目录名（如 my-project）
+{{tech_stack}}    → 技术栈描述（如 Java (Maven)）
+{{tech_stack_short}} → 技术栈简称（如 java）
+{{build_tool}}    → 构建工具（如 Maven）
+{{build_command}} → 构建命令（如 mvn test）
+{{service_port}}  → 服务端口（如 8080）
+{{branch_pattern}}→ 分支命名模式（如 feature/{id}-{short-desc}）
+{{author}}        → Git 用户名
+{{date}}          → 当前日期
+```
