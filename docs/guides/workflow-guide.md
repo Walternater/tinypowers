@@ -15,7 +15,7 @@
 - 先锁决策，再拆任务
 - 先检查依赖，再并行执行
 - 先审方案符合性，再审安全和质量
-- 用 `STATE.md` 承接会话切换和执行状态
+- 用 `SPEC-STATE.md` 承接会话切换和执行状态
 
 ## 入口命令
 
@@ -39,8 +39,7 @@ features/{需求编号}-{需求名称}/
 ├── 技术方案.md
 ├── 任务拆解表.md
 ├── 评审记录.md
-├── STATE.md
-├── notepads/
+    ├── notepads/
 │   └── learnings.md
 ├── seeds/
 └── archive/
@@ -48,11 +47,10 @@ features/{需求编号}-{需求名称}/
 
 说明：
 - `CHANGESET.md` 是当前变更的目录首页
-- `SPEC-STATE.md` 负责跨阶段生命周期状态
+- `SPEC-STATE.md` 负责跨阶段生命周期状态和执行期数据（wave、进度、阻塞项）
 - `技术方案.md` 是方案与决策锁定的主文档
 - `任务拆解表.md` 是执行入口
 - `notepads/learnings.md` 用于沉淀 feature 级经验
-- `STATE.md` 在进入执行态后成为主状态数据源
 
 ## 全流程总览
 
@@ -135,7 +133,7 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 
 关键规则：
 - Gate Check 通过后再创建或复用 worktree
-- 执行时以 `STATE.md` 追踪当前位置
+- 执行时以 `SPEC-STATE.md` 追踪当前位置
 - 审查顺序不能交换
 - 在 `/tech:commit` 之前不自动 `git commit`
 
@@ -162,23 +160,15 @@ compliance-reviewer（方案符合性 + 安全） -> 代码质量
 - 如果代码实现的不是方案要求的功能，或者有安全漏洞，代码质量审查都会浪费
 - 先确认”做的是对的东西且安全”，再确认”好不好维护”
 
-## `STATE.md` 的作用
+## `SPEC-STATE.md` 的作用
 
-`STATE.md` 是执行期唯一主状态文件，用来记录：
-- 当前阶段
-- 当前 Wave
-- 已完成和未完成任务
-- 阻塞项
-- 偏差项
-- 上次操作
+`SPEC-STATE.md` 是主状态文件，同时承担两个角色：
+- **跨阶段状态**：PLAN / EXEC / REVIEW / DONE
+- **执行期数据**：当前 Wave、任务进度、阻塞项
 
 会话恢复时：
-- hook 先从 `/tmp` Snapshot 发现“有未完成工作”
-- 真正恢复时再读取 `features/{id}-{name}/STATE.md`
-
-换句话说：
-- Snapshot 负责提醒
-- `STATE.md` 负责恢复
+- hook 先从 `/tmp` Snapshot 发现"有未完成工作"
+- 真正恢复时再读取 `features/{id}-{name}/SPEC-STATE.md`
 
 ## 日常使用建议
 
@@ -207,7 +197,8 @@ compliance-reviewer（方案符合性 + 安全） -> 代码质量
 - `features/{id}-{name}/SPEC-STATE.md`
 - `features/{id}-{name}/技术方案.md`
 - `features/{id}-{name}/任务拆解表.md`
-- `features/{id}-{name}/STATE.md`
+- `features/{id}-{name}/测试计划.md`
+- `features/{id}-{name}/测试报告.md`
 - 代码实现
 - 测试结果
 - 提交记录 / PR
