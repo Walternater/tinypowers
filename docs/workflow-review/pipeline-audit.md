@@ -1,290 +1,529 @@
-# tinypowers 管道全流程审查报告
+# 全流程审计报告 v2
 
-> 审查方法：创建测试 Spring Boot 项目，模拟执行 init → feature → code → commit 完整管道，记录每一步的摩擦点和复杂度问题。
+> 审计时间: 2026-04-02
+> 方法: 创建测试 Spring Boot 3.2 书店项目（/tmp/tp-test-project），模拟需求"购物车+订单管理"，逐 Phase/Step 人工走查
+> 需求复杂度: 多模块、有DB变更、有状态机 → Standard 路径
 
-## 一、数据总览
+---
 
-| 指标 | 数值 |
+## 一、测试项目
+
+```text
+/tmp/tp-test-project/
+├── pom.xml                    (Spring Boot 3.2 + JPA + H2 + Lombok)
+├── src/main/java/com/example/bookstore/
+│   ├── BookstoreApplication.java
+│   ├── model/Book.java
+│   └── repository/BookRepository.java
+└── src/main/resources/application.yml
+```
+
+---
+
+## 二、/tech:init 逐步审计
+
+### Step 1: 技术栈检测
+
+| 模拟执行 | |
+|---------|---|
+| AI 读取 pom.xml | 发现 spring-boot-starter-parent → Java (Maven), confidence 0.95 |
+| 输出字段 | primary_stack, tech_stack, tech_stack_short, build_tool, build_command, service_port, branch_pattern, confidence |
+
+**评价**: ✅ 简单可靠。检测信号表清晰。
+
+**问题**:
+- 7 个输出字段中，大部分是硬编码映射（Maven → build_command=mvn test, service_port=8080）。实际检测只做了"pom.xml 存在？"一个判断
+- 只支持 Java。但这是 v5 的明确设计边界，暂不讨论
+
+**复杂度**: 1/5 | **耗时**: ~30s
+
+---
+
+### Step 2: 确认 + 策略选择
+
+| 模拟执行 | |
+|---------|---|
+| AI 展示 | "Java (Maven) 0.95。加载 common+java 规则。无 CLAUDE.md → Create 策略" |
+| 用户确认 | 1 轮 |
+
+**评价**: ✅ 合理。
+
+**复杂度**: 1/5 | **耗时**: ~30s | **交互**: 1 轮
+
+---
+
+### Step 3: 落地（6 个子步骤）
+
+| 子步骤 | 操作 | 文件数 | 预估耗时 |
+|--------|------|--------|---------|
+| 3a 规则加载 | 复制 6 个规则到 configs/rules/ | 6 | 2 min |
+| 3b 模板+变量替换 | 读 CLAUDE.md 模板，替换 10 个变量 | 1 | 1 min |
+| 3c Guide 复制 | 复制 8 个指南到 docs/guides/ | 8 | 2 min |
+| 3d .claude/ 初始化 | 复制 5 hooks + 生成 settings.json | 6 | 3 min |
+| 3e 目录创建 | mkdir features/, docs/ | 2 | 0.5 min |
+| 3f 知识扫描 | 读 Book.java + BookRepository.java → 写 knowledge.md | 1 | 3 min |
+| **合计** | | **22** | **~12 min** |
+
+**核心痛点**:
+
+1. **🔴 没有脚本自动化**。scaffold-feature.js 和 update-spec-state.js 都有脚本，但 init 最重的 Step 3（22 个文件操作）全靠 AI 手动执行。AI 需要读模板→替换变量→写文件，重复 22 次
+2. **3f 知识扫描性价比极低**。对测试项目，扫描 Book.java 和 BookRepository.java 的结果：*"使用了 Lombok @Data"* — 这是公开知识，不应记录。knowledge.md 大概率留空模板
+3. **3c 复制了过多 guide 文档**。8 个 guide 中，capability-map、change-set-model、generated-vs-curated-policy、runtime-matrix 是框架内部文档，对项目开发者价值低
+
+**复杂度**: 3/5 | **耗时**: ~12 min | **交互**: 0 轮
+
+---
+
+### Step 4: 验证
+
+10 项检查（test -f / test -d / grep），逐项执行。
+
+**评价**: ✅ 必要。但也可以脚本化。
+
+**复杂度**: 2/5 | **耗时**: ~2 min
+
+---
+
+### /tech:init 小结
+
+| 维度 | 评估 |
 |------|------|
-| Skill 主文档 | 4 个，共 780 行 |
-| 子文档 | 9 个，共 783 行 |
-| Agent 定义 | 5 个，共 658 行 |
-| 模板文件 | 11 个 |
-| 管道总步骤 | 21 步/Phase |
-| superpowers 委托 | 7 处 |
-| feature 目录骨架文件 | 10 个（7 模板 + 3 子目录） |
-| 预估最少交互轮次（简单需求） | 11-20 轮 |
+| 总步骤 | 4 步（含 6 子步骤） |
+| 用户交互 | 1 轮 |
+| AI 文件操作 | ~22 个 |
+| 产物文件 | ~25 个 |
+| **首要痛点** | **Step 3 无脚本自动化，22 个文件操作全靠 AI 手动** |
 
-## 二、逐 Skill 审查
+---
 
-### 2.1 tech:init — 6 步 × 3 子文档
+## 三、/tech:feature 逐步审计
 
-| 步骤 | 实际工作 | 问题 |
-|------|---------|------|
-| Step 1 技术栈检测 | 检查 pom.xml 是否存在 | stack-detection.md 53 行文档说明"看 pom.xml 在不在"，可以直接内联到 SKILL.md |
-| Step 2 领域知识扫描 | 4 种扫描策略 | knowledge-scanning.md 偏向前端项目（package.json、UI 组件库、页面结构），Java 项目仅依赖扫描有用。对标准 Spring Boot 项目，4 种策略全部落空 |
-| Step 3 确认 + 策略选择 | 展示结果，3 种策略 | 合理 |
-| Step 4 落地 | 5 个子步骤（规则复制 + 模板替换 + guide 复制 + hooks 安装 + 目录创建） | **最重的一步**：10 个模板变量替换、6 个规则文件复制、8 个 guide 文档复制、5 个 hooks 安装。全部靠 AI 手动执行，无脚本支持 |
-| Step 5 知识库生成 | 将 Step 2 结果写入文件 | 和 Step 2 强耦合，且空项目时两步都无事可做 |
-| Step 6 验证 | 8 项检查 | 合理但无自动化修复 |
+### Phase 0: 准备
 
-**核心问题**：
-1. **落地（Step 4）无脚本化**：10 个变量替换 + 文件复制全靠 AI 手动执行，易出错
-2. **3 个子文档可以合并**：stack-detection.md 太短（53 行），knowledge-scanning.md 和 claude-init.md 可以内联到 SKILL.md
-3. **Step 2 + Step 5 强耦合**：空项目时扫描无结果，知识库留空模板，两步可以合并为一步
+| 模拟执行 | |
+|---------|---|
+| 种子扫描 | features/*/seeds/ 不存在 → 跳过 |
+| 解析需求 | "购物车+订单管理" → BS-001, 购物车订单管理 |
+| scaffold | `node scaffold-feature.js --id BS-001 --name 购物车订单管理` |
+| 复杂度判定 | 多模块 + DB + >2人天 → Standard |
 
-### 2.2 tech:feature — 5 Phase × 4 子文档 × 3 agents
+scaffold 创建了 5 个文件：SPEC-STATE.md, PRD.md, 技术方案.md, 任务拆解表.md, notepads/learnings.md
 
-**模拟场景**：用户说"添加用户注册功能，需要邮箱和密码"
+**评价**: ✅ scaffold-feature.js 好用。复杂度判定表清晰。
 
-| Phase | 实际工作 | 交互轮次 | 问题 |
-|-------|---------|---------|------|
-| Phase 0 准备 | 种子扫描 + 脚手架创建 | 0 | scaffold-feature.js 创建 10 个文件骨架，但对简单需求来说太重 |
-| Phase 1 需求理解 | 按 requirements-guide.md 逐项确认 | 6+ | **"one question at a time"策略导致交互过多**：背景 → 用户 → 范围 → 验收 → 非功能 → 确认稿，至少 6 轮 |
-| Phase 2 歧义 + brainstorming | ambiguity-check + superpowers:brainstorming | 3-4 | 对"用户注册"这种明确需求，歧义检测（模糊词、边界、异常、量级）和 2-3 方案探索是过度的 |
-| Phase 3 技术方案 | architect agent + D-01~D-05 决策锁定 | 1-2 | 对标准 CRUD，5 个决策锁定是过度的（D-04 中间件选型、D-05 安全方案可能不适用） |
-| Phase 4 任务拆解 | superpowers:writing-plans | 1 | 委托合理 |
-| Phase 5 验证 | tech-plan-checker agent | 0 | 合理 |
+**复杂度**: 2/5 | **耗时**: ~1 min
 
-**核心问题**：
-1. **没有复杂度分级**：所有需求走同一流程，"用户注册"和"支付系统重构"走同样多的步骤
-2. **交互轮次过多**：Phase 1 的 "one question at a time" 对简单需求至少 6 轮，加上 Phase 2-4 的确认，总计 11-15 轮
-3. **verification.md（92 行）过度详细**：对每个 Phase 都有验证表，但大部分是人工检查项
-4. **feature 目录过度预设**：10 个文件骨架中，需求理解确认.md、评审记录.md、seeds/、archive/ 在简单需求中大概率空着
+---
 
-### 2.3 tech:code — 6 Phase × 2 子文档 × 4 superpowers 委托
+### Phase 1: 需求理解 (Standard) — 🔴 核心痛点
 
-| Phase | 实际工作 | 问题 |
-|-------|---------|------|
-| Phase 0 Gate Check | 3 层门禁检查 | 合理，但是和 feature Phase 5 有重叠（tech-plan-checker 被调用两次） |
-| Phase 1 Worktree | superpowers:using-git-worktrees | 对小任务增加不必要的隔离开销 |
-| Phase 2 Context Prep | 读取 5 个文档 + 裁剪注入 | context-preload.md 95 行定义了详细的裁剪规则，但 AI 实际执行时很难精确裁剪 |
-| Phase 3 Pattern Scan | 3 维度搜索参考实现 | 对标准 CRUD，搜索结果必然是"参考已有的 Controller"，策略价值有限 |
-| Phase 4 Execute | superpowers:subagent-driven-development | 合理，但每个 subagent 需要 6 类上下文注入 |
-| Phase 5 Review | 3 步串行审查 | **spec → security → code-quality 三步串行，每步最多重试 3 次**，对小任务过重 |
-| Phase 6 Verify | superpowers:verification-before-completion | 覆盖率目标（80/70/90%）对项目初始阶段可能不现实 |
-
-**核心问题**：
-1. **6 Phase + 4 个 superpowers 委托 = 至少 10 次上下文切换**
-2. **Phase 2 + Phase 3 可以合并**：上下文预加载和 Pattern Scan 是连续的信息收集，拆成两步增加了切换成本
-3. **Phase 5 三步审查串行过重**：小任务的 spec 符合性和安全性检查可以简化
-4. **tech-plan-checker 被重复调用**：在 feature Phase 5 调了一次，code Phase 0 又调一次
-
-### 2.4 tech:commit — 4 步 × 0 子文档 × 1 superpowers 委托
-
-| 步骤 | 实际工作 | 问题 |
-|------|---------|------|
-| Step 1 Document Sync | 5 类文档同步检查 | 对小变更过重，但这是合理的安全网 |
-| Step 2 Knowledge Capture | 从 learnings.md 沉淀到 knowledge.md | 合理，但"沉淀判断标准"依赖 AI 主观判断 |
-| Step 3 Git Commit | 7 项收口检查 + Trailer 格式 | **Commit Trailer（Constraint/Rejected/Evidence/Confidence）过于定制化**，不是标准 git 实践 |
-| Step 4 PR + Branch | superpowers:finishing-a-development-branch | 合理 |
-
-**核心问题**：
-1. **Step 3 Trailer 格式不实用**：6 个可选 trailer 字段，实际使用中 AI 和开发者都不会认真填写
-2. **4 步流程本身合理**，但和 code 的 Phase 5-6 有重叠（code 已经做了审查和验证）
-
-## 三、管道级问题
-
-### 3.1 交互总成本（简单需求的最短路径）
+遵循 requirements-guide.md 的 "one question at a time"：
 
 ```text
-init:  1-2 轮（确认策略）
-feature: 11-15 轮（需求理解 6 + 歧义/方案 3-4 + 任务确认 1-2 + 方案确认 1-2）
-code:  3-5 轮（worktree 确认 + 执行检查点 + 审查反馈）
-commit: 1-3 轮（文档确认 + 提交确认 + PR 确认）
-──────────────────
-总计: 16-25 轮交互
+AI: "这个需求解决什么业务问题？"              → 用户: "书店需要购物车和订单"
+AI: "目标用户是谁？"                         → 用户: "注册用户"
+AI: "功能范围？必做/可选/明确不做"             → 用户: "必做：购物车CRUD+下单+订单查询"
+AI: "验收标准？需要具体 HTTP 状态码或响应字段"  → 用户: "加购物车返回201..."
+AI: "有性能/安全等非功能需求吗？"             → 用户: "没有特殊要求"
 ```
 
-对一个简单的"用户注册 CRUD"需求，16-25 轮交互明显过多。
+**交互次数**: **5 轮 round-trip**
 
-### 3.2 文档碎片化
+**🔴 核心问题**:
+- "One question at a time" 对简单需求体验极差
+- 5 个问题完全可以在 1 轮中全部提出，用户一次性回答
+- 产出物 `需求理解确认.md` 是一次性文档，后续几乎不再参考
+- 对"给书店加购物车"这种需求，5 轮交互只是确认显而易见的信息
+
+**复杂度**: 4/5 | **耗时**: ~5 min | **交互**: **5 轮**
+
+---
+
+### Phase 2: 歧义检测 + brainstorming (Standard) — ⚠️ 过度形式化
+
+**歧义检测** (ambiguity-check.md):
+- 模糊描述: 无
+- 边界条件: 购物车上限？单商品最大数量？
+- 异常场景: 库存不足？价格变动？
+- 数据量级: 多少用户？多少商品？
+→ 产出 4-5 个待澄清问题
+
+**brainstorming** (superpowers:brainstorming):
+- 方案A: 简单 JPA Cart + Order (推荐)
+- 方案B: Redis Cart + JPA Order
+- 方案C: Event Sourcing + CQRS
+→ 用户选方案A
+
+**交互次数**: 2-3 轮
+
+**⚠️ 核心问题**:
+1. 歧义检测对常见需求产出的都是显而易见的问题（库存不足怎么办？上限多少？），这些在技术方案时自然补充即可
+2. 强制要求 2-3 个方案 + trade-offs。对 "Spring Boot 加 CRUD" 这种需求，技术方案几乎是确定的。强制多方案是创造不存在的决策点
+3. 歧义检测和 brainstorming 内容高度关联，却拆成两步
+
+**复杂度**: 3/5 | **耗时**: ~5 min | **交互**: 2-3 轮
+
+---
+
+### Phase 3: 技术方案 (Standard)
+
+| 模拟执行 | |
+|---------|---|
+| 调用 agents/architect | 生成技术方案（系统架构 + 领域模型 + API 设计 + DB DDL） |
+| 决策锁定 | D-01 ~ D-05 |
+| 方案自检 | 6 项清单 |
+| 用户确认 | 1-2 轮 |
+
+**评价**: ✅ **这是最有价值的 Phase**。技术方案和决策锁定能防止后续实现偏离。
+
+**问题**:
+- 技术方案模板 148 行，对简单功能偏重
+- D-01 到 D-05 的 5 个决策维度对 CRUD 功能粒度偏细
+
+**复杂度**: 2/5 | **耗时**: ~5 min | **交互**: 1-2 轮
+
+---
+
+### Phase 4: 任务拆解 + 验证 (Standard)
+
+| 模拟执行 | |
+|---------|---|
+| 委托 superpowers:writing-plans | 产出 Epic → Story → Task |
+| tech-plan-checker | 验证格式、依赖、粒度 |
+| 用户确认 | 1 轮 |
+| update-spec-state → EXEC | |
+
+**评价**: ✅ 合理。
+
+**问题**: Epic → Story → Task 三层对多数功能偏深。
+
+**复杂度**: 2/5 | **耗时**: ~3 min | **交互**: 1 轮
+
+---
+
+### /tech:feature 小结
+
+| 维度 | 评估 |
+|------|------|
+| 总 Phase | 5 (Phase 0-4) |
+| 用户交互 | **9-12 轮** |
+| 产出文档 | 8 个 |
+| **首要痛点** | **Phase 1 "one question at a time" 导致 5 轮冗余交互** |
+| **次要痛点** | **歧义检测 + brainstorming 过度形式化** |
+
+---
+
+## 四、/tech:code 逐步审计
+
+### Phase 0: Gate Check
+
+| 模拟执行 | |
+|---------|---|
+| 读 SPEC-STATE.md | phase=EXEC ✓ |
+| tech-plan-checker | 格式正确 ✓ |
+| 检查 D-01~D-05 | 已锁定 ✓ |
+
+**⚠️ 问题**: tech-plan-checker 在 feature Phase 4 已经调过一次了。这里是**重复调用**。
+
+**复杂度**: 2/5 | **耗时**: ~2 min
+
+---
+
+### Phase 1: Worktree Setup (Standard)
+
+委托 superpowers:using-git-worktrees。✅ 合理。
+
+**复杂度**: 1/5 | **耗时**: ~1 min
+
+---
+
+### Phase 2: Context Preparation (Standard)
+
+读取 技术方案.md + 任务拆解表.md + STATE.md + learnings.md + knowledge.md，按任务裁剪。
+
+**评价**: ✅ 上下文管理必要。裁剪规则合理。
+
+**复杂度**: 2/5 | **耗时**: ~3 min
+
+---
+
+### Phase 3: Pattern Scan (Standard)
+
+| 模拟执行 | |
+|---------|---|
+| Cart 模型 → 搜 Book.java | 找到锚点 |
+| CartController → 搜 controller/ | 空 → GREENFIELD |
+| OrderService → 搜 service/ | 空 → GREENFIELD |
+| OrderController → 搜 controller/ | 空 → GREENFIELD |
+
+**⚠️ 问题**: 对新项目，4 个任务中 3 个是 GREENFIELD。Pattern Scan 对成熟项目更有价值。
+
+**复杂度**: 2/5 | **耗时**: ~3 min
+
+---
+
+### Phase 4: Execute (Standard)
+
+委托 superpowers:subagent-driven-development。✅ 合理。
+
+**复杂度**: 1/5 | **耗时**: ~15-20 min（实际编码）
+
+---
+
+### Phase 5: Review (Standard) — 🔴 核心痛点
+
+**3 个串行审查**（前一步未通过禁止进入下一步）：
 
 ```text
-4 个 Skill × (1 SKILL.md + 0~4 子文档) = 4 + 9 = 13 个文档文件
-5 个 Agent 定义
-11 个模板文件
-──────────────
-29 个文件，总计 ~2221 行
+1. spec-compliance-reviewer — 检查实现是否匹配技术方案     (~5 min)
+2. security-reviewer        — OWASP 安全检查              (~5 min)
+3. requesting-code-review   — 代码质量审查 (superpowers)   (~5 min)
 ```
 
-AI 在执行管道时需要频繁切换读取不同文件，增加了上下文压力和执行延迟。
+**🔴 核心问题**:
+1. **串行而非并行**: spec-compliance 和 security 没有依赖关系
+2. **审查粒度过细**: 对 CRUD 功能，三步审查的区分是人为制造的
+3. **维护成本高**: 3 套审查逻辑（spec-compliance 168行 + security 115行 + superpowers）
+4. **双重保险的代价**: subagent 的 prompt 已包含技术方案上下文，编码时就遵循了方案。审查阶段再检查一次是双重保险，但成本高
 
-### 3.3 SPEC-STATE 状态机过于复杂
+**复杂度**: 4/5 | **耗时**: ~15 min
+
+---
+
+### Phase 6: Verify (Standard)
+
+委托 superpowers:verification-before-completion。✅ 铁律。
+
+**复杂度**: 1/5 | **耗时**: ~5 min
+
+---
+
+### /tech:code 小结
+
+| 维度 | 评估 |
+|------|------|
+| 总 Phase | 7 (Phase 0-6) |
+| 用户交互 | 0-2 轮 |
+| **首要痛点** | **Phase 5 三步串行审查耗时 ~15 min** |
+| **次要痛点** | **Gate Check 重复调用 tech-plan-checker** |
+
+---
+
+## 五、/tech:commit 逐步审计
+
+### Step 1: Document Sync
+
+5 项检查。测试项目中大部分是 "不存在，跳过"。
+
+**复杂度**: 2/5 | **耗时**: ~3 min
+
+---
+
+### Step 2: Knowledge Capture — ⚠️ ROI 低
 
 ```text
-INIT → REQ → DESIGN → TASKS → EXEC → REVIEW → VERIFY → CLOSED
+读 learnings.md → 大概率几条记录
+判断是否值得沉淀 → 大部分不值得
+写 knowledge.md → 可能添加 0-2 条
 ```
 
-8 个状态，4 个门禁（REQ/DESIGN/TASKS/EXEC 各有前置条件）。对简单需求：
-- INIT → REQ：只需 PRD 非空
-- REQ → DESIGN：需要需求理解确认
-- DESIGN → TASKS：需要技术方案含锁定决策
-- TASKS → EXEC：需要任务表通过 plan-check
+**⚠️ 核心问题**: "Google 能搜到的不记录" 标准极难操作。大部分功能的 learnings 内容寥寥，沉淀步骤经常空转。
 
-4 次状态推进 = 4 次文件更新 + 4 次门禁检查。
+**复杂度**: 3/5 | **耗时**: ~3 min
 
-### 3.4 冗余检查
+---
 
-- tech-plan-checker 在 feature Phase 5 和 code Phase 0 各被调用一次
-- code Phase 5 的 spec-compliance-review 和 feature Phase 3 的 architect 有重叠
-- commit Step 1 的文档同步和 feature Phase 3 的技术方案确认有重叠
+### Step 3: Git Commit
 
-## 四、优化方案
+7 项收口检查 + Commit Trailer。✅ 合理。
 
-### 方案 1：复杂度分级（最关键）
+**复杂度**: 2/5 | **耗时**: ~2 min
 
-引入两级复杂度路由：
+---
+
+### Step 4: PR + Branch Cleanup
+
+平台自适应（GitHub/GitLab）+ 委托 superpowers。✅ 设计好。
+
+**复杂度**: 2/5 | **耗时**: ~3 min
+
+---
+
+### /tech:commit 小结
+
+| 维度 | 评估 |
+|------|------|
+| 总 Step | 4 |
+| 用户交互 | 1-2 轮 |
+| **首要痛点** | **Knowledge Capture ROI 低，经常空转** |
+
+---
+
+## 六、全局统计
+
+### 用户交互分布
 
 ```text
-简单任务 (Simple): ≤ 2 人天、单模块、标准 CRUD / 小修复
-标准任务 (Standard): 当前完整流程
+init:    1 轮   ( 7%)
+feature: 10 轮  (67%)  ← 交互集中在 feature
+code:    1 轮   ( 7%)
+commit:  2 轮   (13%)
+─────────────────
+总计:   ~14 轮
 ```
 
-**Simple 模式的简化路径**：
-
-| Skill | 当前步骤 | Simple 模式 |
-|-------|---------|------------|
-| init | 6 步 | 不变（init 本身已经足够精简） |
-| feature | 5 Phase × 11-15 轮 | 2 Phase × 2-3 轮：① 直接确认需求 + 方案 → ② 拆任务 |
-| code | 6 Phase × 4 委托 | 3 Phase × 2 委托：① Gate → ② Execute → ③ Verify |
-| commit | 4 步 | 不变（commit 已经是 4 步，够精简） |
-
-**判断标准**：
+### 时间分配预估
 
 ```text
-如果满足以下全部条件，走 Simple 模式：
-- 单模块改动（不跨 Controller/Service/Repository 以外的层）
-- 无新表或新外部依赖
-- 预估 ≤ 2 人天
-- 不涉及安全敏感操作（支付、权限、数据导出）
+init 落地 (Step 3)          12 min  (10%)
+feature 需求理解 (Phase 1)   5 min   ( 4%)
+feature 歧义+方案 (Phase 2)  5 min   ( 4%)
+feature 技术方案 (Phase 3)   5 min   ( 4%)
+feature 任务拆解 (Phase 4)   3 min   ( 3%)
+code 编码 (Phase 4)         20 min  (17%)
+code 审查 (Phase 5)         15 min  (13%)  ← 串行审查
+code 验证 (Phase 6)          5 min   ( 4%)
+commit 收口                  8 min   ( 7%)
+用户交互等待                 15 min  (13%)  ← 等用户回答
+AI 操作开销                  20 min  (17%)  ← 读模板、写文件、上下文切换
+──────────────────────────────────
+总计                       ~115 min
 ```
 
-**预估效果**：简单需求从 16-25 轮交互降到 5-8 轮。
+**实际编码时间: ~17%**。仪式性工作: ~83%。
 
-### 方案 2：子文档内联
+### 产物统计
 
-当前 9 个子文档中，以下可以内联到 SKILL.md：
+| 来源 | 数量 | 后续参考频率 |
+|------|------|-------------|
+| 配置 (settings.json, hooks) | 6 | 高 |
+| 规则 (rules/) | 6 | 中 |
+| 指南 (guides/) | 8 | 低 |
+| Feature 文档 (PRD, 方案, 拆解等) | 8 | 中 |
+| 状态文件 (SPEC-STATE, STATE) | 2 | 高 (运行时) |
+| **总计** | **~30** | |
 
-| 子文档 | 行数 | 建议 |
-|--------|------|------|
-| stack-detection.md | 53 | 内联到 SKILL.md Step 1（仅 4 行检测规则） |
-| knowledge-scanning.md | 99 | 内联到 SKILL.md Step 2 |
-| claude-init.md | 79 | **保留**（merge 策略等细节确实需要独立空间） |
-| requirements-guide.md | 91 | **保留**（需求理解的方法论确实有价值） |
-| ambiguity-check.md | 83 | **保留**（歧义检测维度有价值） |
-| tech-design-guide.md | 75 | 内联到 SKILL.md Phase 3（本质是"方案要包含什么"的清单） |
-| verification.md | 92 | **删除**（验证标准已内联在 SKILL.md 的完成标准中，verification.md 是冗余展开） |
-| context-preload.md | 95 | 内联到 SKILL.md Phase 2（裁剪规则可以直接写在 Phase 描述中） |
-| pattern-scan.md | 61 | 内联到 SKILL.md Phase 3（搜索策略和缝合规则可以直接写） |
+---
 
-**预估效果**：9 → 4 个子文档，减少 5 次文件切换。
+## 七、优化方案
 
-### 方案 3：合并重叠步骤
+### P0: 必须优化（体验瓶颈）
 
-| 合并点 | 当前 | 合并后 | 节省 |
-|--------|------|--------|------|
-| feature Phase 2+3 | 歧义检测 + brainstorming + 技术方案 = 3 个独立阶段 | 合并为 1 个"方案探索"阶段 | 减少 2 次 Phase 切换 |
-| code Phase 2+3 | Context Prep + Pattern Scan | 合并为 1 个"上下文收集"阶段 | 减少 1 次 Phase 切换 |
-| feature + code 的 plan-check | 各自调一次 | 只在 code Phase 0 调一次 | 减少 1 次 agent 调用 |
-| SPEC-STATE 状态机 | 8 状态 | 4 状态：`INIT → PLAN → EXEC → CLOSED` | 减少 4 次状态推进 |
+#### P0-1: 合并需求理解为单轮交互
 
-### 方案 4：feature 目录骨架精简
+| 维度 | 优化前 | 优化后 |
+|------|--------|--------|
+| 交互轮次 | 5 轮 (one question at a time) | 1-2 轮 (批量提问 + 追问) |
 
-当前 scaffold-feature.js 创建 10 个文件：
+**修改**: requirements-guide.md 删除 "one question at a time" 和 "每次只确认一个主题"。
 
-```text
-features/{id}-{name}/
-├── CHANGESET.md          ← 大部分场景空着
-├── SPEC-STATE.md         ← 合理
-├── PRD.md                ← 合理
-├── 需求理解确认.md         ← 可以内联到 PRD.md
-├── 技术方案.md            ← 合理
-├── 任务拆解表.md          ← 合理
-├── 评审记录.md            ← 大部分场景空着
-├── notepads/learnings.md ← 合理
-├── seeds/                ← 大部分场景空着
-└── archive/              ← 大部分场景空着
-```
+**改为**: "一轮提出所有核心问题，用户自由回答，AI 追问缺失项"。
 
-**精简方案**：
+---
 
-```text
-features/{id}-{name}/
-├── SPEC-STATE.md
-├── PRD.md          （含需求理解确认内容）
-├── 技术方案.md      （含决策锁定）
-├── 任务拆解表.md
-└── notepads/
-    └── learnings.md
-```
+#### P0-2: 合并歧义检测和 brainstorming 为一个 Phase
 
-从 10 个文件/目录降到 6 个。CHANGESET、评审记录、seeds、archive 按需创建，不预生成。
+| 维度 | 优化前 | 优化后 |
+|------|--------|--------|
+| Phase 数 | Phase 2 (歧义) + Phase 3 (方案) = 2 个 Phase | Phase 2 (方案探索) = 1 个 Phase |
+| 交互轮次 | 3-5 轮 | 1-2 轮 |
 
-### 方案 5：commit Trailer 简化
+**修改**:
+- ambiguity-check.md 降级为 brainstorming 的参考材料
+- SKILL.md 合并 Phase 2+3 为 "方案探索（含歧义澄清）"
+- 需求清晰时跳过多方案探索，直接出推荐方案
 
-当前 Trailer 格式：
+---
 
-```text
-Constraint: / Rejected: / Evidence: / Confidence:
-```
+#### P0-3: 审查从串行 3 步合并为 1-2 步
 
-简化为：
+| 维度 | 优化前 | 优化后 |
+|------|--------|--------|
+| 审查步骤 | 3 步串行 (spec → security → code-quality) | 1-2 步 |
+| 审查耗时 | ~15 min | ~8 min |
+| Agent 数量 | 7 | 5 (删除 spec-compliance + security 独立 agent) |
 
-```text
-只保留 body 中的自然语言说明和 Evidence（如果有验证数据）
-```
+**修改**:
+- 合并 spec-compliance-reviewer + security-reviewer 为一个 compliance-reviewer
+- 保留 superpowers:requesting-code-review（薄编排层原则）
+- 或更激进：将 spec+security 合并到 code review 的 checklist 中
 
-去掉 Constraint/Rejected/Confidence 三个字段。这些信息应该在技术方案.md 中记录，不应该在 commit message 中重复。
+---
 
-### 方案 6：init 落地脚本化
+### P1: 应该优化（效率提升）
 
-当前 Step 4 的 5 个子步骤全部靠 AI 手动执行。建议：
+#### P1-1: 创建 init-project.js 脚本
+
+| 维度 | 优化前 | 优化后 |
+|------|--------|--------|
+| Step 3 文件操作 | 22 个 (AI 手动) | 1 个脚本调用 |
+| Step 3 耗时 | ~12 min | ~1 min |
 
 ```bash
-# 一键初始化脚本
-node scripts/init-project.js \
-  --root /path/to/target \
-  --stack java \
-  --tool maven \
-  --strategy update
+node scripts/init-project.js --root . --stack java-maven [--strategy create|update|overwrite]
 ```
 
-脚本负责：
-- 规则文件复制
-- 模板变量替换
-- hooks 安装
-- settings.json 生成/merge
-- 目录创建
+---
 
-AI 只负责 Step 1-3（检测 + 扫描 + 确认）和 Step 6（验证）。
+#### P1-2: 精简 Feature 产物
 
-## 五、优化优先级
+| 优化前 (8 个) | 优化后 (4 个) |
+|--------------|--------------|
+| PRD.md | PRD.md (含需求理解确认) |
+| 需求理解确认.md | *(合并到 PRD)* |
+| 技术方案.md | 技术方案.md |
+| 任务拆解表.md | 任务拆解表.md |
+| CHANGESET.md | *(删除)* |
+| 评审记录.md | *(删除)* |
+| SPEC-STATE.md | SPEC-STATE.md |
+| notepads/learnings.md | notepads/learnings.md |
 
-| 优先级 | 方案 | 预估收益 | 实施难度 |
-|--------|------|---------|---------|
-| P0 | 复杂度分级（方案 1） | 简单需求交互量降低 60% | 中（需要改所有 4 个 SKILL.md） |
-| P1 | SPEC-STATE 简化（方案 3 的状态机） | 减少 4 次状态推进 | 低（改 spec-state 模板 + guard 逻辑） |
-| P1 | 子文档内联（方案 2） | 减少 5 次文件切换 | 低（合并文件） |
-| P2 | feature 骨架精简（方案 4） | 减少 4 个空文件 | 低（改 scaffold-feature.js） |
-| P2 | init 脚本化（方案 6） | init 落地步骤从 AI 手动变一键 | 中（写脚本） |
-| P3 | commit Trailer 简化（方案 5） | 减少提交复杂度 | 低 |
-| P3 | 合并重叠步骤（方案 3 的其他项） | 减少步骤切换 | 低 |
+---
 
-## 六、推荐实施路径
+#### P1-3: 简化知识捕获
 
-```text
-Phase 1: 复杂度分级 + SPEC-STATE 简化
-  → 对所有 SKILL.md 加入 Simple/Standard 路由
-  → 状态机从 8 状态精简到 4 状态
-  → feature 从 5 Phase 精简到 Simple 模式 2 Phase
+**改为被动触发**: learnings.md 无实质内容时跳过 Knowledge Capture。
 
-Phase 2: 文档整合
-  → 内联 5 个子文档
-  → 精简 feature 骨架
-  → 删除 verification.md
+---
 
-Phase 3: 自动化
-  → init 落地脚本化
-  → 简化 commit Trailer
-```
+### P2: 可以优化（锦上添花）
+
+#### P2-1: 扩大 Fast 路径
+
+去掉"无 DB 变更"要求。简单单表 CRUD 也应走 Fast。
+
+#### P2-2: 精简 Guide 文档复制
+
+只复制 3 个核心 guide (workflow-guide, development-spec, test-plan)，其余不复制。
+
+#### P2-3: Gate Check 去重
+
+code Phase 0 不再重新调用 tech-plan-checker（feature Phase 4 已调用过）。
+
+#### P2-4: 统一 Phase/Step 命名
+
+全部改为 "Step"。
+
+---
+
+## 八、优化效果预估
+
+| 维度 | 优化前 | 优化后 | 变化 |
+|------|--------|--------|------|
+| 用户交互总轮次 | ~14 轮 | ~6-8 轮 | **-50%** |
+| Feature 文档数 | 8 | 4 | **-50%** |
+| Agent 数量 | 7 | 5 | -29% |
+| init 文件操作 | 22 (手动) | 1 (脚本) | **质变** |
+| 串行审查步骤 | 3 | 1-2 | **-50%** |
+| 总预估耗时 | ~115 min | ~65 min | **-43%** |
+| 编码时间占比 | 17% | ~35% | **+18pp** |
+
+---
+
+## 九、核心洞察
+
+1. **feature 是瓶颈**: 67% 的用户交互集中在 /tech:feature，其中 Phase 1 的 "one question at a time" 贡献了 5 轮不必要的交互
+2. **仪式性工作占比过高**: 编码只占 17% 的时间，83% 花在交互、文档、审查、状态管理上
+3. **init 缺脚本是最容易修的问题**: scaffold-feature.js 证明脚本化可行，init-project.js 应该同样实现
+4. **审查的串行设计是最大的单点浪费**: 3 步串行审查可以并行或合并，节省 ~7 min
+5. **知识捕获是理论上好但实践中空转的设计**: 大部分功能的 learnings 不值得沉淀，但每次都走一遍判断流程
