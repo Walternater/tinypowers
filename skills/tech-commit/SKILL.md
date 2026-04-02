@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "4.1"
+  version: "5.0"
 ---
 
 # /tech:commit
@@ -17,22 +17,17 @@ metadata:
 ## 前置条件
 
 - `VERIFICATION.md` 已存在且结论为 PASS/通过
-- 测试结果是最新的
+- 测试结果是最新的（Standard 路由还需 `测试报告.md`）
 - 工作区无无关改动
 - `SPEC-STATE` 当前为 `REVIEW`
 
 ## 主流程
 
 ```text
-Fast Route:
-  Step 1F: Document Sync + Git Commit + Push
-  Step 2F: Knowledge Capture（被动，如有 learnings）
-
-Standard Route:
-  Step 1: Document Sync
-  Step 2: SPEC-STATE → DONE（提交前推进，避免额外 commit）
-  Step 3: Git Commit + PR + Branch Cleanup
-  Step 4: Knowledge Capture（被动，如有 learnings）
+Step 1: Document Sync
+Step 2: Knowledge Capture（被动，如有 learnings）
+Step 3: Git Commit + PR + Branch Cleanup
+Step 4: SPEC-STATE → DONE（提交成功后推进）
 ```
 
 ## Document Sync
@@ -59,8 +54,6 @@ Standard Route:
 
 **被动原则**：
 - 只在 `notepads/learnings.md` 有实质内容时才触发
-- Fast 路径直接跳过（没有 learnings 就不做）
-- Standard 路径有 learnings 时才写入 `docs/knowledge.md`
 - 不为沉淀而沉淀——空 learnings 不创建/不修改 knowledge.md
 
 ## Git Commit
@@ -83,14 +76,15 @@ Evidence: [验证结果]
 
 ## 生命周期收口
 
-**关键：在 Git Commit 之前推进 SPEC-STATE 到 DONE**，避免产生额外的 DONE commit。
+**关键：SPEC-STATE 推进到 DONE 必须在 Git Commit 成功之后**，避免 commit 失败但状态已变成 DONE 的不一致。
 
 提交顺序：
 1. 完成 Document Sync 和 Knowledge Capture
-2. 推进 `SPEC-STATE` → `DONE`（`update-spec-state.js --to DONE`）
-3. 将 SPEC-STATE 变更与代码一起提交
-4. 保留 `VERIFICATION.md`
-5. 确保 reviewer 只看 PR 也能理解改动
+2. 执行 Git Commit + PR
+3. **确认提交成功后**，推进 `SPEC-STATE` → `DONE`（`update-spec-state.js --to DONE`）
+4. 将 SPEC-STATE 变更作为独立 commit 提交（`[AI-Gen] chore: update spec state to DONE`）
+5. 保留 `VERIFICATION.md`
+6. 确保 reviewer 只看 PR 也能理解改动
 
 ## PR + Branch Cleanup
 
@@ -107,4 +101,4 @@ Fast 路径优先直接使用 git 命令：
 自托管 GitLab 也适用。优先自动检测 `origin`，拿不到默认分支时再让用户补充。
 
 **委托 superpowers**:
-- Standard Step 3 → `superpowers:finishing-a-development-branch`
+- Step 3（Standard） → `superpowers:finishing-a-development-branch`

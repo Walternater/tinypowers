@@ -121,18 +121,18 @@ test('gsd-session-manager matches gitflow feature branches to feature directorie
   fs.mkdirSync(guardedFeatureDir, { recursive: true });
   fs.mkdirSync(latestFeatureDir, { recursive: true });
   fs.writeFileSync(
-    path.join(guardedFeatureDir, 'STATE.md'),
-    '- 当前阶段: EXEC\n- 当前 Wave: 2 / 4\n## 阻塞\n无\n## 上次操作\n- 实现登录接口\n'
+    path.join(guardedFeatureDir, 'SPEC-STATE.md'),
+    'phase: EXEC\ntrack: standard\nmode: strict\ncurrent_wave: 2 / 4\nblockers: 无\n'
   );
   fs.writeFileSync(
-    path.join(latestFeatureDir, 'STATE.md'),
-    '- 当前阶段: EXEC\n- 当前 Wave: 3 / 5\n## 阻塞\n无\n## 上次操作\n- 其他任务\n'
+    path.join(latestFeatureDir, 'SPEC-STATE.md'),
+    'phase: EXEC\ntrack: standard\nmode: strict\ncurrent_wave: 3 / 5\nblockers: 无\n'
   );
 
   const older = new Date('2026-04-01T00:00:00Z');
   const newer = new Date('2026-04-01T00:10:00Z');
-  fs.utimesSync(path.join(guardedFeatureDir, 'STATE.md'), older, older);
-  fs.utimesSync(path.join(latestFeatureDir, 'STATE.md'), newer, newer);
+  fs.utimesSync(path.join(guardedFeatureDir, 'SPEC-STATE.md'), older, older);
+  fs.utimesSync(path.join(latestFeatureDir, 'SPEC-STATE.md'), newer, newer);
 
   const snapshotPath = path.join(os.tmpdir(), `tinypowers-session-${sessionId}.json`);
   try { fs.unlinkSync(snapshotPath); } catch {}

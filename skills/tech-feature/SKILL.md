@@ -32,6 +32,10 @@ features/{需求编号}-{需求名称}/
 - `seeds/`
 - `archive/`
 
+> `SPEC-STATE.md` 是唯一状态源。PLAN 阶段用 `plan_step` 追踪规划进度，
+> EXEC 阶段用 `current_wave` / `exec_progress` / `blockers` 追踪执行进度。
+> 不再使用独立的 STATE.md 文件。
+
 ## 生命周期状态
 
 `SPEC-STATE.md` 使用 4 态状态机：

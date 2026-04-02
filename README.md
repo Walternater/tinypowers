@@ -119,7 +119,7 @@ configs/rules/
 ## 统一约定
 
 - 需求工作目录：`features/{id}-{name}/`
-- 执行状态主文件：`features/{id}-{name}/STATE.md`
+- 执行状态主文件：`features/{id}-{name}/SPEC-STATE.md`
 - 工作流命令：`/tech:*`
 - 审查顺序：方案符合性 -> 安全 -> 代码质量
 - 决策格式：D-XXX（锁定决策编号）

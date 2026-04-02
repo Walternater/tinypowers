@@ -10,12 +10,12 @@
 
 ## 工作流目标
 
-这套流程的目标不是“让 AI 多写一点代码”，而是让交付过程更稳定：
+这套流程的目标不是"让 AI 多写一点代码"，而是让交付过程更稳定：
 - 先确认理解，再确认方案
 - 先锁决策，再拆任务
 - 先检查依赖，再并行执行
 - 先审方案符合性，再审安全和质量
-- 用 `STATE.md` 承接会话切换和执行状态
+- 用 `SPEC-STATE.md` 承接会话切换和执行状态
 
 ## 入口命令
 
@@ -32,38 +32,33 @@
 
 ```text
 features/{需求编号}-{需求名称}/
-├── CHANGESET.md
 ├── SPEC-STATE.md
 ├── PRD.md
-├── 需求理解确认.md
 ├── 技术方案.md
 ├── 任务拆解表.md
-├── 评审记录.md
-├── STATE.md
-├── notepads/
-│   └── learnings.md
-├── seeds/
-└── archive/
+├── 测试计划.md
+├── 测试报告.md
+├── VERIFICATION.md
+└── notepads/
+    └── learnings.md
 ```
 
 说明：
-- `CHANGESET.md` 是当前变更的目录首页
-- `SPEC-STATE.md` 负责跨阶段生命周期状态
+- `SPEC-STATE.md` 负责跨阶段生命周期和执行状态（唯一状态源）
 - `技术方案.md` 是方案与决策锁定的主文档
 - `任务拆解表.md` 是执行入口
 - `notepads/learnings.md` 用于沉淀 feature 级经验
-- `STATE.md` 在进入执行态后成为主状态数据源
 
 ## 全流程总览
 
 ```text
 PRD
   ↓
-Phase 0: 准备
+Phase 0: 准备（解析需求 + 分级 + 脚手架）
   ↓
-Phase 1: 需求理解
+Phase 1: 需求理解（Fast 3 项 / Medium+Standard 5 项）
   ↓
-Phase 2: 歧义检测
+Phase 2: 歧义检测（Standard only）
   ↓
 Phase 3: 技术方案 + 决策锁定
   ↓
@@ -71,15 +66,11 @@ Phase 4: 任务拆解
   ↓
 /tech:code
   ↓
-Plan Check
+Plan Check → Context Preparation → Execute
   ↓
-Wave Execution
+Compliance Review（方案符合性 + 安全）→ Code Review
   ↓
-Spec Compliance Review
-  ↓
-Security Review
-  ↓
-Code Review
+Test Report（Standard only）
   ↓
 Verification
   ↓
@@ -90,21 +81,17 @@ Verification
 
 ### 1. `/tech:feature`
 
-这个阶段产出“可执行的需求定义”，而不是直接写代码。
+这个阶段产出"可执行的需求定义"，而不是直接写代码。
 
 主要步骤：
-- 创建 change set 骨架
-- 读取 `PRD.md`
-- 输出需求理解和澄清问题
+- 解析需求 ID，判断复杂度（Fast / Medium / Standard）
+- 读取 `PRD.md`，输出需求理解和澄清问题
 - 生成技术方案
-- 通过 `ask_followup_question` 做方案确认
 - 锁定关键决策
 - 生成任务拆解表
-- 再次确认任务拆解是否可执行
 - 默认不创建 worktree，隔离环境留到 `/tech:code`
 
 关键产物：
-- `需求理解确认.md`
 - `技术方案.md`
 - `任务拆解表.md`
 
@@ -123,32 +110,34 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 
 ### 2. `/tech:code`
 
-这个阶段产出“经过审查和验证的实现”。
+这个阶段产出"经过审查和验证的实现"。
 
 执行顺序固定：
 
-1. Plan Check
-2. Wave Execution
-3. Compliance Review（方案符合性 + 安全审查合一）
-4. Code Review
-5. Verification
+1. Plan Check（门禁检查）
+2. Context Preparation（加载必要上下文）
+3. Execute（编码执行）
+4. Compliance Review（方案符合性 + 安全审查合一）
+5. Code Review
+6. Test Report（Standard 路由）
+7. Verification
 
 关键规则：
-- Gate Check 通过后再创建或复用 worktree
-- 执行时以 `STATE.md` 追踪当前位置
+- 执行时以 `SPEC-STATE.md` 的 `current_wave` / `exec_progress` 追踪位置
 - 审查顺序不能交换
 - 在 `/tech:commit` 之前不自动 `git commit`
+- 知识库：关键发现记录到 `notepads/learnings.md`
 
 ### 3. `/tech:commit`
 
-这个阶段产出“可交付的提交和 PR”。
+这个阶段产出"可交付的提交和 PR"。
 
 主要步骤：
 - 根据代码改动同步文档
+- Knowledge Capture（被动，如有 learnings 则沉淀到 `docs/knowledge.md`）
 - 生成规范化 commit message
 - 执行提交和推送
-- 生成 PR 内容
-- 视情况更新 `CHANGELOG.md`
+- 确认提交成功后，推进 `SPEC-STATE` → `DONE`
 
 ## 审查顺序为什么固定
 
@@ -160,25 +149,23 @@ compliance-reviewer（方案符合性 + 安全） -> 代码质量
 
 原因很简单：
 - 如果代码实现的不是方案要求的功能，或者有安全漏洞，代码质量审查都会浪费
-- 先确认”做的是对的东西且安全”，再确认”好不好维护”
+- 先确认"做的是对的东西且安全"，再确认"好不好维护"
 
-## `STATE.md` 的作用
+## `SPEC-STATE.md` 的作用
 
-`STATE.md` 是执行期唯一主状态文件，用来记录：
-- 当前阶段
-- 当前 Wave
-- 已完成和未完成任务
-- 阻塞项
-- 偏差项
-- 上次操作
+`SPEC-STATE.md` 是唯一状态源，贯穿整个生命周期：
+
+**PLAN 阶段**：用 `plan_step` 追踪规划进度（req → tech-design → tasks → ready）
+
+**EXEC 阶段**：用 `current_wave` / `exec_progress` / `blockers` 追踪执行状态
 
 会话恢复时：
-- hook 先从 `/tmp` Snapshot 发现“有未完成工作”
-- 真正恢复时再读取 `features/{id}-{name}/STATE.md`
+- hook 先从 `/tmp` Snapshot 发现"有未完成工作"
+- 真正恢复时再读取 `features/{id}-{name}/SPEC-STATE.md`
 
 换句话说：
 - Snapshot 负责提醒
-- `STATE.md` 负责恢复
+- `SPEC-STATE.md` 负责恢复
 
 ## 日常使用建议
 
@@ -186,11 +173,10 @@ compliance-reviewer（方案符合性 + 安全） -> 代码质量
 
 ```text
 1. /tech:feature
-2. 创建 change set 骨架
-3. 准备 PRD.md
-4. 确认技术方案
-5. 确认任务拆解
-6. /tech:code
+2. 准备 PRD.md
+3. 确认技术方案
+4. 确认任务拆解
+5. /tech:code
 ```
 
 ### 中断后继续
@@ -203,13 +189,12 @@ compliance-reviewer（方案符合性 + 安全） -> 代码质量
 ## 交付清单
 
 一个完整需求通常至少应包含：
-- `features/{id}-{name}/CHANGESET.md`
 - `features/{id}-{name}/SPEC-STATE.md`
 - `features/{id}-{name}/技术方案.md`
 - `features/{id}-{name}/任务拆解表.md`
-- `features/{id}-{name}/STATE.md`
 - 代码实现
-- 测试结果
+- `features/{id}-{name}/VERIFICATION.md`
+- 测试结果（Standard 路由还需测试计划 + 测试报告）
 - 提交记录 / PR
 
 ## 相关文档
@@ -220,4 +205,3 @@ compliance-reviewer（方案符合性 + 安全） -> 代码质量
 - [tech-feature skill](../../skills/tech-feature/SKILL.md)
 - [tech-code skill](../../skills/tech-code/SKILL.md)
 - [tech-commit skill](../../skills/tech-commit/SKILL.md)
-- [change-set-model.md](./change-set-model.md)

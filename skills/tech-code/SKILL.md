@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "8.0"
+  version: "9.0"
 ---
 
 # /tech:code
@@ -20,7 +20,6 @@ metadata:
 - `features/{id}-{name}/技术方案.md`
 - `features/{id}-{name}/任务拆解表.md`
 - `features/{id}-{name}/SPEC-STATE.md`
-- `features/{id}-{name}/STATE.md`（不存在时进入 `EXEC` 自动生成）
 
 ## 生命周期约束
 
@@ -34,25 +33,20 @@ metadata:
 ```text
 Fast / Medium Route:
   Phase 0F: Gate Check
-  Phase 1F: Pattern Scan + Context Preparation
+  Phase 1F: Context Preparation
   Phase 2F: Execute
   Phase 3F: Review + Verify
 
-Medium Route:
-  Phase 0M: Gate Check
-  Phase 1M: Pattern Scan + Context Preparation
-  Phase 2M: Execute
-  Phase 3M: Review + Verify
-
 Standard Route:
   Phase 0: Gate Check
-  Phase 1: Worktree Setup
-  Phase 2: Context Preparation + Pattern Scan
-  Phase 3: Execute
-  Phase 4: Review + Verify
+  Phase 1: Context Preparation
+  Phase 2: Execute
+  Phase 3: Review + Verify
+  Phase 4: Test Report
 ```
 
-> `Medium` 和 `Fast` 共用同一条执行路径（0F→1F→2F→3F），区别仅在于任务数量（Medium 允许 3-5 个）。
+> Fast 和 Medium 共用同一条执行路径，区别仅在于任务数量（Medium 允许 3-5 个）。
+> Standard 路由增加独立的测试报告阶段。
 
 ## Gate Check
 
@@ -61,11 +55,10 @@ Standard Route:
 - `技术方案.md` 存在且包含至少 1 条「已确认」决策
 - `任务拆解表.md` 存在且包含明确任务和验收标准
 - `SPEC-STATE.track` 已明确
-- （`plan_step = ready` 可视为规划完成的可选信号）
 
 推进到 `EXEC` 时：
-- 自动生成 `STATE.md`
-- `STATE.md` 应从 `任务拆解表.md` 自动提取 Wave / Task 初稿
+- 在 `SPEC-STATE.md` 中更新 `current_wave` 和 `exec_progress` 字段
+- 从 `任务拆解表.md` 提取 Wave / Task 信息，写入 `SPEC-STATE.md` 的 `current_wave` 字段
 
 进入 EXEC 命令（实质内容门禁，无需 `--note`）：
 
@@ -76,21 +69,13 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
   --to EXEC
 ```
 
-## Pattern Scan + Context Preparation
+## Context Preparation
 
-执行前先做两件事：
-
-1. **Pattern Scan**：搜索最相似的已有实现
-   - 若 `features/` 目录无其他同类实现文件，或项目处于 GREENFIELD 状态，直接标记 `GREENFIELD` 并跳过扫描
-   - 有参考实现时：提取可复用的骨架和模式
-
-2. **Context Preparation**：只加载当前任务真正需要的上下文
-
-必须注入的上下文：
+执行前加载必要上下文：
 - 当前任务相关的方案片段
 - 锁定决策（D-0N）
 - 任务验收标准
-- 参考实现锚点
+- 参考实现锚点（搜索已有相似实现，GREENFIELD 项目跳过）
 - 相关 learnings（如果存在）
 - 相关 `docs/knowledge.md` 片段
 
@@ -113,21 +98,18 @@ Fast/Medium 路径目标是减少委托和切换成本：
 - TDD 优先
 - 验证证据必须保留
 
-## Medium Route
-
-Medium 路径在 Fast 和 Standard 之间取平衡：
-- 默认不新建 worktree（除非用户要求）
-- 可选择性使用 subagent（任务 > 3 时建议用）
-- Review 用 `compliance-reviewer` 统一审查
-- Verify 用 `superpowers:verification-before-completion`
-
 ## Standard Route
 
 Standard 路径保留完整治理能力：
-- Phase 1 可使用 `superpowers:using-git-worktrees`
 - Execute 可使用 `superpowers:subagent-driven-development`
 - Review 可使用 `compliance-reviewer` + `superpowers:requesting-code-review`
 - Verify 可使用 `superpowers:verification-before-completion`
+- 测试阶段需产出测试计划和测试报告
+
+### Worktree（可选）
+
+当用户明确要求隔离开发环境时，可使用 `superpowers:using-git-worktrees`。
+默认不启用 worktree。
 
 ## 审查与验证
 
@@ -143,12 +125,21 @@ Standard 路径保留完整治理能力：
 compliance-reviewer（方案符合性 + 安全） -> superpowers:requesting-code-review（代码质量） -> verification（验证）
 ```
 
+## 测试（Standard 路由）
+
+Standard 路由在审查验证之后、进入 REVIEW 之前，需完成：
+1. 按测试计划执行测试
+2. 产出 `测试报告.md`，填写执行结果
+3. 更新 `SPEC-STATE.md` 的产物清单状态
+
 ## 输出
 
 ```text
 features/{id}-{name}/
-├── STATE.md
+├── SPEC-STATE.md（更新 current_wave / exec_progress）
 ├── VERIFICATION.md
+├── 测试计划.md（Standard 路由）
+├── 测试报告.md（Standard 路由）
 └── notepads/learnings.md
 ```
 
@@ -156,14 +147,14 @@ features/{id}-{name}/
 
 ## 配套说明
 
-- `STATE.md` 是执行期唯一真相源
+- `SPEC-STATE.md` 是唯一状态源（PLAN 阶段用 `plan_step`，EXEC 阶段用 `current_wave` / `exec_progress`）
 - `VERIFICATION.md` 是进入 `/tech:commit` 的前置条件
 - 同一问题连续失败 3 次，应停止并上升到架构讨论
+- 知识库沉淀：执行过程中的关键发现记录到 `notepads/learnings.md`
 
 **委托 superpowers**:
-- Standard Phase 1 → `superpowers:using-git-worktrees`
-- Standard Phase 3 → `superpowers:subagent-driven-development`
-- Standard Phase 4 → `compliance-reviewer` + `superpowers:requesting-code-review`
+- Standard Execute → `superpowers:subagent-driven-development`
+- Standard Review → `compliance-reviewer` + `superpowers:requesting-code-review`
 - All Routes Verify → `superpowers:verification-before-completion`
 
 **委托 tinypowers agents**:

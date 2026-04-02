@@ -22,8 +22,9 @@ const ARTIFACTS = [
   { label: '技术方案', file: '技术方案.md' },
   { label: '任务拆解表', file: '任务拆解表.md' },
   { label: '生命周期状态', file: 'SPEC-STATE.md', special: 'spec-state' },
-  { label: 'STATE', file: 'STATE.md', special: 'state' },
-  { label: '验证报告', file: 'VERIFICATION.md' }
+  { label: '验证报告', file: 'VERIFICATION.md' },
+  { label: '测试计划', file: '测试计划.md' },
+  { label: '测试报告', file: '测试报告.md' }
 ];
 const TRACKS = ['standard', 'medium', 'fast'];
 
@@ -120,194 +121,6 @@ function write(filePath, content) {
   fs.writeFileSync(filePath, content);
 }
 
-function parseMarkdownTableRows(content) {
-  return content
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.startsWith('|') && line.endsWith('|'))
-    .map(line => line.slice(1, -1).split('|').map(cell => cell.trim()));
-}
-
-function normalizeTask(task) {
-  return task.replace(/\(P\)/g, '').trim();
-}
-
-function extractTaskRows(taskBreakdown) {
-  const rows = parseMarkdownTableRows(taskBreakdown);
-  const tasks = [];
-
-  for (const cells of rows) {
-    if (cells.length < 2) {
-      continue;
-    }
-
-    const id = cells[0];
-    if (!/^T-\d+/i.test(id)) {
-      continue;
-    }
-
-    if (cells.length >= 6 && /^Task$/i.test(cells[1])) {
-      tasks.push({
-        id,
-        name: cells[2] || '未命名任务',
-        acceptance: cells[5] || '',
-        files: cells[6] || ''
-      });
-      continue;
-    }
-
-    tasks.push({
-      id,
-      name: cells[1] || '未命名任务',
-      acceptance: cells[3] || '',
-      files: cells[4] || ''
-    });
-  }
-
-  return tasks;
-}
-
-function extractSuggestedWaves(taskBreakdown, tasks) {
-  const rows = parseMarkdownTableRows(taskBreakdown);
-  const waves = [];
-
-  for (const cells of rows) {
-    if (cells.length < 2) {
-      continue;
-    }
-
-    const first = cells[0];
-    if (!/^\d+$/.test(first) && !/^Wave\s*\d+$/i.test(first)) {
-      continue;
-    }
-
-    const waveNumber = /^\d+$/.test(first)
-      ? first
-      : (first.match(/\d+/) || ['1'])[0];
-    const includedTasks = (cells[1] || '')
-      .split(',')
-      .map(normalizeTask)
-      .filter(Boolean)
-      .filter(item => /^T-\d+/i.test(item));
-
-    if (includedTasks.length === 0) {
-      continue;
-    }
-
-    waves.push({
-      number: waveNumber,
-      tasks: includedTasks
-    });
-  }
-
-  if (waves.length > 0) {
-    return waves;
-  }
-
-  if (tasks.length === 0) {
-    return [];
-  }
-
-  return [{
-    number: '1',
-    tasks: tasks.map(task => task.id)
-  }];
-}
-
-function buildStateContent(context, track, taskBreakdown) {
-  const tasks = extractTaskRows(taskBreakdown);
-  const waves = extractSuggestedWaves(taskBreakdown, tasks);
-  const lines = [
-    '# STATE: ' + context.featureId,
-    '',
-    '> 最后更新: ' + context.date + ' | 当前阶段: EXEC | 执行路由: ' + track,
-    '',
-    '## 执行概览',
-    '',
-    '| 项目 | 内容 |',
-    '|------|------|',
-    '| Feature | `' + context.featureId + '` |',
-    '| 目录 | `' + context.featureName + '` |',
-    '| 执行路由 | `' + track + '` |',
-    '| 当前 Wave | `1 / ' + (waves.length || 1) + '` |',
-    '',
-    '## 进度'
-  ];
-
-  if (waves.length === 0) {
-    lines.push('', '### Wave 1 PENDING', '', '- [ ] 待根据 `任务拆解表.md` 填充');
-  } else {
-    for (const wave of waves) {
-      lines.push('', '### Wave ' + wave.number + ' PENDING', '');
-      for (const taskId of wave.tasks) {
-        const task = tasks.find(item => item.id === taskId);
-        if (!task) {
-          lines.push('- [ ] ' + taskId);
-          continue;
-        }
-
-        const details = [];
-        if (task.files) {
-          details.push('files: ' + task.files);
-        }
-        if (task.acceptance) {
-          details.push('验收: ' + task.acceptance);
-        }
-        const suffix = details.length > 0 ? ' (' + details.join(' | ') + ')' : '';
-        lines.push('- [ ] ' + task.id + ' ' + task.name + suffix);
-      }
-    }
-  }
-
-  lines.push(
-    '',
-    '## 决策',
-    '',
-    '| ID | 内容 | 日期 |',
-    '|----|------|------|',
-    '| D-01 | 进入执行阶段，STATE 初稿已根据任务拆解表生成 | ' + context.date + ' |',
-    '',
-    '## 阻塞 / 偏差',
-    '',
-    '- 无',
-    '',
-    '## 下一步',
-    '',
-    '- 完成当前 Wave 的首个任务',
-    '- 执行过程中持续更新进度与阻塞'
-  );
-
-  return lines.join('\n') + '\n';
-}
-
-function ensureStateFile(featureDir, context) {
-  const statePath = path.join(featureDir, 'STATE.md');
-  if (fs.existsSync(statePath)) {
-    return;
-  }
-
-  const taskBreakdownPath = path.join(featureDir, '任务拆解表.md');
-  const specStatePath = path.join(featureDir, 'SPEC-STATE.md');
-  const taskBreakdown = fs.existsSync(taskBreakdownPath) ? read(taskBreakdownPath) : '';
-  const track = fs.existsSync(specStatePath) ? getCurrentTrack(read(specStatePath)) : 'standard';
-
-  if (taskBreakdown.trim().length > 0) {
-    write(statePath, buildStateContent(context, track, taskBreakdown));
-    return;
-  }
-
-  const templatePath = path.join(ROOT, 'configs', 'templates', 'state.md');
-  if (!fs.existsSync(templatePath)) {
-    return;
-  }
-
-  const rendered = read(templatePath)
-    .replaceAll('{{feature_id}}', context.featureId)
-    .replaceAll('{{feature_name}}', context.featureName)
-    .replaceAll('{{date}}', context.date);
-  write(statePath, rendered);
-}
-
 function validatePrerequisites(featureDir, targetPhase, note, force, track) {
   if (force) {
     return;
@@ -350,10 +163,10 @@ function validatePrerequisites(featureDir, targetPhase, note, force, track) {
       return null;
     },
     REVIEW() {
-      const filePath = path.join(featureDir, 'STATE.md');
-      return fs.existsSync(filePath)
+      const verificationPath = path.join(featureDir, 'VERIFICATION.md');
+      return fs.existsSync(verificationPath)
         ? null
-        : '进入 REVIEW 需要 STATE.md 已存在';
+        : '进入 REVIEW 需要 VERIFICATION.md 已存在';
     },
     DONE() {
       const filePath = path.join(featureDir, 'VERIFICATION.md');
@@ -449,11 +262,6 @@ function artifactStatus(featureDir, artifact, currentPhase, track) {
   if (artifact.special === 'spec-state') {
     return 'active';
   }
-  if (artifact.special === 'state') {
-    return phaseIndex(currentPhase) >= phaseIndex('EXEC') && fs.existsSync(path.join(featureDir, artifact.file))
-      ? 'active'
-      : 'pending';
-  }
   return fs.existsSync(path.join(featureDir, artifact.file)) ? 'done' : 'pending';
 }
 
@@ -527,15 +335,6 @@ function main() {
   validatePrerequisites(featureDir, targetPhase, args.note, args.force, currentTrack);
 
   const date = new Date().toISOString().slice(0, 10);
-  const context = {
-    featureId: featureName.split('-').slice(0, 2).join('-'),
-    featureName,
-    date
-  };
-
-  if (targetPhase === 'EXEC') {
-    ensureStateFile(featureDir, context);
-  }
 
   let next = updatePhaseBlock(content, targetPhase, date);
   next = appendHistoryRow(next, currentPhase, targetPhase, date, args.note || '阶段推进');

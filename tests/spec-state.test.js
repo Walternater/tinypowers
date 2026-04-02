@@ -178,6 +178,8 @@ test('update-spec-state reads mode from SPEC-STATE file', () => {
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
+  fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), 'PASS\n');
+
   const reviewResult = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
@@ -213,6 +215,18 @@ test('update-spec-state requires verification before DONE', () => {
     '--note', 'prepare state'
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'REVIEW',
+    '--note', 'review done'
+  ]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /VERIFICATION\.md/);
+
+  fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), 'draft\n');
 
   result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
@@ -364,7 +378,7 @@ test('fast-track entering EXEC still requires design, tasks, and acceptance crit
   assert.match(result.stderr, /PRD\.md 存在且非空|任务拆解表\.md 存在|锁定决策|验收标准|已确认/);
 });
 
-test('entering EXEC generates STATE from standard task breakdown', () => {
+test('entering EXEC updates SPEC-STATE to EXEC phase', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-state-standard-'));
 
   runNode([
@@ -387,14 +401,12 @@ test('entering EXEC generates STATE from standard task breakdown', () => {
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
-  const state = fs.readFileSync(path.join(featureDir, 'STATE.md'), 'utf8');
-  assert.match(state, /执行路由 \| `standard`/);
-  assert.match(state, /### Wave 1 PENDING/);
-  assert.match(state, /T-001 补 service 过滤/);
-  assert.match(state, /T-002 补测试/);
+  const specState = fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
+  assert.match(specState, /phase:\s*EXEC/);
+  assert.match(specState, /EXEC.*plan check passed/);
 });
 
-test('entering EXEC generates STATE from fast task breakdown', () => {
+test('entering EXEC updates SPEC-STATE for fast track', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-state-fast-'));
 
   runNode([
@@ -418,8 +430,7 @@ test('entering EXEC generates STATE from fast task breakdown', () => {
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
-  const state = fs.readFileSync(path.join(featureDir, 'STATE.md'), 'utf8');
-  assert.match(state, /执行路由 \| `fast`/);
-  assert.match(state, /T-001 增加 completed 过滤/);
-  assert.match(state, /T-002 增加回归测试/);
+  const specState = fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
+  assert.match(specState, /phase:\s*EXEC/);
+  assert.match(specState, /EXEC.*fast route ready/);
 });

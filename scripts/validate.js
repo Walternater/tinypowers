@@ -32,8 +32,9 @@ const VIRTUAL_OUTPUT_REFERENCES = new Set([
   'CHANGESET.md',
   'PRD.md',
   'SPEC-STATE.md',
-  'STATE.md',
   'VERIFICATION.md',
+  '测试计划.md',
+  '测试报告.md',
   '评审记录.md',
   '任务拆解表.md',
   '技术方案.md',
@@ -668,8 +669,7 @@ function validateFeatureScaffold() {
   console.log('\n=== Feature 规划骨架校验 ===\n');
 
   const requiredTemplates = [
-    'configs/templates/spec-state.md',
-    'configs/templates/state.md',
+  'configs/templates/spec-state.md',
     'configs/templates/prd-template.md',
     'configs/templates/settings.json',
     'configs/templates/tech-design.md',
