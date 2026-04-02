@@ -9,6 +9,8 @@ const ARTIFACTS = [
   { label: 'PRD', file: 'PRD.md' },
   { label: '技术方案', file: '技术方案.md' },
   { label: '任务拆解表', file: '任务拆解表.md' },
+  { label: '测试计划', file: '测试计划.md' },
+  { label: '测试报告', file: '测试报告.md' },
   { label: '生命周期状态', file: 'SPEC-STATE.md', status: 'active' },
   { label: 'STATE（复杂执行可选）', file: 'STATE.md', status: 'optional' },
   { label: '验证报告', file: 'VERIFICATION.md' }
@@ -19,7 +21,9 @@ const TRACKS = {
       ['SPEC-STATE.md', 'spec-state.md'],
       ['PRD.md', 'prd-template.md'],
       ['技术方案.md', 'tech-design.md'],
-      ['任务拆解表.md', 'task-breakdown.md']
+      ['任务拆解表.md', 'task-breakdown.md'],
+      ['测试计划.md', 'test-plan.md'],
+      ['测试报告.md', 'test-report.md']
     ]
   },
   medium: {
@@ -27,7 +31,9 @@ const TRACKS = {
       ['SPEC-STATE.md', 'spec-state.md'],
       ['PRD.md', 'prd-template.md'],
       ['技术方案.md', 'tech-design-medium.md'],
-      ['任务拆解表.md', 'task-breakdown-medium.md']
+      ['任务拆解表.md', 'task-breakdown-medium.md'],
+      ['测试计划.md', 'test-plan.md'],
+      ['测试报告.md', 'test-report.md']
     ]
   },
   fast: {
@@ -35,7 +41,9 @@ const TRACKS = {
       ['SPEC-STATE.md', 'spec-state.md'],
       ['PRD.md', 'prd-template.md'],
       ['技术方案.md', 'tech-design-fast.md'],
-      ['任务拆解表.md', 'task-breakdown-fast.md']
+      ['任务拆解表.md', 'task-breakdown-fast.md'],
+      ['测试计划.md', 'test-plan.md'],
+      ['测试报告.md', 'test-report.md']
     ]
   }
 };
@@ -69,6 +77,7 @@ function render(content, ctx) {
     .replaceAll('{{date}}', ctx.date)
     .replaceAll('{{track}}', ctx.track)
     .replaceAll('{{track_label}}', ctx.trackLabel)
+    .replaceAll('{{feature_id}}', ctx.featureId)
     .replaceAll('{Feature ID}', ctx.featureId)
     .replaceAll('{date}', ctx.date)
     .replaceAll('{phase}', 'PLAN');

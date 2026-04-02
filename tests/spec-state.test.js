@@ -41,6 +41,28 @@ function writeStandardPlanArtifacts(featureDir) {
     '|------|----------|----------|----------|',
     '| 1 | T-001, T-002 | — | 两个任务完成 |'
   ].join('\n'));
+  fs.writeFileSync(path.join(featureDir, '测试计划.md'), [
+    '# 测试计划',
+    '',
+    '## 测试项',
+    '',
+    '| 编号 | 场景 | 类型 | 预期结果 |',
+    '|------|------|------|----------|',
+    '| TP-01 | 已完成任务过滤 | 单元测试 | 返回已完成任务 |'
+  ].join('\n'));
+  fs.writeFileSync(path.join(featureDir, '测试报告.md'), [
+    '# 测试报告',
+    '',
+    '## 执行结果',
+    '',
+    '| 编号 | 场景 | 结果 |',
+    '|------|------|------|',
+    '| TP-01 | 已完成任务过滤 | 通过 |',
+    '',
+    '## 结论',
+    '',
+    '- 结论：通过'
+  ].join('\n'));
 }
 
 function writeFastPlanArtifacts(featureDir) {
@@ -63,6 +85,28 @@ function writeFastPlanArtifacts(featureDir) {
     '|------|------|------|----------|---------------|------|',
     '| T-001 | 增加 completed 过滤 | 实现 | 返回已完成任务 | TaskService.java | |',
     '| T-002 | 增加回归测试 | 测试 | 测试通过 | TaskServiceTest.java | |'
+  ].join('\n'));
+  fs.writeFileSync(path.join(featureDir, '测试计划.md'), [
+    '# 测试计划',
+    '',
+    '## 测试项',
+    '',
+    '| 编号 | 场景 | 类型 | 预期结果 |',
+    '|------|------|------|----------|',
+    '| TP-01 | completed 过滤 | 快速回归 | 返回已完成任务 |'
+  ].join('\n'));
+  fs.writeFileSync(path.join(featureDir, '测试报告.md'), [
+    '# 测试报告',
+    '',
+    '## 执行结果',
+    '',
+    '| 编号 | 场景 | 结果 |',
+    '|------|------|------|',
+    '| TP-01 | completed 过滤 | 通过 |',
+    '',
+    '## 结论',
+    '',
+    '- 结论：通过'
   ].join('\n'));
 }
 
@@ -163,6 +207,7 @@ test('update-spec-state requires verification evidence before REVIEW and DONE', 
   const featureName = 'CSS-7777-验证阶段';
   const featureDir = path.join(projectRoot, 'features', featureName);
   writeStandardPlanArtifacts(featureDir);
+  fs.unlinkSync(path.join(featureDir, '测试计划.md'));
 
   let result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
@@ -181,8 +226,9 @@ test('update-spec-state requires verification evidence before REVIEW and DONE', 
     '--note', 'review done'
   ]);
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /VERIFICATION\.md/);
+  assert.match(result.stderr, /测试计划|测试报告|VERIFICATION\.md/);
 
+  writeStandardPlanArtifacts(featureDir);
   fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), 'PASS\n');
   result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),

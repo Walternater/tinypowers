@@ -32,6 +32,8 @@ updated: {date}
 | PRD | PRD.md | pending |
 | 技术方案 | 技术方案.md | pending |
 | 任务拆解表 | 任务拆解表.md | pending |
+| 测试计划 | 测试计划.md | pending |
+| 测试报告 | 测试报告.md | pending |
 | 生命周期状态 | SPEC-STATE.md | active |
 | STATE（复杂执行可选） | STATE.md | optional |
 | 验证报告 | VERIFICATION.md | pending |
@@ -42,7 +44,7 @@ updated: {date}
 
 ```
 PLAN -> EXEC:     PRD / 技术方案 / 任务拆解表满足当前路由门禁
-EXEC -> REVIEW:   审查与验证证据齐备；如存在 STATE.md，则状态已收敛
+EXEC -> REVIEW:   审查、测试与验证证据齐备；如存在 STATE.md，则状态已收敛
 REVIEW -> DONE:   代码已提交，VERIFICATION.md 结论 = PASS
 ```
 

@@ -96,11 +96,11 @@ configs/rules/
   -> 初始化项目入口、规范、模板、hooks
 
 /tech:feature
-  -> 需求理解 -> 技术方案 -> 任务拆解
+  -> 需求理解 -> 技术方案 -> 任务拆解 -> 方案确认
 
 /tech:code
   -> Gate Check -> 开发执行
-  -> 审查修复 -> 测试验证
+  -> 审查修复 -> 测试计划 / 测试报告 -> 测试验证
 
 /tech:commit
   -> Document Sync -> Commit -> PR

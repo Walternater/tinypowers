@@ -21,7 +21,7 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 |------|--------------|------|
 | `tech-init` | `research` | 初始化目标项目骨架和入口文件 |
 | `tech-feature` | `research` | 需求理解、技术方案、任务拆解 |
-| `tech-code` | `dev` + `review` | 开发执行、审查修复、测试验证 |
+| `tech-code` | `dev` + `review` | 开发执行、审查修复、测试计划/报告、验证 |
 | `tech-commit` | `review` | 收口提交、PR、文档同步 |
 
 ## Agents

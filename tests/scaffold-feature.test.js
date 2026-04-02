@@ -26,7 +26,9 @@ test('scaffold-feature creates a planning skeleton', () => {
     'SPEC-STATE.md',
     'PRD.md',
     '技术方案.md',
-    '任务拆解表.md'
+    '任务拆解表.md',
+    '测试计划.md',
+    '测试报告.md'
   ];
 
   for (const file of expectedFiles) {
@@ -62,7 +64,9 @@ test('scaffold-feature supports fast track with lightweight artifacts', () => {
     'SPEC-STATE.md',
     'PRD.md',
     '技术方案.md',
-    '任务拆解表.md'
+    '任务拆解表.md',
+    '测试计划.md',
+    '测试报告.md'
   ];
 
   for (const file of expectedFiles) {

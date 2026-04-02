@@ -35,6 +35,8 @@ features/{需求编号}-{需求名称}/
 ├── PRD.md
 ├── 技术方案.md
 ├── 任务拆解表.md
+├── 测试计划.md
+├── 测试报告.md
 ├── VERIFICATION.md
 ├── STATE.md                  # 可选，仅复杂执行时
 └── notepads/
@@ -45,6 +47,7 @@ features/{需求编号}-{需求名称}/
 - `SPEC-STATE.md` 负责粗粒度生命周期状态
 - `技术方案.md` 是方案与关键决策的主文档
 - `任务拆解表.md` 是执行入口
+- `测试计划.md` 与 `测试报告.md` 是测试阶段的显式交付物
 - `STATE.md` 仅在多任务、多 Wave、跨会话或 worktree 协作时维护
 - `notepads/learnings.md` 与 `docs/knowledge.md` 组成知识沉淀链路，但不阻塞主流程
 
@@ -57,12 +60,14 @@ PRD
   -> 需求理解
   -> 技术方案
   -> 任务拆解
+  -> 方案与任务确认
   -> 确认后进入 /tech:code
   ↓
 /tech:code
   -> 开发执行
   -> 审查修复（可迭代）
-  -> 测试与验证
+  -> 测试计划 / 测试执行 / 测试报告
+  -> 最终验证
   ↓
 /tech:commit
   -> 文档同步
@@ -81,11 +86,12 @@ PRD
 - 产出技术方案
 - 锁定关键决策
 - 生成任务拆解表
-- 确认任务已达到可执行粒度
+- 在方案与任务拆解完成后暂停确认
 
 硬门禁：
 - 技术方案未经确认，不能进入编码
 - 任务拆解不清晰，不能进入 `/tech:code`
+- 方案与任务拆解未确认，不能进入 `/tech:code`
 
 ### 2. `/tech:code`
 
@@ -96,7 +102,9 @@ PRD
 1. Gate Check
 2. 开发执行
 3. 审查修复
-4. 测试与验证
+4. 编写测试计划
+5. 执行测试并填写测试报告
+6. 测试与验证
 
 复杂需求时可以额外展开：
 - worktree 隔离
@@ -167,6 +175,8 @@ compliance-reviewer（方案符合性 + 安全） -> 代码质量
 - `features/{id}-{name}/SPEC-STATE.md`
 - `features/{id}-{name}/技术方案.md`
 - `features/{id}-{name}/任务拆解表.md`
+- `features/{id}-{name}/测试计划.md`
+- `features/{id}-{name}/测试报告.md`
 - `features/{id}-{name}/VERIFICATION.md`
 - 代码实现
 - 提交记录 / PR

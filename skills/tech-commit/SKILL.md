@@ -19,6 +19,7 @@ metadata:
 ## 前置条件
 
 - `VERIFICATION.md` 已存在且结论为 PASS/通过
+- `测试计划.md` 与 `测试报告.md` 已更新到最新状态
 - 测试结果是最新的
 - 工作区无无关改动
 - `SPEC-STATE` 当前为 `REVIEW`
@@ -35,6 +36,8 @@ metadata:
 
 优先同步真正受影响的文档：
 - `技术方案.md`
+- `测试计划.md`
+- `测试报告.md`
 - README / 部署说明
 - API 或数据库文档
 

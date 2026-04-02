@@ -51,6 +51,8 @@ Generated Project Artifacts 是 tinypowers 安装到目标项目后，由 `/tech
 - `features/{id}-{name}/SPEC-STATE.md`
 - `features/{id}-{name}/技术方案.md`
 - `features/{id}-{name}/任务拆解表.md`
+- `features/{id}-{name}/测试计划.md`
+- `features/{id}-{name}/测试报告.md`
 - `features/{id}-{name}/VERIFICATION.md`
 - `features/{id}-{name}/STATE.md`（复杂执行时）
 

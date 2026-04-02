@@ -21,6 +21,8 @@ const ARTIFACTS = [
   { label: 'PRD', file: 'PRD.md' },
   { label: '技术方案', file: '技术方案.md' },
   { label: '任务拆解表', file: '任务拆解表.md' },
+  { label: '测试计划', file: '测试计划.md' },
+  { label: '测试报告', file: '测试报告.md' },
   { label: '生命周期状态', file: 'SPEC-STATE.md', special: 'spec-state' },
   { label: 'STATE（复杂执行可选）', file: 'STATE.md', special: 'state' },
   { label: '验证报告', file: 'VERIFICATION.md' }
@@ -364,10 +366,12 @@ function validatePrerequisites(featureDir, targetPhase, note, force, track) {
       return null;
     },
     REVIEW() {
-      const filePath = path.join(featureDir, 'VERIFICATION.md');
-      return fs.existsSync(filePath)
-        ? null
-        : '进入 REVIEW 需要 VERIFICATION.md 已存在，用于承接审查和验证证据';
+      const required = ['测试计划.md', '测试报告.md', 'VERIFICATION.md'];
+      const missing = required.filter(file => !fs.existsSync(path.join(featureDir, file)));
+      if (missing.length > 0) {
+        return '进入 REVIEW 需要测试计划、测试报告和 VERIFICATION.md 已存在，缺少: ' + missing.join(', ');
+      }
+      return null;
     },
     DONE() {
       const filePath = path.join(featureDir, 'VERIFICATION.md');

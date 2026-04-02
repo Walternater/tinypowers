@@ -28,6 +28,8 @@ features/{需求编号}-{需求名称}/
 ├── PRD.md
 ├── 技术方案.md
 ├── 任务拆解表.md
+├── 测试计划.md
+├── 测试报告.md
 ├── VERIFICATION.md
 ├── notepads/
 │   └── learnings.md
@@ -42,6 +44,8 @@ features/{需求编号}-{需求名称}/
 | `PRD.md` | 记录需求来源、背景和验收标准 |
 | `技术方案.md` | 记录方案、决策、风险和验收映射 |
 | `任务拆解表.md` | 记录可执行任务、依赖和建议顺序 |
+| `测试计划.md` | 记录测试范围、测试项和执行安排 |
+| `测试报告.md` | 记录测试执行结果和结论 |
 | `VERIFICATION.md` | 记录测试与验证证据 |
 | `STATE.md` | 复杂执行的辅助状态文件，按需创建 |
 | `notepads/learnings.md` | feature 级经验暂存，可择优回写 `docs/knowledge.md` |
