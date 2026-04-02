@@ -5,18 +5,21 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "7.0"
+  version: "8.0"
 ---
 
 # /tech:feature
 
 ## 作用
 
-把一个模糊需求整理成"可执行的计划态"。本 skill 负责复杂度分级、需求澄清、方案锁定和任务拆解，并把生命周期状态统一收口到 `PLAN`。
+把一个模糊需求整理成可直接进入开发的规划包：
+- 需求理解
+- 技术方案
+- 任务拆解
+
+这个阶段的重点是把“要做什么、怎么做、怎么验收”说清楚，而不是引入额外的流程概念。
 
 ## 默认骨架
-
-所有 track 都只预生成最小必需工件：
 
 ```text
 features/{需求编号}-{需求名称}/
@@ -28,208 +31,136 @@ features/{需求编号}-{需求名称}/
     └── learnings.md
 ```
 
-按需创建而不预生成：
-- `seeds/`
-- `archive/`
+说明：
+- `SPEC-STATE.md` 只记录粗粒度生命周期：`PLAN -> EXEC -> REVIEW -> DONE`
+- `notepads/learnings.md` 用于后续沉淀到 `docs/knowledge.md`，但不应干扰当前需求推进
+- `STATE.md` 不在本阶段创建；仅复杂执行时由 `/tech:code` 按需生成
 
-## 生命周期状态
+## 路由选择
 
-`SPEC-STATE.md` 使用 4 态状态机：
+### Fast
 
-```text
-PLAN -> EXEC -> REVIEW -> DONE
-```
+适用于：
+- 单模块或单链路
+- 1-2 个任务可完成
+- 无明显跨系统依赖
 
-- `/tech:feature` 结束时，Feature 应停留在 `PLAN`
-- `/tech:code` 进入执行时推进到 `EXEC`
-- `/tech:code` 完成审查和验证后推进到 `REVIEW`
-- `/tech:commit` 提交完成后推进到 `DONE`
+### Medium
 
-PLAN 阶段内部用 `plan_step` 字段追踪规划进度（见 SPEC-STATE.md）：
+适用于：
+- 单系统内需求
+- 3-8 个任务
+- 可有 DB 变更，但无跨系统依赖
 
-```text
-req -> tech-design -> tasks -> ready
-```
+### Standard
 
-## 复杂度分级
+适用于：
+- 跨系统、架构级或多模块改动
+- 需求仍存在关键歧义
+- 预计需要更完整隔离和审查
 
-Phase 0 必须先做分级，**选最匹配的一档**：
+升级信号：
+- Fast → Medium：任务超过 2 个，或发现明显跨模块依赖
+- Medium → Standard：发现跨系统依赖、架构级变更、关键歧义
 
-| Track | 典型特征 |
-|-------|---------|
-| `Fast` | 单模块单链路、无表结构变更、无安全敏感、1-2 个任务 |
-| `Medium` | 单系统内、3-8 个任务、有 DB 变更但无跨系统依赖 |
-| `Standard` | 跨系统/架构级变更、>5 个任务、需求仍有明显歧义 |
-
-> `Complex`（跨团队、架构级、>2 周）暂按 `Standard` 走，额外增加人工评审。
-
-**升级信号**（出现任意一条立即升级）：
-- Fast → Medium：任务超过 2 个、发现跨模块依赖、技术方案需多方案权衡
-- Medium → Standard：发现跨系统依赖、任务超过 8 个、需求存在高优先级歧义
-
-## 主流程
+## 对外流程
 
 ```text
-Phase 0: 准备（解析需求 + 分级 + 脚手架）
-
-Fast Route:
-  Phase 1F: 需求理解 + 最小方案
-  Phase 2F: 最小任务拆解 + PLAN 收口
-
-Medium Route:
-  Phase 1M: 需求理解（批量确认）
-  Phase 2M: 精简技术方案 + 任务拆解
-  Phase 3M: PLAN 收口
-
-Standard Route:
-  Phase 1: 需求理解
-  Phase 2: 歧义检测 + 方案探索
-  Phase 3: 技术方案 + 决策锁定
-  Phase 4: 任务拆解 + PLAN 收口
+1. 需求理解
+2. 技术方案
+3. 任务拆解
+4. 方案与任务确认
+5. 确认后进入 /tech:code
 ```
 
-## Phase 0: 准备
+### 1. 需求理解
 
-1. 解析需求 ID、标题、目录名
-2. 判断 `track: fast | medium | standard`，明确说明理由
-3. 运行脚手架：
-
-```bash
-node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {name} --track {fast|medium|standard}
-```
-
-4. 更新 `SPEC-STATE.md` 的 `plan_step: req`（scaffold 默认值，无需手动改）
-
-## Fast Route
-
-适用于小需求快路径，目标是把流程压到 2 个阶段，但仍保留计划质量。
-
-### Phase 1F: 需求理解 + 最小方案
-
-- 在 `PRD.md` 写清背景、范围、验收标准（至少 1 条 AC-N）
-- 在 `技术方案.md` 补齐：
-  - 参考实现锚点
-  - 最小设计
-  - 锁定决策（至少 1 条 D-01，状态=已确认）
-- 更新 `plan_step: tech-design`
-
-### Phase 2F: 最小任务拆解 + PLAN 收口
-
-- 在 `任务拆解表.md` 中压缩为 1-2 个最小可执行任务
-- 每个任务必须写清验收标准和涉及文件
-- 更新 `plan_step: ready`，保持 `SPEC-STATE = PLAN`
-
-## Medium Route
-
-适用于中等复杂度需求，有 DB 变更但不涉及跨系统。跳过歧义检测和 brainstorming，批量确认需求后直接出精简方案。
-
-### Phase 1M: 需求理解（批量确认）
-
-- 在 `PRD.md` 写清背景、范围、验收标准（至少 2 条 AC-N）
-- 用 `requirements-guide.md` 的批量确认方式一次性提出所有澄清问题
-- 跳过歧义检测（`ambiguity-check.md`）和 `superpowers:brainstorming`
-- 更新 `plan_step: req`
-
-### Phase 2M: 精简技术方案 + 任务拆解
-
-- 在 `技术方案.md` 使用 Medium 精简模板（~80 行），覆盖：
-  - 目标与范围
-  - 方案概要（模块、数据流转）
-  - 数据设计 / 接口设计
-  - 锁定决策（至少 1 条 D-0N）
-  - 风险与回滚
-- 在 `任务拆解表.md` 使用平铺任务表（不强制 Epic → Story → Task）
-- 每个任务必须写清验收标准和涉及文件
-- 更新 `plan_step: tech-design`
-
-### Phase 3M: PLAN 收口
-
-- 检查三个文档完整性和一致性
-- 完成后保持 `SPEC-STATE = PLAN`
-- Medium 路由的 `mode: relaxed` 允许 `PLAN → EXEC` 直达（无需额外的 plan-check 说明）
-
-Medium 路径一旦出现这些信号，应升级为 `Standard`：
-- 需求有跨系统依赖
-- 技术方案需要多方案权衡
-- 发现架构级变更
-
-## Standard Route
-
-### Phase 1: 需求理解
-
-读取 `PRD.md`，用 `requirements-guide.md` 形成结构化理解：
+基于 `PRD.md` 形成结构化理解：
 - 背景和目标
 - 用户与场景
-- 功能范围
+- 范围边界
 - 验收标准
-- 非功能需求
-- 更新 `plan_step: req`
+- 非功能约束
 
-### Phase 2: 歧义检测 + 方案探索
+默认采用批量确认：
+- 一次性提出核心澄清问题
+- 用户回答后只追问缺失项
+- 避免 one-by-one 的低效往返
 
-遵循 `ambiguity-check.md`，先识别高优先级歧义，再用 `superpowers:brainstorming` 探索 2-3 个可行方案。更新 `plan_step: tech-design`。
+### 2. 技术方案
 
-### Phase 3: 技术方案 + 决策锁定
-
-`技术方案.md` 至少要覆盖：
+`技术方案.md` 至少需要覆盖：
 - 目标与范围
 - 核心设计
-- 接口 / 数据 / 配置影响（仅有变更时填写）
+- 接口 / 数据 / 配置影响（有变更时填写）
 - 风险与回滚
-- 锁定决策（关键决策标记 `已确认`）
+- 至少 1 条已确认的关键决策
 
-关键决策应记录为稳定 ID：
-- D-01 架构 / 框架选型
-- D-02 数据结构 / 表结构
-- D-03 对外接口契约
-- D-04 中间件或依赖选型
-- D-05 特殊安全方案
+要求：
+- Fast 使用最小方案模板
+- Medium 使用精简模板
+- Standard 可以做更完整的方案探索
 
-更新 `plan_step: tech-design`。
+### 3. 任务拆解
 
-### Phase 4: 任务拆解 + PLAN 收口
+`任务拆解表.md` 必须满足：
+- 每个任务可执行
+- 每个任务有验收标准
+- 每个任务有涉及文件/模块
+- 依赖关系清楚
 
-复杂需求可委托 `superpowers:writing-plans`，但输出必须满足：
-- 层级清晰（Wave / Task）
-- 每个 Task 可验证
-- 依赖关系明确
+Fast / Medium 不强制写成复杂层级。
+Standard 需要显式表达依赖和建议顺序。
 
-更新 `plan_step: ready`，保持 `SPEC-STATE = PLAN`，进入 `/tech:code`。
+### 4. 方案与任务确认
 
-## PLAN 阶段门禁
+这是恢复原始 workflow 心智的关键确认点：
+- 输出 `技术方案.md` 后暂停
+- 输出 `任务拆解表.md` 后暂停
+- 在用户确认“方案可行、任务可执行”之前，不进入 `/tech:code`
 
-进入 `/tech:code` 前至少要满足（`plan_step = ready`）：
-- `PRD.md` 存在且包含至少 1 条验收标准（`AC-N` 或 EARS 格式）
-- `技术方案.md` 存在且包含至少 1 条状态为「已确认」的决策
-- `任务拆解表.md` 存在且任务可执行
-- `track` 已明确，且与文档体量匹配
+推荐确认内容：
+- 方案是否偏离需求目标
+- 任务拆解是否遗漏关键步骤
+- 是否需要补充风险、范围边界或验收标准
 
-这些条件对应 `update-spec-state.js` 进入 EXEC 的实质内容检测，不需要额外 `--note`。
+## 内部执行说明
+
+以下能力可以保留，但不应成为主流程负担：
+- Standard 需求可用 `superpowers:brainstorming` 做方案探索
+- Standard 需求可用 `superpowers:writing-plans` 辅助拆任务
+- `track` 是执行路由选择，不是额外的用户确认回合
+- `SPEC-STATE.md` 用于门禁和阶段推进，不替代方案/任务本身
+
+## 进入 `/tech:code` 的门禁
+
+至少满足：
+- `PRD.md` 非空，且包含验收标准
+- `技术方案.md` 存在，且有至少 1 条已确认决策
+- `任务拆解表.md` 存在，且任务具备执行粒度
+- 方案与任务拆解已经完成用户确认
 
 ## 完成标准
 
-- 需求已被清晰表述
-- 方案已被锁定到可执行粒度
-- 任务顺序和验收方式明确
-- 他人接手时能直接进入 `/tech:code`
+- 需求已经说清楚
+- 方案已经锁定到可执行粒度
+- 任务拆解能直接指导开发
+- 其他人接手时可以直接进入 `/tech:code`
 
 ## 配套文档
 
 | 文档 | 作用 |
 |------|------|
 | `requirements-guide.md` | 需求理解引导 |
-| `ambiguity-check.md` | 歧义检测规则 |
+| `ambiguity-check.md` | 识别关键歧义 |
 
 **委托 superpowers**:
-- Standard Phase 2 → `superpowers:brainstorming`
-- Standard Phase 4 → `superpowers:writing-plans`
-- Medium 不委托 superpowers，直接用精简模板完成
+- Standard 方案探索 → `superpowers:brainstorming`
+- Standard 复杂任务拆解 → `superpowers:writing-plans`
 
 ## Gotchas
 
-- 小需求套完整流程会导致大量空文档，应优先判定 `Fast`
-- Medium 是大多数后端需求的最适路由——有 DB 变更但没到架构级，不要过度升级到 Standard
-- 决策不锁定，`/tech:code` 很容易边写边改方向
-- 任务只有"功能正常"这类模糊验收标准，后续验证一定会失焦
-- Medium 跳过 brainstorming 不等于跳过思考——方案概要和锁定决策仍然必须写
-- `技术方案.md` 的"可选段"（上线准备、灰度策略、评审记录）默认不填，有需要再追加
+- 不要为了“显得完整”而补充没有决策价值的文档
+- 决策只锁关键项，不要把显而易见的库选择写成流程负担
+- 任务的验收标准不能只有“功能正常”这类空描述
+- `SPEC-STATE.md` 是辅助门禁，不是 feature 阶段的主产物

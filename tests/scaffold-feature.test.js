@@ -26,7 +26,9 @@ test('scaffold-feature creates a planning skeleton', () => {
     'SPEC-STATE.md',
     'PRD.md',
     '技术方案.md',
-    '任务拆解表.md'
+    '任务拆解表.md',
+    '测试计划.md',
+    '测试报告.md'
   ];
 
   for (const file of expectedFiles) {
@@ -39,7 +41,7 @@ test('scaffold-feature creates a planning skeleton', () => {
   const specState = fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
   assert.match(specState, /phase: PLAN/);
   assert.match(specState, /track: standard/);
-  assert.match(specState, /mode: strict/);
+  assert.doesNotMatch(specState, /mode:/);
 });
 
 test('scaffold-feature supports fast track with lightweight artifacts', () => {
@@ -62,7 +64,9 @@ test('scaffold-feature supports fast track with lightweight artifacts', () => {
     'SPEC-STATE.md',
     'PRD.md',
     '技术方案.md',
-    '任务拆解表.md'
+    '任务拆解表.md',
+    '测试计划.md',
+    '测试报告.md'
   ];
 
   for (const file of expectedFiles) {
@@ -76,7 +80,7 @@ test('scaffold-feature supports fast track with lightweight artifacts', () => {
   const specState = fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
   assert.match(specState, /phase: PLAN/);
   assert.match(specState, /track: fast/);
-  assert.match(specState, /mode: relaxed/);
+  assert.doesNotMatch(specState, /mode:/);
 
   const techDesign = fs.readFileSync(path.join(featureDir, '技术方案.md'), 'utf8');
   assert.match(techDesign, /Fast Route 适用性/);

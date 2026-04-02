@@ -33,6 +33,8 @@ const VIRTUAL_OUTPUT_REFERENCES = new Set([
   'PRD.md',
   'SPEC-STATE.md',
   'STATE.md',
+  '测试计划.md',
+  '测试报告.md',
   'VERIFICATION.md',
   '评审记录.md',
   '任务拆解表.md',
@@ -674,6 +676,8 @@ function validateFeatureScaffold() {
     'configs/templates/settings.json',
     'configs/templates/tech-design.md',
     'configs/templates/tech-design-fast.md',
+    'configs/templates/test-plan.md',
+    'configs/templates/test-report.md',
     'configs/templates/task-breakdown.md',
     'configs/templates/task-breakdown-fast.md'
   ];

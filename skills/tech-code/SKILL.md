@@ -1,18 +1,24 @@
 ---
 name: tech:code
-description: 当用户要求执行已规划的任务、开始编码实现、或继续未完成的 wave 执行时触发。
+description: 当用户要求执行已规划的任务、开始编码实现、或继续未完成的执行时触发。
 license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "8.0"
+  version: "9.0"
 ---
 
 # /tech:code
 
 ## 作用
 
-把 `PLAN` 阶段的需求落成可恢复、可审查、可验证的实现过程。
+把规划阶段的需求落成经过审查、测试和验证的实现。
+
+这个阶段对外只强调四件事：
+1. 开发执行
+2. 审查修复
+3. 测试与验证
+4. 为提交准备交付证据
 
 ## 输入
 
@@ -20,54 +26,33 @@ metadata:
 - `features/{id}-{name}/技术方案.md`
 - `features/{id}-{name}/任务拆解表.md`
 - `features/{id}-{name}/SPEC-STATE.md`
-- `features/{id}-{name}/STATE.md`（不存在时进入 `EXEC` 自动生成）
+- `features/{id}-{name}/STATE.md`（可选，仅复杂执行时维护）
+- `docs/knowledge.md`（如有相关片段，编码时自动参考）
 
 ## 生命周期约束
 
 - 进入本 skill 时，`SPEC-STATE` 必须为 `PLAN` 或 `EXEC`
 - 开始执行后推进到 `EXEC`
 - 完成审查和验证后推进到 `REVIEW`
-- 禁止在 `/tech:commit` 前自动提交
+- `/tech:commit` 前不自动提交
 
-## 主流程
+## 对外流程
 
 ```text
-Fast / Medium Route:
-  Phase 0F: Gate Check
-  Phase 1F: Pattern Scan + Context Preparation
-  Phase 2F: Execute
-  Phase 3F: Review + Verify
-
-Medium Route:
-  Phase 0M: Gate Check
-  Phase 1M: Pattern Scan + Context Preparation
-  Phase 2M: Execute
-  Phase 3M: Review + Verify
-
-Standard Route:
-  Phase 0: Gate Check
-  Phase 1: Worktree Setup
-  Phase 2: Context Preparation + Pattern Scan
-  Phase 3: Execute
-  Phase 4: Review + Verify
+1. Gate Check
+2. 开发执行
+3. 审查修复（可迭代）
+4. 测试与验证
 ```
 
-> `Medium` 和 `Fast` 共用同一条执行路径（0F→1F→2F→3F），区别仅在于任务数量（Medium 允许 3-5 个）。
-
-## Gate Check
+### 1. Gate Check
 
 进入执行前确认：
 - `PRD.md` 非空且包含验收标准
-- `技术方案.md` 存在且包含至少 1 条「已确认」决策
-- `任务拆解表.md` 存在且包含明确任务和验收标准
-- `SPEC-STATE.track` 已明确
-- （`plan_step = ready` 可视为规划完成的可选信号）
+- `技术方案.md` 存在且包含至少 1 条已确认决策
+- `任务拆解表.md` 存在且任务明确
 
-推进到 `EXEC` 时：
-- 自动生成 `STATE.md`
-- `STATE.md` 应从 `任务拆解表.md` 自动提取 Wave / Task 初稿
-
-进入 EXEC 命令（实质内容门禁，无需 `--note`）：
+推进到 `EXEC` 的标准命令：
 
 ```bash
 node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
@@ -76,95 +61,85 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
   --to EXEC
 ```
 
-## Pattern Scan + Context Preparation
+### 2. 开发执行
 
-执行前先做两件事：
+默认策略：
+- 先复用已有模式
+- 只加载当前任务真正需要的上下文
+- 优先直接落代码，不把执行策略暴露成额外阶段
 
-1. **Pattern Scan**：搜索最相似的已有实现
-   - 若 `features/` 目录无其他同类实现文件，或项目处于 GREENFIELD 状态，直接标记 `GREENFIELD` 并跳过扫描
-   - 有参考实现时：提取可复用的骨架和模式
+复杂需求时可以额外使用：
+- worktree 隔离
+- 多 Wave 执行
+- `STATE.md` 跟踪复杂进度
 
-2. **Context Preparation**：只加载当前任务真正需要的上下文
+`STATE.md` 建议在以下场景维护：
+- 多任务 / 多 Wave
+- 跨会话执行
+- 需要 worktree 协作
 
-必须注入的上下文：
-- 当前任务相关的方案片段
-- 锁定决策（D-0N）
-- 任务验收标准
-- 参考实现锚点
-- 相关 learnings（如果存在）
-- 相关 `docs/knowledge.md` 片段
-
-缝合策略：
-- 先复用已有骨架
-- 再替换业务字段
-- 只在差异点写新逻辑
-- 没有参考实现时明确标记 `GREENFIELD`
-
-## Fast / Medium Route
-
-Fast/Medium 路径目标是减少委托和切换成本：
-- 默认不新建 worktree
-- 默认不展开重型 subagent 链
-- 本地直接执行
-- Review + Verify 合并收口
-
-但这些底线不变：
-- 缝合优先
-- TDD 优先
-- 验证证据必须保留
-
-## Medium Route
-
-Medium 路径在 Fast 和 Standard 之间取平衡：
-- 默认不新建 worktree（除非用户要求）
-- 可选择性使用 subagent（任务 > 3 时建议用）
-- Review 用 `compliance-reviewer` 统一审查
-- Verify 用 `superpowers:verification-before-completion`
-
-## Standard Route
-
-Standard 路径保留完整治理能力：
-- Phase 1 可使用 `superpowers:using-git-worktrees`
-- Execute 可使用 `superpowers:subagent-driven-development`
-- Review 可使用 `compliance-reviewer` + `superpowers:requesting-code-review`
-- Verify 可使用 `superpowers:verification-before-completion`
-
-## 审查与验证
-
-无论哪条路径，都必须至少完成：
-- 方案符合性检查
-- 安全风险检查
-- 代码质量检查
-- 验证证据产出（`VERIFICATION.md`）
+### 3. 审查修复（可迭代）
 
 建议顺序：
 
 ```text
-compliance-reviewer（方案符合性 + 安全） -> superpowers:requesting-code-review（代码质量） -> verification（验证）
+compliance-reviewer（方案符合性 + 安全） -> requesting-code-review（代码质量）
 ```
+
+原则：
+- 先确认“做的是对的东西”
+- 再确认“实现是否安全”
+- 最后处理可维护性与代码质量问题
+
+修复后可以继续迭代，直到主要问题收敛。
+
+### 4. 测试与验证
+
+至少需要完成：
+- 编写并更新 `测试计划.md`
+- 执行测试并填写 `测试报告.md`
+- 与验收标准对应的验证
+- 验证证据沉淀到 `VERIFICATION.md`
+
+`测试计划.md` 和 `测试报告.md` 是显式产物：
+- 可以写得轻量
+- 但不应省略
+- Fast 路径可以更简洁，Standard 路径应更完整
+
+## 内部执行说明
+
+以下能力保留，但作为内部实现细节，不应成为默认公开流程：
+- Pattern Scan
+- Context Preparation
+- Wave Execution
+- worktree 隔离
+- `STATE.md` 自动生成初稿
+
+推荐使用方式：
+- Fast / Medium：本地直接执行，必要时合并审查收口
+- Standard：可使用 worktree、subagent、`STATE.md`
 
 ## 输出
 
 ```text
 features/{id}-{name}/
-├── STATE.md
+├── 测试计划.md
+├── 测试报告.md
 ├── VERIFICATION.md
-└── notepads/learnings.md
+└── STATE.md（可选，仅复杂执行时）
 ```
-
-代码和文档的最终收口统一交给 `/tech:commit`。
 
 ## 配套说明
 
-- `STATE.md` 是执行期唯一真相源
-- `VERIFICATION.md` 是进入 `/tech:commit` 的前置条件
+- `VERIFICATION.md` 是进入 `/tech:commit` 的前置证据
+- `测试计划.md` 和 `测试报告.md` 是测试阶段的显式交付物
+- `docs/knowledge.md` 是项目级知识库；如 `notepads/learnings.md` 有沉淀价值，可在交付后回写
 - 同一问题连续失败 3 次，应停止并上升到架构讨论
 
 **委托 superpowers**:
-- Standard Phase 1 → `superpowers:using-git-worktrees`
-- Standard Phase 3 → `superpowers:subagent-driven-development`
-- Standard Phase 4 → `compliance-reviewer` + `superpowers:requesting-code-review`
-- All Routes Verify → `superpowers:verification-before-completion`
+- Standard worktree 隔离 → `superpowers:using-git-worktrees`
+- 代码审查 → `superpowers:requesting-code-review`
+- 完成验证 → `superpowers:verification-before-completion`
 
 **委托 tinypowers agents**:
-- Review 阶段 → `compliance-reviewer`（方案符合性 + 安全审查合一）
+- 方案符合性 + 安全 → `compliance-reviewer`

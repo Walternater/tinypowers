@@ -20,11 +20,11 @@
 
 1. **Skills 即规范** - 把流程写进 skill，而不是散落在团队口头约定里。
 2. **文件即状态** - 关键产物和执行状态落到 Markdown，而不是只存在会话上下文里。
-3. **先约束，后并行** - 先做方案、依赖、决策锁定，再做 Wave 并行执行。
+3. **先约束，后执行** - 先做方案和任务拆解，再进入编码。
 4. **审查顺序有门禁** - 先看是否符合方案，再看安全，最后看代码质量。
 5. **HARD-GATE 强制门禁** - 关键约束必须满足，禁止绕过。
 6. **决策锁定追踪** - 所有关键决策必须记录并可追溯。
-7. **拒绝过度设计** - 框架保持轻量，无外部依赖，够用即可。
+7. **复杂度按需展开** - worktree、知识库、状态恢复都保留，但只在复杂需求时展开。
 
 ## 核心概念
 
@@ -35,7 +35,8 @@
 | 4-Level Verification | 证据驱动的验证（L1 Exists → L4 Data Flow） |
 | Decision Guardian | 决策锁定防漂移，编码阶段不能擅自修改已锁定决策 |
 | Anti-Rationalization | 防止自我合理化绕过门禁 |
-| Wave Execution | 依赖驱动的并行执行，按拓扑分 Wave |
+| Worktree Isolation | 复杂需求可使用独立 worktree 隔离执行 |
+| Knowledge Base | `docs/knowledge.md` + `notepads/learnings.md` 的知识沉淀链路 |
 
 ## 能力地图
 
@@ -44,8 +45,8 @@
 | Skill | 用途 |
 |-------|------|
 | `tech-init` | 初始化目标项目的 AI 工作流骨架 |
-| `tech-feature` | 需求分析、歧义检测、技术方案、任务拆解 |
-| `tech-code` | Wave 并行执行、三阶段审查、状态恢复、TDD 循环 |
+| `tech-feature` | 需求理解、技术方案、任务拆解 |
+| `tech-code` | 开发执行、审查修复、测试验证 |
 | `tech-commit` | 文档同步、提交、PR 流程 |
 
 ### Agents
@@ -95,15 +96,14 @@ configs/rules/
   -> 初始化项目入口、规范、模板、hooks
 
 /tech:feature
-  -> PRD 分析 -> 歧义检测 -> 技术方案 -> 决策锁定 -> 任务拆解
+  -> 需求理解 -> 技术方案 -> 任务拆解 -> 方案确认
 
 /tech:code
-  -> Plan Check -> Wave Execution（TDD + Deviation Rules）
-  -> Spec Review -> Security Review -> Code Review
-  -> Verification（证据验证）
+  -> Gate Check -> 开发执行
+  -> 审查修复 -> 测试计划 / 测试报告 -> 测试验证
 
 /tech:commit
-  -> Document Sync -> Commit -> PR -> Changelog
+  -> Document Sync -> Commit -> PR
 ```
 
 ## 技术栈兼容性
@@ -119,7 +119,8 @@ configs/rules/
 ## 统一约定
 
 - 需求工作目录：`features/{id}-{name}/`
-- 执行状态主文件：`features/{id}-{name}/STATE.md`
+- 生命周期主文件：`features/{id}-{name}/SPEC-STATE.md`
+- 执行状态文件：`features/{id}-{name}/STATE.md`（复杂执行可选）
 - 工作流命令：`/tech:*`
 - 审查顺序：方案符合性 -> 安全 -> 代码质量
 - 决策格式：D-XXX（锁定决策编号）
