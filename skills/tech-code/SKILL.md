@@ -5,132 +5,114 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "6.0"
+  version: "7.0"
 ---
 
 # /tech:code
 
 ## 作用
 
-把 `tech-feature` 产出的任务表和技术方案，落成可恢复、可审查、可验证的实现过程。
-
-本 skill 是**薄编排层**——定义 WHAT（门禁、缝合策略、上下文），委托 superpowers 定义 HOW（怎么派 subagent、怎么做 review、怎么验证）。
+把 `PLAN` 阶段的需求落成可恢复、可审查、可验证的实现过程。
 
 ## 输入
 
-- `features/{id}-{name}/任务拆解表.md`、`技术方案.md`、`STATE.md`、`SPEC-STATE.md`
-- `STATE.md` 不存在则启动时创建
-- `SPEC-STATE.md` 存在时，当前 phase 必须为 `TASKS` 或 `EXEC`
+- `features/{id}-{name}/PRD.md`
+- `features/{id}-{name}/技术方案.md`
+- `features/{id}-{name}/任务拆解表.md`
+- `features/{id}-{name}/SPEC-STATE.md`
+- `features/{id}-{name}/STATE.md`（不存在时进入 `EXEC` 自动生成）
 
-<HARD-GATE>
-**执行前门禁检查** - 以下条件必须全部满足才能进入执行：
-1. `SPEC-STATE.md` 存在且当前 phase 为 `TASKS` 或 `EXEC`
-2. `任务拆解表.md` 存在且通过 `tech-plan-checker` 验证
-3. `技术方案.md` 存在且包含已锁定决策（D-0N 格式）
+## 生命周期约束
 
-如果不满足上述任一条件，禁止进入 Wave Execution，必须先完成对应阶段。
-</HARD-GATE>
+- 进入本 skill 时，`SPEC-STATE` 必须为 `PLAN` 或 `EXEC`
+- 开始执行后推进到 `EXEC`
+- 完成审查和验证后推进到 `REVIEW`
+- 禁止在 `/tech:commit` 前自动提交
 
 ## 主流程
 
 ```text
-Phase 0: Gate Check
-Phase 1: Isolated Worktree Setup
-Phase 2: Context Preparation
-Phase 3: Pattern Scan
-Phase 4: Execute (delegate to superpowers)
-Phase 5: Review (tinypowers agents → superpowers)
-Phase 6: Verify (delegate to superpowers)
+Fast Route:
+  Phase 0F: Gate Check
+  Phase 1F: Pattern Scan + Context Preparation
+  Phase 2F: Execute
+  Phase 3F: Review + Verify
+
+Standard Route:
+  Phase 0: Gate Check
+  Phase 1: Worktree Setup
+  Phase 2: Context Preparation + Pattern Scan
+  Phase 3: Execute
+  Phase 4: Review + Verify
 ```
 
-## 硬约束
+## Gate Check
 
-- 禁止在 `/tech:commit` 之前自动执行 `git commit`
-- **缝合优先**：任务执行前必须搜索项目中最相似的已有实现作为锚点，复制骨架 → 替换业务字段 → 只在差异点写新代码。纯新模块标记 `GREENFIELD` 后可从零编写
-- **TDD 强制门禁**：每个任务的实现必须遵循 RED-GREEN-REFACTOR 循环
-- **偏差 3 次升级**：同一问题连续失败 3 次后停止同方向尝试，上升到架构层讨论
+进入执行前必须确认：
+- `PRD.md` 非空
+- `技术方案.md` 存在且包含锁定决策
+- `任务拆解表.md` 存在且包含明确任务和验收标准
+- `SPEC-STATE.track` 已明确
 
-<TDD-GATE>
-**TDD 例外条款**（不强制 TDD）：
-- 小任务快速修复
-- 纯配置变更（application.yml、properties 等）
-- 文档更新（README、API docs）
-- 基础设施/脚手架代码（Dockerfile、CI 配置等）
-- 原型探索阶段（feature flag 保护的实验性代码）
-</TDD-GATE>
+推进到 `EXEC` 时：
+- 自动生成 `STATE.md`
+- `STATE.md` 应从 `任务拆解表.md` 自动提取 Wave / Task 初稿
 
-## Phase 0: Gate Check
+## Pattern Scan + Context Preparation
 
-确认可以进入执行。
+执行前先做两件事：
 
-- 如果 `SPEC-STATE.md` 存在，更新 phase 为 `EXEC`
-- 调用 `tech-plan-checker` 检查任务表格式、依赖关系、任务粒度
-- 对照 `技术方案.md` 锁定决策，确认无偏离 D-0N 约束
-- 最多重试 3 次，仍失败则暂停
+1. 搜索最相似的已有实现
+2. 只加载当前任务真正需要的上下文
 
-## Phase 1: Isolated Worktree Setup
-
-默认在这里委托 `superpowers:using-git-worktrees` 创建或复用隔离环境。
-
-- `/tech:feature` 默认不建 worktree
-- 如果当前已经在正确的隔离 worktree 中，直接复用
-- 如果不存在隔离环境，完成 Gate Check 后再创建
-
-## Phase 2: Context Preparation
-
-为后续 Phase 预加载上下文。详见 `context-preload.md`。
-
-- 读取 `技术方案.md`、`任务拆解表.md`、`STATE.md`
-- 加载领域知识（`docs/knowledge.md`）
-- 加载 feature 级 learnings（`notepads/learnings.md`）
-
-## Phase 3: Pattern Scan
-
-为每个任务搜索最相似的已有实现。详见 `pattern-scan.md`。
-
-- 按文件类型、业务域、功能模式三个维度搜索
-- 每个任务产出参考锚点或 `GREENFIELD` 标记
-- 缝合策略：标注保留/替换/新增
-
-## Phase 4: Execute
-
-**委托 `superpowers:subagent-driven-development` 执行。**
-
-每个 subagent 的 task prompt 必须包含：
-- 任务描述和验收标准
-- 涉及文件和依赖接口
+必须注入的上下文：
+- 当前任务相关的方案片段
 - 锁定决策（D-0N）
-- Pattern Scan 结果（参考实现 + 缝合策略）
-- 领域知识（按任务裁剪）
-- TDD 要求
+- 任务验收标准
+- 参考实现锚点
+- 相关 learnings（如果存在）
+- 相关 `docs/knowledge.md` 片段
 
-执行过程中发现的 learnings 实时记录到 `notepads/learnings.md`（格式见 `pattern-scan.md`）。
+缝合策略：
+- 先复用已有骨架
+- 再替换业务字段
+- 只在差异点写新逻辑
+- 没有参考实现时明确标记 `GREENFIELD`
 
-## Phase 5: Review
+## Fast Route
 
-先做 tinypowers 专项审查（确认"做对了东西"），再做 superpowers 代码质量审查。
+Fast 路径目标是减少委托和切换成本：
+- 默认不新建 worktree
+- 默认不展开重型 subagent 链
+- 本地直接执行
+- Review + Verify 合并收口
 
-<HARD-GATE>
-**审查顺序不可跳步** — 前一步未通过禁止进入下一步：
-1. 方案符合性未通过 → 禁止进入安全审查
-2. 安全审查未通过 → 禁止进入代码质量审查
-</HARD-GATE>
+但这些底线不变：
+- 缝合优先
+- TDD 优先
+- 验证证据必须保留
+
+## Standard Route
+
+Standard 路径保留完整治理能力：
+- Phase 1 可使用 `superpowers:using-git-worktrees`
+- Execute 可使用 `superpowers:subagent-driven-development`
+- Review 可使用 `superpowers:requesting-code-review`
+- Verify 可使用 `superpowers:verification-before-completion`
+
+## 审查与验证
+
+无论哪条路径，都必须至少完成：
+- 方案符合性检查
+- 安全风险检查
+- 代码质量检查
+- 验证证据产出（`VERIFICATION.md`）
+
+建议顺序：
 
 ```text
-1. agents/spec-compliance-reviewer      — 技术方案符合性（tinypowers 独有）
-2. agents/security-reviewer             — 安全风险审查（tinypowers 独有）
-3. superpowers:requesting-code-review    — 代码质量审查
+方案符合性 -> 安全审查 -> 代码质量 -> 验证
 ```
-
-每步最多重试 3 次，仍失败则暂停。
-
-## Phase 6: Verify
-
-**委托 `superpowers:verification-before-completion` 执行。**
-
-铁律：没有验证证据就不算完成。
-
-默认覆盖率目标：行覆盖率 >= 80%，分支覆盖率 >= 70%，核心业务 >= 90%。项目有更严门槛则以项目为准。
 
 ## 输出
 
@@ -141,23 +123,16 @@ features/{id}-{name}/
 └── notepads/learnings.md
 ```
 
-代码变更统一由 `/tech:commit` 收口（包括知识沉淀）。
+代码和文档的最终收口统一交给 `/tech:commit`。
 
-## 失败与恢复
+## 配套说明
 
-- 门禁失败：先修复再进
-- 执行失败：按 superpowers 的 subagent 失败处理
-- 连续 3 次失败：停止，转入架构质疑
-
-## 配套文档
-
-| 文档 | 作用 |
-|------|------|
-| `context-preload.md` | 上下文预加载 + Anti-Rationalization + 交接检查 |
-| `pattern-scan.md` | 缝合扫描 + Wave 内学习捕获 |
+- `STATE.md` 是执行期唯一真相源
+- `VERIFICATION.md` 是进入 `/tech:commit` 的前置条件
+- 同一问题连续失败 3 次，应停止并上升到架构讨论
 
 **委托 superpowers**:
-- Phase 1 → `superpowers:using-git-worktrees`
-- Phase 4 → `superpowers:subagent-driven-development`
-- Phase 5 → `superpowers:requesting-code-review`
-- Phase 6 → `superpowers:verification-before-completion`
+- Standard Phase 1 → `superpowers:using-git-worktrees`
+- Standard Phase 3 → `superpowers:subagent-driven-development`
+- Standard Phase 4 → `superpowers:requesting-code-review`
+- Standard / Fast Verify → `superpowers:verification-before-completion`

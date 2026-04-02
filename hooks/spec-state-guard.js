@@ -6,7 +6,7 @@
 //   - Edit/Write/MultiEdit on ANY code file in the project
 //   - Bash commands that compile/run code
 //
-// Detection: any features/*/SPEC-STATE.md that exists and phase != CLOSED
+// Detection: any features/*/SPEC-STATE.md that exists and phase != DONE
 // Priority: git branch match > most recently modified SPEC-STATE.md
 // Whitelist: .md/.yaml/.json files always allowed; npm test/lint/validate always allowed
 
@@ -22,7 +22,7 @@ const CODE_EXTENSIONS = new Set([
 
 const PLANNING_EXTENSIONS = new Set(['.md', '.yaml', '.yml', '.json']);
 
-const PHASES = ['INIT', 'REQ', 'DESIGN', 'TASKS', 'EXEC', 'REVIEW', 'VERIFY', 'CLOSED'];
+const PHASES = ['PLAN', 'EXEC', 'REVIEW', 'DONE'];
 
 const CODE_EDIT_ALLOWED_FROM = PHASES.indexOf('EXEC');
 
@@ -83,7 +83,7 @@ function findActiveFeature(cwd) {
         if (fs.existsSync(specState)) {
           const content = fs.readFileSync(specState, 'utf8');
           const phase = extractPhase(content);
-          if (phase === 'CLOSED') continue;
+          if (phase === 'DONE') continue;
 
           const stat = fs.statSync(specState);
           if (stat.mtimeMs > latestMtime) {
@@ -123,8 +123,23 @@ function matchFeatureFromBranch(branch, featureDirs) {
 }
 
 function extractPhase(content) {
-  const match = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|EXEC|REVIEW|VERIFY|CLOSED)/);
-  return match ? match[1] : null;
+  const match = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|PLAN|EXEC|REVIEW|VERIFY|CLOSED|DONE)/);
+  if (!match) {
+    return null;
+  }
+  const aliases = {
+    INIT: 'PLAN',
+    REQ: 'PLAN',
+    DESIGN: 'PLAN',
+    TASKS: 'PLAN',
+    PLAN: 'PLAN',
+    EXEC: 'EXEC',
+    REVIEW: 'REVIEW',
+    VERIFY: 'REVIEW',
+    CLOSED: 'DONE',
+    DONE: 'DONE'
+  };
+  return aliases[match[1]] || null;
 }
 
 function isCodeFile(relPath) {
@@ -165,7 +180,7 @@ function buildBlockMessage(activeFeature, phaseLabel, detail) {
     '，不允许执行代码操作。\n\n' +
     detail + '\n\n' +
     'Feature: ' + activeFeature + '\n' +
-    '阶段推进：INIT → REQ → DESIGN → TASKS → EXEC（此时才允许写代码）\n\n' +
+    '阶段推进：PLAN → EXEC（此时才允许写代码）→ REVIEW → DONE\n\n' +
     '当前允许：编辑 .md/.yaml/.json 规划文档\n\n' +
     '如需强制推进：\n' +
     '  node scripts/update-spec-state.js --feature ' + activeFeature +
@@ -205,7 +220,7 @@ process.stdin.on('end', () => {
       process.exit(0);
     }
 
-    const phaseLabels = { 0: 'INIT', 1: 'REQ', 2: 'DESIGN', 3: 'TASKS' };
+    const phaseLabels = { 0: 'PLAN' };
     const phaseLabel = phaseLabels[phaseIndex] || phase;
 
     if (toolName === 'Bash') {

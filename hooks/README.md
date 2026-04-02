@@ -62,6 +62,7 @@ export TINYPOWERS_HOOK_LEVEL=standard
 当前约定：
 - `features/{id}-{name}/STATE.md` 是恢复主数据源
 - `/tmp/tinypowers-session-{session_id}.json` 是恢复入口快照
+- `STATE.md` 在进入 `EXEC` 时会优先根据 `任务拆解表.md` 自动生成初稿
 
 恢复流程：
 

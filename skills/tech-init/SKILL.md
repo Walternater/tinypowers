@@ -12,274 +12,144 @@ metadata:
 
 ## 作用
 
-`/tech:init` 用于在一个目标项目里落地 tinypowers 的基础工作流骨架。
-
-本 skill 是 **tinypowers 独有**（无 superpowers 委托），负责项目首次接入时的骨架落地。
-
-从 `v4.0` 开始，`/tech:init` 明确只支持 Java 项目初始化，避免“检测到多栈，但只能生成 Java 产物”的误导。
+`/tech:init` 用于把 tinypowers 的基础工作流骨架落到目标项目中。当前只支持 Java 项目初始化。
 
 ## 初始化目标
 
-执行完成后，目标项目通常应具备：
-- `CLAUDE.md` 入口文件
-- `docs/guides/` 指南文档
-- `docs/knowledge.md` 领域知识库（从项目代码动态提取）
-- `configs/rules/` 规则目录
-- `features/` 需求工作目录
-- `.claude/` 本地配置目录（hooks + settings）
+执行完成后，目标项目至少应具备：
+- `CLAUDE.md`
+- `docs/guides/development-spec.md`
+- `docs/guides/workflow-guide.md`
+- `docs/knowledge.md`（小项目可只放空模板）
+- `configs/rules/common/`
+- `configs/rules/java/`
+- `features/`
+- `.claude/settings.json`
+- `.claude/hooks/`
 
-## 核心特性
+## 核心原则
 
-- 自动检测 Java 技术栈
-- 初始化前让用户确认检测结果
-- 支持增量更新，不默认覆盖已有内容
-- 自动替换模板变量
-- 空项目可用的变量回退策略
-- 直接生成可工作的 `.claude/` 配置
-- 边界场景通过预检静默分流
-- 保持 `CLAUDE.md` 精简，只做入口
+- Java-only，避免给非 Java 项目生成误导性 guides 和规则
+- 小项目知识库默认 lazy mode：创建模板即可，不强制做重扫描
+- 初始化动作尽量脚本化，AI 负责检测、确认和验证
 
 ## 主流程
 
-进入主流程前，先执行一轮非交互预检；只有通过预检后，才进入下面的 6 步主流程。
-
 ```text
+0. 预检（框架仓库 / 非 Java / 已初始化）
 1. 技术栈检测
-2. 领域知识扫描
-3. 确认检测结果 + 选择更新策略
-4. 落地入口、规则、guide、.claude/
-5. 生成领域知识库
-6. 执行初始化验证并输出下一步建议
+2. 检测结果确认
+3. 选择更新策略
+4. 运行 init-project.js 落地骨架
+5. 可选知识扫描 / lazy mode
+6. 执行初始化验证
 ```
 
-## 详细步骤
+## 0. 预检
 
-### 执行前预检
+以下情况直接停止或降级：
+- 检测到 tinypowers 框架仓库自身
+- 检测到 Node.js / Go / Python / Rust 等非 Java 项目
+- 用户只想查看检测结果，不想真正写入项目
 
-预检是 guard clause，不属于用户感知的主流程步骤。
+## 1. 技术栈检测
 
-它的目标是先拦住“继续执行只会产出错误结果”的场景。当前覆盖：
-- 框架仓库自举保护
-- 非 Java 项目短路退出
-- `.claude/` 初始化依赖缺失时停止落地
+当前只接受这些强信号：
+- `pom.xml` -> Java (Maven)
+- `build.gradle` / `build.gradle.kts` -> Java (Gradle)
+- `src/main/java` -> Java 辅助信号
 
-判定规则和分流动作见：
-- `bootstrap-guard.md`
+框架特征用于补充规则建议：
+- `org.springframework.*` -> Spring Boot
+- MyBatis 依赖 -> MyBatis
+- `mysql` / `flyway` / `liquibase` -> 同时加载 MySQL 规则
 
-### 1. 技术栈检测
+默认值：
+- Maven 构建命令：`mvn test`
+- Gradle 构建命令：`./gradlew check`
+- 默认分支模式：`feature/{id}-{short-desc}`
 
-通过根目录文件、目录结构和依赖特征判断项目类型。
+## 2. 检测结果确认
 
-常见识别来源：
-- `pom.xml`
-- `build.gradle`
-- `src/main/java`
+至少向用户确认：
+- 主技术栈
+- 构建工具和默认构建命令
+- 推荐规则集
+- 是否需要 MySQL 规则
 
-检测细节见：
-- `stack-detection.md`
-
-支持范围：
-- `Java (Maven)`
-- `Java (Gradle)`
-
-如果检测结果不是 Java，默认不要继续初始化，而是明确提示当前规则集尚未覆盖该栈。
-
-### 2. 领域知识扫描
-
-技术栈检测完成后，扫描项目代码提取领域知识，为 `docs/knowledge.md` 准备内容。
-
-**核心原则**：只提取模型无法从公开资料获取的内容。
-
-**输出**：一份领域知识清单，在 Step 5 写入 `docs/knowledge.md`。
-
-**空项目处理**：项目没有足够源码时跳过扫描，`docs/knowledge.md` 留空模板，后续由物料飞轮填充。
-
-扫描策略、采样方法和输出格式详见 `knowledge-scanning.md`。
-
-### 3. 确认检测结果 + 选择更新策略
-
-检测结果不是最终事实，用户确认才是。
-
-确认时至少要让用户看到：
-- 检测到的主技术栈
-- 推荐加载的规则集
-- 建议初始化的指南文档
-- 建议生成的 `.claude/` 内容
-
-如果项目根目录已经有 `CLAUDE.md` 或 `.claude/settings.json`，说明大概率不是首次接入。
-
-这时不应直接覆盖，而应进入策略选择。
+## 3. 更新策略
 
 支持三种策略：
-
-| 策略 | 含义 |
-|------|------|
-| `Update` | 只补缺失内容，尽量保留现有配置 |
-| `Skip` | 完全不改动 |
-| `Overwrite` | 删除后重建，风险最高 |
+- `Update`：只补缺失内容
+- `Skip`：不改动
+- `Overwrite`：重建入口和本地配置
 
 默认推荐 `Update`。
 
-策略选择规则：
-- `Update`：项目已有 `CLAUDE.md` 或部分 guides / rules，只想补齐缺失项
-- `Skip`：用户只想看检测结果，或当前项目已有自定义体系不希望接入
-- `Overwrite`：旧入口和 guides 明显过时，且用户明确接受重建
+## 4. 运行 init-project.js
 
-`Overwrite` 必须二次确认，并清楚提示将被替换的内容，例如 `CLAUDE.md`、`docs/guides/*.md`、`.claude/settings.json`。
-
-### 4. 落地入口、规则、guide、`.claude/`
-
-按确认后的技术栈加载：
-- `configs/rules/common/`
-- `configs/rules/java/`
-- 如检测到 MySQL 相关特征，再加载 `configs/rules/mysql/`
-
-默认规则映射：
-
-| 源路径 | 目标路径 |
-|--------|----------|
-| `configs/rules/common/coding-style.md` | `configs/rules/common/coding-style.md` |
-| `configs/rules/common/security.md` | `configs/rules/common/security.md` |
-| `configs/rules/common/testing.md` | `configs/rules/common/testing.md` |
-| `configs/rules/common/code-review-checklist.md` | `configs/rules/common/code-review-checklist.md` |
-| `configs/rules/java/java-coding-style.md` | `configs/rules/java/java-coding-style.md` |
-| `configs/rules/java/testing.md` | `configs/rules/java/testing.md` |
-
-Guide 产出要求：
-
-- `docs/guides/development-spec.md` 必须与 Java 项目匹配
-- 不得继续输出 Node.js / Go / Python 的误导性内容
-
-模板复制与变量替换要求：
-
-会用项目上下文替换模板变量，例如：
-- `{{project_name}}`
-- `{{tech_stack}}`
-- `{{build_tool}}`
-- `{{branch_pattern}}`
-- `{{author}}`
-- `{{hooks_dir}}`
-
-默认目录与复制规则：
-- 推荐创建 `docs/`、`docs/guides/`、`configs/rules/`、`features/`、`.claude/`
-- `configs/templates/` 本身属于框架资源，不必整目录复制到目标项目；真正立即有价值的是入口、guides 和 rules
-- 目标不存在时创建；已存在时优先保留用户内容；仅在明显还是模板变量未替换时做替换
-
-变量回退策略和 `.claude/` 初始化细节见：
-- `claude-init.md`
-
-`.claude/` 初始化至少包括：
-
-- 复制核心 hooks 到 `.claude/hooks/`
-- 基于模板生成 `.claude/settings.json`
-- 如果 `.claude/settings.json` 已存在，默认 merge，不覆盖用户已有 `permissions` 和 `tools`
-
-### 5. 生成领域知识库
-
-将 Step 2 扫描得到的领域知识写入 `docs/knowledge.md`。
-
-**生成规则**：
-- 使用 `configs/templates/knowledge.md` 作为骨架
-- 将扫描到的条目填入对应分区（组件用法 / 平台约束 / 踩坑记录）
-- 如果项目没有足够的源码，保留空模板
-- 如果 `docs/knowledge.md` 已存在，增量追加不覆盖
-
-**生成时机**：放在模板复制之后、验证之前，因为验证步骤需要检查知识库文件是否存在。
-
-### 6. 初始化验证
-
-初始化完成后，要确认：
-- 目录存在
-- 关键文件存在
-- 模板变量已替换
-- 规则和技术栈匹配
-- `.claude/` 已可工作
-- 链接没有明显断裂
-
-至少检查：
-
-- `CLAUDE.md` 存在且不包含未替换变量
-- `docs/guides/development-spec.md` 存在
-- `docs/knowledge.md` 存在
-- `features/` 存在
-- `.claude/hooks/spec-state-guard.js` 存在
-- `.claude/settings.json` 存在且可解析
-- `configs/rules/common/coding-style.md` 存在
-- `configs/rules/java/java-coding-style.md` 存在
-
-可以用类似方式快速检查：
+真正落地动作由脚本完成：
 
 ```bash
-test -f CLAUDE.md
-test -f docs/guides/development-spec.md
-test -f docs/knowledge.md
-test -d features
-test -f .claude/settings.json
-! grep -q '{{project_name}}' CLAUDE.md
+node "${TINYPOWERS_DIR}/scripts/init-project.js" \
+  --root . \
+  --project-name {project_name} \
+  --tech-stack "Java (Maven)" \
+  --tech-stack-short java \
+  --build-tool Maven \
+  --build-command "mvn test" \
+  --include-mysql
 ```
 
-## 典型输出
+脚本负责：
+- 创建目录
+- 复制 guides
+- 复制规则
+- 复制 hooks
+- 渲染 `CLAUDE.md`
+- 渲染 `.claude/settings.json`
 
-```text
-=== 初始化完成 ===
+`.claude` 细节和 merge 规则保留在：
+- `claude-init.md`
 
-策略: Update
-项目类型: Java (Maven)
+## 5. 知识扫描 / lazy mode
 
-已加载:
-- common/coding-style
-- common/security
-- common/testing
-- java/java-coding-style
-- mysql/*
+只记录模型无法从公开资料获取的内容：
+- 内部依赖的特殊用法
+- 平台级约束
+- 隐蔽坑位
 
-已创建:
-- CLAUDE.md
-- docs/guides/
-- docs/knowledge.md (领域知识: 3 组件用法, 2 平台约束)
-- features/
-- .claude/hooks/
-- .claude/settings.json
+采样即可，不做全量扫描。以下情况默认 lazy mode：
+- 空项目
+- 只有构建文件，没有实现代码
+- 采样文件不足 2 个
 
-领域知识扫描:
-- 内部依赖: @company/common-utils, @company/auth-sdk
-- 请求封装: 统一 Response<T> 包装, GlobalExceptionHandler 模式
-- 目录惯例: Controller -> Service -> Mapper 三层分包
+lazy mode 下只创建 `docs/knowledge.md` 模板。
 
-下一步:
-/tech:feature
+## 6. 初始化验证
+
+初始化完成后执行：
+
+```bash
+node "${TINYPOWERS_DIR}/scripts/validate.js"
 ```
 
-## 默认忽略项
-
-初始化过程中默认跳过这类文件或目录：
-
-```text
-.git/
-node_modules/
-target/
-build/
-*.class
-*.log
-.env*
-*.pem
-*.key
-```
+重点检查：
+- guide 是否齐全
+- hooks 和 settings 是否存在
+- 模板变量是否已替换
+- Java 规则是否已落地
 
 ## 配套文档
 
 | 文档 | 作用 |
 |------|------|
-| `bootstrap-guard.md` | 主流程前的边界场景预检与 repo 自举保护 |
-| `stack-detection.md` | 技术栈检测规则 |
-| `knowledge-scanning.md` | 领域知识扫描策略和输出格式 |
-| `claude-init.md` | `.claude/` 初始化、merge 与变量回退规则 |
+| `claude-init.md` | `.claude/` 初始化和 merge 规则 |
+| `scripts/init-project.js` | 初始化自动化脚本 |
+| `scripts/validate.js` | 初始化后完整性校验 |
 
 ## Gotchas
 
-> 已知失败模式，从实际使用中发现，有机增长。
-
-- **检测到已存在文件就跳过初始化**：但已存在的 `CLAUDE.md` 或 `.claude/settings.json` 可能过时，配置会不同步。优先使用 `Update` 补齐缺失项，或在明确确认后使用 `Overwrite`
-- **在空目录下初始化**：没有任何源码文件，栈检测失效。至少需要有 `pom.xml`、`build.gradle` 或 `src/main/java`
-- **对非 Java 项目继续初始化**：会生成不匹配的 guide 和规则。应在 Step 1 后直接停止，而不是硬着头皮继续
-- **覆盖已有配置而不备份**：强制覆盖后原配置丢失，无法回滚。init 默认跳过已存在文件，不会自动备份
+- 空项目不要强做知识扫描，成本高于收益
+- 非 Java 项目不要继续初始化，否则会得到不匹配的入口文档
+- 已存在的 `.claude/settings.json` 不应盲目覆盖，应先走更新策略

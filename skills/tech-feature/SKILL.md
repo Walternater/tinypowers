@@ -5,151 +5,181 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.0"
+  version: "6.0"
 ---
 
 # /tech:feature
 
 ## 作用
 
-把一个模糊需求整理成"可执行的需求定义"。本 skill 是**薄编排层**——定义 WHAT（门禁、产物、决策锁定），需求探索遵循 `superpowers:brainstorming` 方法论，任务拆解委托 `superpowers:writing-plans`。
+把一个模糊需求整理成“可执行的计划态”。本 skill 负责复杂度分级、需求澄清、方案锁定和任务拆解，并把生命周期状态统一收口到 `PLAN`。
 
-## 最终产物
+## 默认骨架
+
+Standard / Fast 都只预生成最小必需工件：
 
 ```text
 features/{需求编号}-{需求名称}/
-├── CHANGESET.md
 ├── SPEC-STATE.md
 ├── PRD.md
-├── 需求理解确认.md
 ├── 技术方案.md
 ├── 任务拆解表.md
-├── 评审记录.md
-├── notepads/
-│   └── learnings.md
-├── seeds/
-└── archive/
+└── notepads/
+    └── learnings.md
 ```
 
-## Spec 状态机
+按需创建而不预生成：
+- `CHANGESET.md`
+- `评审记录.md`
+- `seeds/`
+- `archive/`
 
-每个 Feature 必须在 Phase 0 创建 `SPEC-STATE.md`，并在每个 Phase 完成后更新阶段标记。
+## 生命周期状态
+
+`SPEC-STATE.md` 使用 4 态状态机：
 
 ```text
-INIT → REQ → DESIGN → TASKS → EXEC → REVIEW → VERIFY → CLOSED
+PLAN -> EXEC -> REVIEW -> DONE
 ```
 
-前置条件：
+- `/tech:feature` 结束时，Feature 应停留在 `PLAN`
+- `/tech:code` 进入执行时推进到 `EXEC`
+- `/tech:code` 完成审查和验证后推进到 `REVIEW`
+- `/tech:commit` 提交完成后推进到 `DONE`
 
-| 推进到 | 必须存在的产物 |
-|--------|--------------|
-| REQ | PRD.md 非空 |
-| DESIGN | 需求理解确认.md 含"已确认" |
-| TASKS | 技术方案.md 含已锁定决策 |
-| EXEC | 任务拆解表.md 通过 plan-check |
+## 复杂度分级
+
+Phase 0 必须先做分级：
+
+- `Fast`：单模块或单链路、无表结构变更、无安全敏感、预计 1-2 个任务可完成
+- `Standard`：超出以上任意一条，或需求仍存在明显歧义
+- `Complex`：跨系统、架构级变更、预计超过 2 周
+
+当前 skill 实际支持：
+- `Fast`
+- `Standard`
+
+`Complex` 暂按 `Standard` 走，但应额外增加人工评审。
 
 ## 主流程
 
 ```text
-Phase 0: 准备（种子扫描 + change set 骨架）
-Phase 1: 需求理解（tinypowers 独有）
-Phase 2: 歧义检测 + 多方案探索（方法论: superpowers:brainstorming）
-Phase 3: 技术方案（tinypowers agents/architect）
-Phase 4: 任务拆解（委托 superpowers:writing-plans）
-Phase 5: 任务表验证（tinypowers agents/tech-plan-checker）
+Phase 0: 准备（解析需求 + 分级 + 脚手架）
+
+Fast Route:
+  Phase 1F: 需求理解 + 最小方案
+  Phase 2F: 最小任务拆解 + PLAN 收口
+
+Standard Route:
+  Phase 1: 需求理解
+  Phase 2: 歧义检测 + 方案探索
+  Phase 3: 技术方案 + 决策锁定
+  Phase 4: 任务拆解 + PLAN 收口
 ```
-
-## 硬约束
-
-- SPEC-STATE 阶段推进禁止跳步
-- 技术方案完成后必须显式确认，不能用普通文字代替
-- 已确认决策在 `/tech:code` 阶段不能被擅自推翻
-- 任务拆解完成后必须显式确认，不能直接流入 `/tech:code`
 
 ## Phase 0: 准备
 
-### 种子扫描
-
-开始新需求前，先扫描已有 `features/*/seeds/`：
-- 找出和当前需求相关的 dormant 种子
-- 询问用户是否纳入本次需求
-- 如果纳入，更新种子状态并合并到分析上下文
-
-### 解析需求
-
-从输入中提炼：需求 ID、简短描述、对应目录名。
-
-### 创建目录骨架
+1. 解析需求 ID、标题、目录名
+2. 判断 `track: fast | standard`
+3. 运行脚手架：
 
 ```bash
-node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {name}
+node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {name} --track {fast|standard}
 ```
 
-如果未设置 `TINYPOWERS_DIR`，有两个 fallback：
-- 把 `TINYPOWERS_DIR` 替换成 tinypowers 的实际安装目录
-- 项目级安装时直接运行 `node .claude/skills/tinypowers/scripts/scaffold-feature.js --root . --id {id} --name {name}`
+4. 明确输出：
+- 为什么选择这个 track
+- 当前需求是否需要额外 worktree（默认不需要）
+- 哪些文档是按需补，不预生成
 
-默认**不**在 `/tech:feature` 阶段创建 worktree。隔离环境由 `/tech:code` Phase 0 在正式开工前创建。
+## Fast Route
 
-## Phase 1: 需求理解
+适用于小需求快路径，目标是把流程压到 2 个阶段，但仍保留计划质量。
 
-读取 PRD，形成理解摘要，逐项确认。详见 `requirements-guide.md`。
+### Phase 1F: 需求理解 + 最小方案
 
-要回答的问题：
-- 为什么做这个需求
-- 谁会使用
-- 本次范围
+- 在 `PRD.md` 写清背景、范围、验收标准
+- 用 `requirements-guide.md` 的问题框架快速确认：
+  - 为什么做
+  - 谁使用
+  - In Scope / Out of Scope
+  - 验收标准
+- 在 `技术方案.md` 补齐：
+  - 参考实现锚点
+  - 最小设计
+  - 锁定决策（至少 1 条 D-0N）
+
+### Phase 2F: 最小任务拆解 + PLAN 收口
+
+- 在 `任务拆解表.md` 中压缩为 1-2 个最小可执行任务
+- 每个任务必须写清：
+  - 验收标准
+  - 涉及文件/模块
+  - 验证方式
+- 明确是否允许并行
+- 完成后保持 `SPEC-STATE = PLAN`
+
+Fast 路径一旦出现这些信号，应立即升级为 `Standard`：
+- 需求仍有高优先级歧义
+- 技术方案需要权衡多个方案
+- 任务超过 2 个
+- 发现跨模块或跨系统依赖
+
+## Standard Route
+
+### Phase 1: 需求理解
+
+读取 `PRD.md`，用 `requirements-guide.md` 形成结构化理解：
+- 背景和目标
+- 用户与场景
+- 功能范围
 - 验收标准
 - 非功能需求
 
-## Phase 2: 歧义检测 + 多方案探索
+### Phase 2: 歧义检测 + 方案探索
 
-**遵循 `superpowers:brainstorming` 方法论。**
+遵循 `ambiguity-check.md`，先识别高优先级歧义，再用 `superpowers:brainstorming` 探索 2-3 个可行方案。
 
-歧义检测先消除模糊点（详见 `ambiguity-check.md`），然后按 brainstorming 方法论探索 2-3 种可行方案并给出推荐。
+### Phase 3: 技术方案 + 决策锁定
 
-brainstorming 的输出直接作为技术方案的输入。
+`技术方案.md` 至少要覆盖：
+- 目标与范围
+- 核心流程
+- 接口 / 数据 / 配置影响
+- 风险与回滚
+- 锁定决策
 
-## Phase 3: 技术方案
-
-调用 `agents/architect` 生成技术方案。详见 `tech-design-guide.md`、`@agents/decision-guardian.md`。
-
-### 决策锁定
-
-方案确认后，关键决策写入持久化记忆并同步记录到 `技术方案.md`：
-
+关键决策应记录为稳定 ID：
 - D-01 架构 / 框架选型
 - D-02 数据结构 / 表结构
 - D-03 对外接口契约
 - D-04 中间件或依赖选型
 - D-05 特殊安全方案
 
-## Phase 4: 任务拆解
+### Phase 4: 任务拆解 + PLAN 收口
 
-**委托 `superpowers:writing-plans` 完成。**
+复杂需求可委托 `superpowers:writing-plans`，但输出必须满足：
+- 层级清晰（Epic / Story / Task）
+- 每个 Task 可验证
+- 每个 Task 粒度可执行
+- 依赖关系明确
 
-writing-plans 接收技术方案 + 决策锁定的上下文，产出可执行的任务拆解表。
+完成后保持 `SPEC-STATE = PLAN`，进入 `/tech:code`。
 
-tinypowers 的补充要求（注入到 writing-plans 的上下文中）：
-- 拆解层级：Epic → Story → Task
-- 每个 Task ≤ 1 人天（8h）
-- 必须有依赖关系和可验证的验收标准
-- 验收标准不允许"功能正常"等模糊描述
+## PLAN 阶段门禁
 
-## Phase 5: 任务表验证
-
-调用 `agents/tech-plan-checker` 验证任务表格式、依赖关系、任务粒度。
-
-验证通过后 SPEC-STATE 推进到 `TASKS`，可以进入 `/tech:code`。
+进入 `/tech:code` 前至少要满足：
+- `PRD.md` 存在且非空
+- `技术方案.md` 存在且包含锁定决策
+- `任务拆解表.md` 存在且任务可执行
+- `track` 已明确，且与文档体量匹配
 
 ## 完成标准
 
-- `PRD.md` 已存在且可读
-- 已形成需求理解确认
-- 高优先级歧义已澄清或被显式记录
-- `技术方案.md` 已确认
-- 关键决策已锁定
-- `任务拆解表.md` 已确认可执行
+- 需求已被清晰表述
+- 方案已被锁定到可执行粒度
+- 任务顺序和验收方式明确
+- 他人接手时能直接进入 `/tech:code`
 
 ## 配套文档
 
@@ -157,19 +187,13 @@ tinypowers 的补充要求（注入到 writing-plans 的上下文中）：
 |------|------|
 | `requirements-guide.md` | 需求理解引导 |
 | `ambiguity-check.md` | 歧义检测规则 |
-| `tech-design-guide.md` | 技术方案设计引导 |
-| `verification.md` | 完成验证标准 |
 
 **委托 superpowers**:
-- Phase 4 → `superpowers:writing-plans`
-
-**方法论引用**:
-- Phase 1+2 → `superpowers:brainstorming`
+- Standard Phase 2 → `superpowers:brainstorming`
+- Standard Phase 4 → `superpowers:writing-plans`
 
 ## Gotchas
 
-- **跳过歧义检测直接做方案**：觉得"基本清楚"就开始设计 → 方案在实现时发现需求冲突 → 歧义检测高优先级项必须清零才能进 DESIGN
-- **方案不做用户确认就拆任务**：AI 自己的理解替代用户意图 → 返工 → 方案完成后必须显式确认
-- **任务粒度过大**：把"实现订单模块"当一个 Task → 无法评估进度 → Task 必须 ≤ 1 人天
-- **不探索上下文直接设计**：对现有代码结构不熟悉就提方案 → 与现有模式冲突或重复造轮子 → Phase 1 必须先了解项目上下文
-- **单方案直接实现**：只提一个方案 → 用户失去选择权且容易选错 → 必须提出 2-3 方案 + trade-offs
+- 小需求套完整流程会导致大量空文档，应优先判定 `Fast`
+- 决策不锁定，`/tech:code` 很容易边写边改方向
+- 任务只有“功能正常”这类模糊验收标准，后续验证一定会失焦
