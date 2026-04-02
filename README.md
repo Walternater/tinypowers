@@ -55,9 +55,7 @@
 - `decision-guardian`：锁定关键决策，防止编码阶段擅自漂移
 
 #### 审查与验证
-- `tech-plan-checker`：执行前验证任务拆解表（含拓扑排序）
-- `spec-compliance-reviewer`：先审"是不是实现了方案要求的东西"
-- `security-reviewer`：再审安全风险
+- `compliance-reviewer`：方案符合性 + 安全审查（合二为一）
 
 > 委托 superpowers：`writing-plans`（任务拆解）、`requesting-code-review`（代码审查）、`verification-before-completion`（完成验证）
 

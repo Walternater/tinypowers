@@ -30,9 +30,7 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 |------|------|
 | `architect` | 技术方案设计 |
 | `decision-guardian` | 锁定关键决策，防止实现漂移 |
-| `tech-plan-checker` | 编码前检查任务表和依赖关系 |
-| `spec-compliance-reviewer` | 先审是否符合技术方案 |
-| `security-reviewer` | 再审安全风险 |
+| `compliance-reviewer` | 方案符合性 + 安全审查（合二为一） |
 
 > **已委托 superpowers:** 任务拆解 → `superpowers:writing-plans`，代码审查 → `superpowers:requesting-code-review`，完成验证 → `superpowers:verification-before-completion`
 

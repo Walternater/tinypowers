@@ -38,6 +38,12 @@ Fast / Medium Route:
   Phase 2F: Execute
   Phase 3F: Review + Verify
 
+Medium Route:
+  Phase 0M: Gate Check
+  Phase 1M: Pattern Scan + Context Preparation
+  Phase 2M: Execute
+  Phase 3M: Review + Verify
+
 Standard Route:
   Phase 0: Gate Check
   Phase 1: Worktree Setup
@@ -107,12 +113,20 @@ Fast/Medium 路径目标是减少委托和切换成本：
 - TDD 优先
 - 验证证据必须保留
 
+## Medium Route
+
+Medium 路径在 Fast 和 Standard 之间取平衡：
+- 默认不新建 worktree（除非用户要求）
+- 可选择性使用 subagent（任务 > 3 时建议用）
+- Review 用 `compliance-reviewer` 统一审查
+- Verify 用 `superpowers:verification-before-completion`
+
 ## Standard Route
 
 Standard 路径保留完整治理能力：
 - Phase 1 可使用 `superpowers:using-git-worktrees`
 - Execute 可使用 `superpowers:subagent-driven-development`
-- Review 可使用 `superpowers:requesting-code-review`
+- Review 可使用 `compliance-reviewer` + `superpowers:requesting-code-review`
 - Verify 可使用 `superpowers:verification-before-completion`
 
 ## 审查与验证
@@ -126,7 +140,7 @@ Standard 路径保留完整治理能力：
 建议顺序：
 
 ```text
-方案符合性 -> 安全审查 -> 代码质量 -> 验证
+compliance-reviewer（方案符合性 + 安全） -> superpowers:requesting-code-review（代码质量） -> verification（验证）
 ```
 
 ## 输出
@@ -149,5 +163,8 @@ features/{id}-{name}/
 **委托 superpowers**:
 - Standard Phase 1 → `superpowers:using-git-worktrees`
 - Standard Phase 3 → `superpowers:subagent-driven-development`
-- Standard Phase 4 → `superpowers:requesting-code-review`
-- Standard / Fast Verify → `superpowers:verification-before-completion`
+- Standard Phase 4 → `compliance-reviewer` + `superpowers:requesting-code-review`
+- All Routes Verify → `superpowers:verification-before-completion`
+
+**委托 tinypowers agents**:
+- Review 阶段 → `compliance-reviewer`（方案符合性 + 安全审查合一）

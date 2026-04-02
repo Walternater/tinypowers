@@ -55,4 +55,5 @@ REVIEW -> DONE:   代码已提交，VERIFICATION.md 结论 = PASS
 ```
 
 `track: standard` 默认使用 `mode: strict`，按 `PLAN -> EXEC -> REVIEW -> DONE` 顺序推进。
+`track: medium` 默认使用 `mode: relaxed`，允许跳过歧义检测和 brainstorming，PLAN 文档精简（~80 行技术方案），SPEC-STATE 允许 `PLAN -> EXEC` 直达。
 `track: fast` 默认使用 `mode: relaxed`，允许更轻的 PLAN 文档，但进入 `EXEC` 后仍必须顺序推进。
