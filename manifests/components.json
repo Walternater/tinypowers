@@ -22,6 +22,7 @@
         "scripts/validate.js",
         "scripts/install-manifest.js",
         "scripts/doctor.js",
+        "scripts/init-project.js",
         "scripts/repair.js",
         "scripts/scaffold-feature.js",
         "scripts/update-spec-state.js",

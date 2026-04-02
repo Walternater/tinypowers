@@ -12,7 +12,7 @@
 //   6. Agent 推荐章节存在性检查
 //   7. Contexts 和 Rules 目录结构验证
 //   8. Runtime 入口和边界策略验证
-//   9. Feature change set 骨架完整性验证
+//   9. Feature 规划骨架完整性验证
 //
 // 退出码: 0 = 全部通过, 1 = 存在错误
 
@@ -34,6 +34,7 @@ const VIRTUAL_OUTPUT_REFERENCES = new Set([
   'SPEC-STATE.md',
   'STATE.md',
   'VERIFICATION.md',
+  '评审记录.md',
   '任务拆解表.md',
   '技术方案.md',
   'learnings.md'
@@ -615,60 +616,73 @@ function validateSpecState() {
     }
 
     const content = fs.readFileSync(specStatePath, 'utf8');
-    const phaseMatch = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|EXEC|REVIEW|VERIFY|CLOSED)/);
+    const phaseMatch = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|PLAN|EXEC|REVIEW|VERIFY|CLOSED|DONE)/);
+    const trackMatch = content.match(/track:\s*(standard|fast)/);
 
     if (!phaseMatch) {
       warn(rel, 0, 'phase 字段缺失或值无效');
       continue;
     }
 
-    const phase = phaseMatch[1];
-    const phaseOrder = ['INIT', 'REQ', 'DESIGN', 'TASKS', 'EXEC', 'REVIEW', 'VERIFY', 'CLOSED'];
-    const phaseIndex = phaseOrder.indexOf(phase);
+    if (!trackMatch) {
+      warn(rel, 0, 'track 字段缺失或值无效');
+      continue;
+    }
 
-    const requiredArtifacts = [
-      { minPhase: 'REQ', file: 'PRD.md' },
-      { minPhase: 'DESIGN', file: '需求理解确认.md' },
-      { minPhase: 'TASKS', file: '技术方案.md' },
-      { minPhase: 'EXEC', file: '任务拆解表.md' },
-    ];
+    const phase = phaseMatch[1];
+    const track = trackMatch[1];
+    const phaseOrder = ['PLAN', 'EXEC', 'REVIEW', 'DONE'];
+    const canonicalPhase = ({ INIT: 'PLAN', REQ: 'PLAN', DESIGN: 'PLAN', TASKS: 'PLAN', PLAN: 'PLAN', EXEC: 'EXEC', REVIEW: 'REVIEW', VERIFY: 'REVIEW', CLOSED: 'DONE', DONE: 'DONE' })[phase];
+    const phaseIndex = phaseOrder.indexOf(canonicalPhase);
+
+    const requiredArtifacts = track === 'fast'
+      ? [
+          { minPhase: 'PLAN', file: 'PRD.md' },
+          { minPhase: 'PLAN', file: '技术方案.md' },
+          { minPhase: 'EXEC', file: '任务拆解表.md' }
+        ]
+      : [
+          { minPhase: 'PLAN', file: 'PRD.md' },
+          { minPhase: 'PLAN', file: '技术方案.md' },
+          { minPhase: 'EXEC', file: '任务拆解表.md' }
+        ];
 
     let allOk = true;
     for (const req of requiredArtifacts) {
       const reqIndex = phaseOrder.indexOf(req.minPhase);
       if (phaseIndex >= reqIndex) {
         if (!fs.existsSync(path.join(featureDir, req.file))) {
-          error(rel, 0, 'phase=' + phase + ' 但缺少产物: ' + req.file);
+          error(rel, 0, 'phase=' + canonicalPhase + ' 但缺少产物: ' + req.file);
           allOk = false;
         }
       }
     }
 
     if (allOk) {
-      ok(rel, 'phase=' + phase);
+      ok(rel, 'phase=' + canonicalPhase + ', track=' + track);
     }
   }
 }
 
 function validateFeatureScaffold() {
-  console.log('\n=== Change Set 骨架校验 ===\n');
+  console.log('\n=== Feature 规划骨架校验 ===\n');
 
   const requiredTemplates = [
-    'configs/templates/change-set.md',
     'configs/templates/spec-state.md',
     'configs/templates/state.md',
     'configs/templates/prd-template.md',
-    'configs/templates/requirements-confirmation.md',
+    'configs/templates/settings.json',
     'configs/templates/tech-design.md',
+    'configs/templates/tech-design-fast.md',
     'configs/templates/task-breakdown.md',
-    'configs/templates/review-log.md'
+    'configs/templates/task-breakdown-fast.md'
   ];
 
   for (const relPath of requiredTemplates) {
     if (fs.existsSync(path.join(ROOT, relPath))) {
       ok(relPath, '脚手架模板存在');
     } else {
-      error(relPath, 0, '缺少 change set 脚手架模板');
+      error(relPath, 0, '缺少 feature 规划脚手架模板');
     }
   }
 
@@ -682,6 +696,18 @@ function validateFeatureScaffold() {
     }
   } else {
     error('scripts/scaffold-feature.js', 0, '缺少 feature 脚手架脚本');
+  }
+
+  const initScript = path.join(ROOT, 'scripts', 'init-project.js');
+  if (fs.existsSync(initScript)) {
+    try {
+      execFileSync('node', ['--check', initScript], { stdio: 'pipe', timeout: 5000 });
+      ok('scripts/init-project.js', 'init 脚本语法检查通过');
+    } catch (e) {
+      error('scripts/init-project.js', 0, 'init 脚本语法错误: ' + (e.stderr ? e.stderr.toString().trim() : e.message));
+    }
+  } else {
+    error('scripts/init-project.js', 0, '缺少 init 自动化脚本');
   }
 
   if (fs.existsSync(path.join(ROOT, 'docs', 'guides', 'change-set-model.md'))) {

@@ -1,10 +1,17 @@
 # STATE: {{feature_id}}
 
-> 最后更新: {{date}} | 当前阶段: Phase 2 - Wave Execution
+> 最后更新: {{date}} | 当前阶段: EXEC
+
+## 执行概览
+
+| 项目 | 内容 |
+|------|------|
+| Feature | `{{feature_id}}` |
+| 当前 Wave | `1 / 1` |
 
 ## 进度
 
-### Wave 0 PENDING
+### Wave 1 PENDING
 
 - [ ] 待根据 `任务拆解表.md` 填充
 
