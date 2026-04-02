@@ -428,6 +428,11 @@ function appendHistoryRow(content, currentPhase, targetPhase, date, note) {
   }
 
   let insertIndex = historyHeaderIndex + 1;
+  // Skip blank lines between header and table
+  while (insertIndex < lines.length && lines[insertIndex].trim() === '') {
+    insertIndex += 1;
+  }
+  // Skip all table rows (column header + separator + data)
   while (insertIndex < lines.length) {
     const trimmed = lines[insertIndex].trim();
     if (!trimmed.startsWith('|')) {

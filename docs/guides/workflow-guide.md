@@ -129,13 +129,11 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 
 1. Plan Check
 2. Wave Execution
-3. Spec Compliance Review
-4. Security Review
-5. Code Review
-6. Verification
+3. Compliance Review（方案符合性 + 安全审查合一）
+4. Code Review
+5. Verification
 
 关键规则：
-- 编码前必须先过 `tech-plan-checker`
 - Gate Check 通过后再创建或复用 worktree
 - 执行时以 `STATE.md` 追踪当前位置
 - 审查顺序不能交换
@@ -157,12 +155,12 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 tinypowers 强制采用下面的顺序：
 
 ```text
-方案符合性 -> 安全 -> 代码质量
+compliance-reviewer（方案符合性 + 安全） -> 代码质量
 ```
 
 原因很简单：
-- 如果代码实现的不是方案要求的功能，后面的安全和质量审查都会浪费
-- 先确认“做的是对的东西”，再确认“做得安不安全、好不好维护”
+- 如果代码实现的不是方案要求的功能，或者有安全漏洞，代码质量审查都会浪费
+- 先确认”做的是对的东西且安全”，再确认”好不好维护”
 
 ## `STATE.md` 的作用
 

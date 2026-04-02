@@ -24,12 +24,12 @@ const TRACKS = {
     ]
   },
   medium: {
-    mode: 'strict',
+    mode: 'relaxed',
     templates: [
       ['SPEC-STATE.md', 'spec-state.md'],
       ['PRD.md', 'prd-template.md'],
-      ['技术方案.md', 'tech-design-fast.md'],
-      ['任务拆解表.md', 'task-breakdown.md']
+      ['技术方案.md', 'tech-design-medium.md'],
+      ['任务拆解表.md', 'task-breakdown-medium.md']
     ]
   },
   fast: {
@@ -136,7 +136,7 @@ function main() {
     featureName,
     date,
     track: args.track,
-    trackLabel: args.track === 'fast' ? 'Fast' : args.track === 'medium' ? 'Medium' : 'Standard',
+    trackLabel: { standard: 'Standard', medium: 'Medium', fast: 'Fast' }[args.track] || 'Standard',
     mode: trackConfig.mode
   };
 

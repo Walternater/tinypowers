@@ -29,8 +29,6 @@ features/{需求编号}-{需求名称}/
 ```
 
 按需创建而不预生成：
-- `CHANGESET.md`
-- `评审记录.md`
 - `seeds/`
 - `archive/`
 
@@ -60,14 +58,14 @@ Phase 0 必须先做分级，**选最匹配的一档**：
 | Track | 典型特征 |
 |-------|---------|
 | `Fast` | 单模块单链路、无表结构变更、无安全敏感、1-2 个任务 |
-| `Medium` | 单系统内、3-5 个任务、有接口变更但无架构调整、无跨系统依赖 |
+| `Medium` | 单系统内、3-8 个任务、有 DB 变更但无跨系统依赖 |
 | `Standard` | 跨系统/架构级变更、>5 个任务、需求仍有明显歧义 |
 
 > `Complex`（跨团队、架构级、>2 周）暂按 `Standard` 走，额外增加人工评审。
 
 **升级信号**（出现任意一条立即升级）：
 - Fast → Medium：任务超过 2 个、发现跨模块依赖、技术方案需多方案权衡
-- Medium → Standard：发现跨系统依赖、任务超过 5 个、需求存在高优先级歧义
+- Medium → Standard：发现跨系统依赖、任务超过 8 个、需求存在高优先级歧义
 
 ## 主流程
 
@@ -79,8 +77,9 @@ Fast Route:
   Phase 2F: 最小任务拆解 + PLAN 收口
 
 Medium Route:
-  Phase 1M: 需求理解 + 方案确认
-  Phase 2M: 任务拆解 + PLAN 收口
+  Phase 1M: 需求理解（批量确认）
+  Phase 2M: 精简技术方案 + 任务拆解
+  Phase 3M: PLAN 收口
 
 Standard Route:
   Phase 1: 需求理解
@@ -122,19 +121,37 @@ node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {
 
 ## Medium Route
 
-适用于中等复杂度需求，使用轻量技术方案模板，但任务可多于 2 个。
+适用于中等复杂度需求，有 DB 变更但不涉及跨系统。跳过歧义检测和 brainstorming，批量确认需求后直接出精简方案。
 
-### Phase 1M: 需求理解 + 方案确认
+### Phase 1M: 需求理解（批量确认）
 
 - 在 `PRD.md` 写清背景、范围、验收标准（至少 2 条 AC-N）
-- 确认高优先级歧义已消除
-- 在 `技术方案.md` 补齐核心设计和锁定决策（状态=已确认）
+- 用 `requirements-guide.md` 的批量确认方式一次性提出所有澄清问题
+- 跳过歧义检测（`ambiguity-check.md`）和 `superpowers:brainstorming`
+- 更新 `plan_step: req`
+
+### Phase 2M: 精简技术方案 + 任务拆解
+
+- 在 `技术方案.md` 使用 Medium 精简模板（~80 行），覆盖：
+  - 目标与范围
+  - 方案概要（模块、数据流转）
+  - 数据设计 / 接口设计
+  - 锁定决策（至少 1 条 D-0N）
+  - 风险与回滚
+- 在 `任务拆解表.md` 使用平铺任务表（不强制 Epic → Story → Task）
+- 每个任务必须写清验收标准和涉及文件
 - 更新 `plan_step: tech-design`
 
-### Phase 2M: 任务拆解 + PLAN 收口
+### Phase 3M: PLAN 收口
 
-- 在 `任务拆解表.md` 拆解 3-5 个任务，标注 Wave 和并行关系
-- 更新 `plan_step: ready`，保持 `SPEC-STATE = PLAN`
+- 检查三个文档完整性和一致性
+- 完成后保持 `SPEC-STATE = PLAN`
+- Medium 路由的 `mode: relaxed` 允许 `PLAN → EXEC` 直达（无需额外的 plan-check 说明）
+
+Medium 路径一旦出现这些信号，应升级为 `Standard`：
+- 需求有跨系统依赖
+- 技术方案需要多方案权衡
+- 发现架构级变更
 
 ## Standard Route
 
@@ -206,11 +223,13 @@ node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {
 **委托 superpowers**:
 - Standard Phase 2 → `superpowers:brainstorming`
 - Standard Phase 4 → `superpowers:writing-plans`
+- Medium 不委托 superpowers，直接用精简模板完成
 
 ## Gotchas
 
 - 小需求套完整流程会导致大量空文档，应优先判定 `Fast`
-- 中等需求（3-5任务）用 `Medium`，避免 `Standard` 的重量和 `Fast` 的限制
+- Medium 是大多数后端需求的最适路由——有 DB 变更但没到架构级，不要过度升级到 Standard
 - 决策不锁定，`/tech:code` 很容易边写边改方向
 - 任务只有"功能正常"这类模糊验收标准，后续验证一定会失焦
+- Medium 跳过 brainstorming 不等于跳过思考——方案概要和锁定决策仍然必须写
 - `技术方案.md` 的"可选段"（上线准备、灰度策略、评审记录）默认不填，有需要再追加
