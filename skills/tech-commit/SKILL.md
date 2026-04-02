@@ -1,102 +1,66 @@
 ---
 name: tech:commit
-description: 当用户要求提交代码、创建 PR、同步文档、沉淀知识、或完成 feature 收口时触发。
+description: 收口文档、同步代码、提交 Git。
 license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "4.0"
+  version: "5.0"
 ---
 
 # /tech:commit
 
 ## 作用
 
-把 `REVIEW` 阶段已完成但未提交的成果，收口成可审阅、可追踪的交付物。
+收口 SPEC.md 实现、提交代码、推进 SPEC-STATE 到 DONE。
 
 ## 前置条件
 
-- `VERIFICATION.md` 已存在且结论为 PASS/通过
-- 测试结果是最新的
+- VERIFICATION.md 结论为 PASS
+- 测试通过
 - 工作区无无关改动
-- `SPEC-STATE` 当前为 `REVIEW`
 
 ## 主流程
 
 ```text
-Fast Route:
-  Step 1F: Document Sync + minimal Knowledge Capture
-  Step 2F: Git Commit + Push/PR
-
-Standard Route:
-  Step 1: Document Sync
-  Step 2: Knowledge Capture
-  Step 3: Git Commit
-  Step 4: PR + Branch Cleanup
+1. 文档同步（确保 SPEC.md 与实现一致）
+2. Git 提交
+3. 更新 SPEC-STATE phase -> DONE
 ```
 
-## Document Sync
+## 文档同步
 
-优先同步真正受影响的文档：
-- `技术方案.md`
-- API 文档
-- README / 部署说明
-- 数据库文档
+检查并更新：
+- SPEC.md 中"执行记录"章节
+- README.md（如有变更）
 
-要求：
-- 实现与文档一致
-- 状态描述与真实交付一致
-- 不把未完成项写成已完成
+## Git 提交
 
-## Knowledge Capture
-
-从 `notepads/learnings.md` 中挑出值得沉淀的内容写入 `docs/knowledge.md`。
-
-值得沉淀的内容：
-- 内部组件的非显而易见用法
-- 平台级硬约束
-- 隐蔽 bug 模式和调试经验
-
-Fast 路径可以跳过“没有复用价值”的 learnings。
-
-## Git Commit
-
-提交前检查：
-- 文件边界清楚
-- 验证证据齐备
-- 文档已同步
-- 未解决项已标注
-
-推荐提交格式：
-
-```text
-[AI-Gen] type(scope): description
-
-Evidence: [验证结果]
+```bash
+git checkout -b feature/{id}-{short-desc}
+git add .
+git commit -m "[AI-Gen] type(scope): description"
 ```
 
-`Constraint / Rejected / Confidence` 不再要求写入 trailer；这些信息应优先记录在 `技术方案.md`。
+推荐格式：
+```
+[AI-Gen] feat(refund): 实现退款申请功能
 
-## PR + Branch Cleanup
+- 添加 RefundController
+- 实现退款金额计算
+- 添加时效校验
 
-Standard 路径可继续委托 `superpowers:finishing-a-development-branch`。
-
-Fast 路径优先直接使用 git 命令：
-- `git push`
-- `gh pr create` / 平台对应命令
-
-如果需要手工给 reviewer 一个可点击入口，按 remote 平台生成链接：
-- GitHub：`/compare/{base}...{head}?expand=1`
-- GitLab：`/-/merge_requests/new?merge_request[source_branch]={head}&merge_request[target_branch]={base}`
-
-自托管 GitLab 也适用。优先自动检测 `origin`，拿不到默认分支时再让用户补充。
+Evidence: mvn test PASS
+```
 
 ## 生命周期收口
 
-提交完成后：
-- 将 `SPEC-STATE` 推进到 `DONE`
-- 保留 `VERIFICATION.md`
-- 确保 reviewer 只看 PR 也能理解改动
+完成后：
+- SPEC-STATE phase -> DONE
+- 添加执行记录到 SPEC.md
 
-**委托 superpowers**:
-- Standard Step 4 → `superpowers:finishing-a-development-branch`
+## 注意事项
+
+- 提交信息必须包含 Evidence 证明构建/测试通过
+- 简单需求可跳过文档同步中的非关键章节
+- learnings.md 中的经验可选是否沉淀到 docs/knowledge.md

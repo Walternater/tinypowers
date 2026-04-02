@@ -70,13 +70,10 @@ test('init-project creates core runtime files', () => {
 
   const result = run('scripts/init-project.js', [
     '--root', projectRoot,
-    '--project-name', 'demo-service',
     '--include-mysql'
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.equal(fs.existsSync(path.join(projectRoot, 'CLAUDE.md')), true);
-  assert.equal(fs.existsSync(path.join(projectRoot, '.claude', 'settings.json')), true);
   assert.equal(fs.existsSync(path.join(projectRoot, '.claude', 'hooks', 'spec-state-guard.js')), true);
   assert.equal(fs.existsSync(path.join(projectRoot, 'docs', 'guides', 'workflow-guide.md')), true);
   assert.equal(fs.existsSync(path.join(projectRoot, 'configs', 'rules', 'java', 'java-coding-style.md')), true);
@@ -84,49 +81,18 @@ test('init-project creates core runtime files', () => {
   assert.match(result.stdout, /初始化验证通过/);
 });
 
-test('init-project merges existing settings.json', () => {
-  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-init-merge-'));
-  const settingsPath = path.join(projectRoot, '.claude', 'settings.json');
-
-  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-  fs.writeFileSync(settingsPath, JSON.stringify({
-    permissions: {
-      allow: ['Bash(echo *)'],
-      deny: ['Bash(wget *)']
-    },
-    tools: {
-      maxTurns: 99
-    },
-    hooks: {
-      Stop: [
-        {
-          matcher: '*',
-          hooks: [
-            {
-              type: 'command',
-              command: 'node ".claude/hooks/custom-stop.js"',
-              timeout: 5
-            }
-          ]
-        }
-      ]
-    }
-  }, null, 2));
+test('init-project creates hooks directory', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-init-hooks-'));
 
   const result = run('scripts/init-project.js', [
-    '--root', projectRoot,
-    '--project-name', 'demo-service'
+    '--root', projectRoot
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-  assert.equal(settings.permissions.allow.includes('Bash(echo *)'), true);
-  assert.equal(settings.permissions.allow.includes('Bash(git *)'), true);
-  assert.equal(settings.permissions.deny.includes('Bash(wget *)'), true);
-  assert.equal(settings.permissions.deny.includes('Bash(curl *)'), true);
-  assert.equal(settings.tools.maxTurns, 99);
-  assert.ok(Array.isArray(settings.hooks.Stop));
-  assert.equal(settings.hooks.Stop.some(entry => JSON.stringify(entry).includes('custom-stop.js')), true);
-  assert.equal(settings.hooks.Stop.some(entry => JSON.stringify(entry).includes('gsd-session-manager.js')), true);
-  assert.match(result.stdout, /\.claude\/settings\.json \(merged\)/);
+  const hooksDir = path.join(projectRoot, '.claude', 'hooks');
+  assert.equal(fs.existsSync(hooksDir), true);
+  assert.equal(fs.existsSync(path.join(hooksDir, 'spec-state-guard.js')), true);
+  assert.equal(fs.existsSync(path.join(hooksDir, 'gsd-session-manager.js')), true);
+  assert.equal(fs.existsSync(path.join(hooksDir, 'gsd-context-monitor.js')), true);
+  assert.equal(fs.existsSync(path.join(hooksDir, 'gsd-code-checker.js')), true);
 });

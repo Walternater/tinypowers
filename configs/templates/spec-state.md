@@ -2,50 +2,42 @@
 
 > 最后更新: {date} | 当前阶段: {phase}
 
-## 阶段定义
+## 阶段
 
-| 阶段 | 标记 | 产物 |
-|------|------|------|
-| planned | PLAN | 规划产物已就位，可进入执行 |
-| executing | EXEC | STATE.md 已创建、Wave 执行中 |
-| reviewed | REVIEW | 审查和验证已完成 |
-| done | DONE | 已提交、已归档 |
+| 阶段 | 说明 |
+|------|------|
+| PLAN | 规划完成，待执行 |
+| EXEC | 执行中 |
+| REVIEW | 审查验证中 |
+| DONE | 已完成 |
 
 ## 当前状态
 
 ```yaml
-phase: PLAN
-track: {{track}}
-mode: {{mode}}
+phase: {phase}
+track: {track}
+mode: {mode}
 updated: {date}
 ```
 
+## 产物
+
+| 产物 | 状态 |
+|------|------|
+| SPEC.md | pending |
+| STATE.md | pending |
+| VERIFICATION.md | pending |
+
 ## 阶段历史
 
-| 时间 | 从 | 到 | 备注 |
+| 时间 | 从 | 到 | 变更 |
 |------|-----|-----|------|
-| {date} | - | PLAN | 需求目录创建 |
+| {date} | - | {phase} | 初始化 |
 
-## 产物清单
-
-| 产物 | 路径 | 状态 |
-|------|------|------|
-| PRD | PRD.md | pending |
-| 技术方案 | 技术方案.md | pending |
-| 任务拆解表 | 任务拆解表.md | pending |
-| 生命周期状态 | SPEC-STATE.md | active |
-| STATE | STATE.md | pending |
-| 验证报告 | VERIFICATION.md | pending |
-
-## 判断规则
-
-阶段推进必须满足前置条件：
+## 门禁规则
 
 ```
-PLAN -> EXEC:     PRD / 技术方案 / 任务拆解表满足当前路由门禁
-EXEC -> REVIEW:   STATE.md 已收敛，审查与验证证据齐备
-REVIEW -> DONE:   代码已提交，VERIFICATION.md 结论 = PASS
+PLAN -> EXEC:     SPEC.md 存在且任务列表非空
+EXEC -> REVIEW:   STATE.md 任务全部 DONE，构建通过
+REVIEW -> DONE:   VERIFICATION.md 结论为 PASS
 ```
-
-`track: standard` 默认使用 `mode: strict`，按 `PLAN -> EXEC -> REVIEW -> DONE` 顺序推进。
-`track: fast` 默认使用 `mode: relaxed`，允许更轻的 PLAN 文档，但进入 `EXEC` 后仍必须顺序推进。

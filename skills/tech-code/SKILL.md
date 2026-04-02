@@ -1,138 +1,75 @@
 ---
 name: tech:code
-description: 当用户要求执行已规划的任务、开始编码实现、或继续未完成的 wave 执行时触发。
+description: 读取 SPEC.md，执行任务，更新 STATE.md 和 VERIFICATION.md。
 license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "7.0"
+  version: "8.0"
 ---
 
 # /tech:code
 
 ## 作用
 
-把 `PLAN` 阶段的需求落成可恢复、可审查、可验证的实现过程。
+执行 SPEC.md 中定义的任务，产出 STATE.md 和 VERIFICATION.md。
 
 ## 输入
 
-- `features/{id}-{name}/PRD.md`
-- `features/{id}-{name}/技术方案.md`
-- `features/{id}-{name}/任务拆解表.md`
+- `features/{id}-{name}/SPEC.md`
 - `features/{id}-{name}/SPEC-STATE.md`
-- `features/{id}-{name}/STATE.md`（不存在时进入 `EXEC` 自动生成）
 
-## 生命周期约束
+## 输出
 
-- 进入本 skill 时，`SPEC-STATE` 必须为 `PLAN` 或 `EXEC`
-- 开始执行后推进到 `EXEC`
-- 完成审查和验证后推进到 `REVIEW`
-- 禁止在 `/tech:commit` 前自动提交
+- `features/{id}-{name}/STATE.md` - 任务执行状态
+- `features/{id}-{name}/VERIFICATION.md` - 验证报告
+- `features/{id}-{name}/notepads/learnings.md` - 学习笔记
+
+## 生命周期
+
+```
+PLAN -> EXEC -> REVIEW -> DONE
+```
+
+- 进入时：SPEC-STATE 为 PLAN 或 EXEC
+- 开始执行：推进到 EXEC
+- 完成验证：推进到 REVIEW
+- 禁止自动提交
 
 ## 主流程
 
 ```text
-Fast Route:
-  Phase 0F: Gate Check
-  Phase 1F: Pattern Scan + Context Preparation
-  Phase 2F: Execute
-  Phase 3F: Review + Verify
-
-Standard Route:
-  Phase 0: Gate Check
-  Phase 1: Worktree Setup
-  Phase 2: Context Preparation + Pattern Scan
-  Phase 3: Execute
-  Phase 4: Review + Verify
+1. Gate Check（SPEC.md 非空 + 任务存在）
+2. 更新 SPEC-STATE phase -> EXEC
+3. 创建 STATE.md（如不存在）
+4. 逐个执行任务，更新 STATE.md
+5. 构建验证（mvn compile / npm run build）
+6. 生成 VERIFICATION.md
+7. 更新 SPEC-STATE phase -> REVIEW
 ```
 
 ## Gate Check
 
-进入执行前必须确认：
-- `PRD.md` 非空
-- `技术方案.md` 存在且包含锁定决策
-- `任务拆解表.md` 存在且包含明确任务和验收标准
-- `SPEC-STATE.track` 已明确
+检查项：
+- [ ] SPEC.md 存在且非空
+- [ ] 任务列表有内容
+- [ ] SPEC-STATE.track 已设置
 
-推进到 `EXEC` 时：
-- 自动生成 `STATE.md`
-- `STATE.md` 应从 `任务拆解表.md` 自动提取 Wave / Task 初稿
+## STATE.md 结构
 
-## Pattern Scan + Context Preparation
+| 编号 | 任务 | 状态 | 验证方式 |
+|------|------|------|----------|
+| T-01 | ... | [x] | mvn test |
 
-执行前先做两件事：
+## VERIFICATION.md 结构
 
-1. 搜索最相似的已有实现
-2. 只加载当前任务真正需要的上下文
+- 结论：PASS / FAIL
+- 构建命令和结果
+- 关键验证点
+- 风险与残留
 
-必须注入的上下文：
-- 当前任务相关的方案片段
-- 锁定决策（D-0N）
-- 任务验收标准
-- 参考实现锚点
-- 相关 learnings（如果存在）
-- 相关 `docs/knowledge.md` 片段
+## 注意事项
 
-缝合策略：
-- 先复用已有骨架
-- 再替换业务字段
-- 只在差异点写新逻辑
-- 没有参考实现时明确标记 `GREENFIELD`
-
-## Fast Route
-
-Fast 路径目标是减少委托和切换成本：
-- 默认不新建 worktree
-- 默认不展开重型 subagent 链
-- 本地直接执行
-- Review + Verify 合并收口
-
-但这些底线不变：
-- 缝合优先
-- TDD 优先
-- 验证证据必须保留
-
-## Standard Route
-
-Standard 路径保留完整治理能力：
-- Phase 1 可使用 `superpowers:using-git-worktrees`
-- Execute 可使用 `superpowers:subagent-driven-development`
-- Review 可使用 `superpowers:requesting-code-review`
-- Verify 可使用 `superpowers:verification-before-completion`
-
-## 审查与验证
-
-无论哪条路径，都必须至少完成：
-- 方案符合性检查
-- 安全风险检查
-- 代码质量检查
-- 验证证据产出（`VERIFICATION.md`）
-
-建议顺序：
-
-```text
-方案符合性 -> 安全审查 -> 代码质量 -> 验证
-```
-
-## 输出
-
-```text
-features/{id}-{name}/
-├── STATE.md
-├── VERIFICATION.md
-└── notepads/learnings.md
-```
-
-代码和文档的最终收口统一交给 `/tech:commit`。
-
-## 配套说明
-
-- `STATE.md` 是执行期唯一真相源
-- `VERIFICATION.md` 是进入 `/tech:commit` 的前置条件
-- 同一问题连续失败 3 次，应停止并上升到架构讨论
-
-**委托 superpowers**:
-- Standard Phase 1 → `superpowers:using-git-worktrees`
-- Standard Phase 3 → `superpowers:subagent-driven-development`
-- Standard Phase 4 → `superpowers:requesting-code-review`
-- Standard / Fast Verify → `superpowers:verification-before-completion`
+- STATE.md 和 VERIFICATION.md 放在 feature 根目录，不再按 Wave 划分
+- 连续失败 3 次的任务应停止并讨论
+- 代码和文档收口统一交给 `/tech:commit`

@@ -1,155 +1,58 @@
 ---
 name: tech:init
-description: 当用户在全新项目中首次使用、或要求重新初始化 AI 开发环境时触发。
+description: 初始化项目环境，只复制必要骨架文件。
 license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "4.0"
+  version: "5.0"
 ---
 
 # /tech:init
 
 ## 作用
 
-`/tech:init` 用于把 tinypowers 的基础工作流骨架落到目标项目中。当前只支持 Java 项目初始化。
+初始化项目的基础工作流骨架。只复制必要文件到目标项目。
 
-## 初始化目标
+## 默认骨架
 
-执行完成后，目标项目至少应具备：
-- `CLAUDE.md`
-- `docs/guides/development-spec.md`
-- `docs/guides/workflow-guide.md`
-- `docs/knowledge.md`（小项目可只放空模板）
-- `configs/rules/common/`
-- `configs/rules/java/`
-- `features/`
-- `.claude/settings.json`
-- `.claude/hooks/`
-
-## 核心原则
-
-- Java-only，避免给非 Java 项目生成误导性 guides 和规则
-- 小项目知识库默认 lazy mode：创建模板即可，不强制做重扫描
-- 初始化动作尽量脚本化，AI 负责检测、确认和验证
+```
+{project}/
+├── configs/rules/        # 编码规范
+├── docs/guides/          # 开发指南
+└── .claude/hooks/       # Hook 脚本
+```
 
 ## 主流程
 
 ```text
-0. 预检（框架仓库 / 非 Java / 已初始化）
-1. 技术栈检测
-2. 检测结果确认
-3. 选择更新策略
-4. 运行 init-project.js 落地骨架
-5. 可选知识扫描 / lazy mode
-6. 执行初始化验证
+1. 检测项目目录
+2. 复制 configs/rules/
+3. 复制 docs/guides/
+4. 复制 .claude/hooks/
+5. 验证完成
 ```
 
-## 0. 预检
-
-以下情况直接停止或降级：
-- 检测到 tinypowers 框架仓库自身
-- 检测到 Node.js / Go / Python / Rust 等非 Java 项目
-- 用户只想查看检测结果，不想真正写入项目
-
-## 1. 技术栈检测
-
-当前只接受这些强信号：
-- `pom.xml` -> Java (Maven)
-- `build.gradle` / `build.gradle.kts` -> Java (Gradle)
-- `src/main/java` -> Java 辅助信号
-
-框架特征用于补充规则建议：
-- `org.springframework.*` -> Spring Boot
-- MyBatis 依赖 -> MyBatis
-- `mysql` / `flyway` / `liquibase` -> 同时加载 MySQL 规则
-
-默认值：
-- Maven 构建命令：`mvn test`
-- Gradle 构建命令：`./gradlew check`
-- 默认分支模式：`feature/{id}-{short-desc}`
-
-## 2. 检测结果确认
-
-至少向用户确认：
-- 主技术栈
-- 构建工具和默认构建命令
-- 推荐规则集
-- 是否需要 MySQL 规则
-
-## 3. 更新策略
-
-支持三种策略：
-- `Update`：只补缺失内容
-- `Skip`：不改动
-- `Overwrite`：重建入口和本地配置
-
-默认推荐 `Update`。
-
-## 4. 运行 init-project.js
-
-真正落地动作由脚本完成：
+## 运行
 
 ```bash
-node "${TINYPOWERS_DIR}/scripts/init-project.js" \
-  --root . \
-  --project-name {project_name} \
-  --tech-stack "Java (Maven)" \
-  --tech-stack-short java \
-  --build-tool Maven \
-  --build-command "mvn test" \
-  --include-mysql
+node "${TINYPOWERS_DIR}/scripts/init-project.js" --root .
 ```
 
-脚本负责：
-- 创建目录
-- 复制 guides
-- 复制规则
-- 复制 hooks
-- 渲染 `CLAUDE.md`
-- 渲染 `.claude/settings.json`
-
-`.claude` 细节和 merge 规则保留在：
-- `claude-init.md`
-
-## 5. 知识扫描 / lazy mode
-
-只记录模型无法从公开资料获取的内容：
-- 内部依赖的特殊用法
-- 平台级约束
-- 隐蔽坑位
-
-采样即可，不做全量扫描。以下情况默认 lazy mode：
-- 空项目
-- 只有构建文件，没有实现代码
-- 采样文件不足 2 个
-
-lazy mode 下只创建 `docs/knowledge.md` 模板。
-
-## 6. 初始化验证
-
-初始化完成后执行：
+## 验证
 
 ```bash
 node "${TINYPOWERS_DIR}/scripts/validate.js"
 ```
 
-重点检查：
-- guide 是否齐全
-- hooks 和 settings 是否存在
-- 模板变量是否已替换
-- Java 规则是否已落地
+## 产物
 
-## 配套文档
+- `configs/rules/` - 编码规范（common, java, mysql）
+- `docs/guides/` - 开发指南（development-spec.md, workflow-guide.md）
+- `.claude/hooks/` - Hook 脚本
 
-| 文档 | 作用 |
-|------|------|
-| `claude-init.md` | `.claude/` 初始化和 merge 规则 |
-| `scripts/init-project.js` | 初始化自动化脚本 |
-| `scripts/validate.js` | 初始化后完整性校验 |
+## 注意事项
 
-## Gotchas
-
-- 空项目不要强做知识扫描，成本高于收益
-- 非 Java 项目不要继续初始化，否则会得到不匹配的入口文档
-- 已存在的 `.claude/settings.json` 不应盲目覆盖，应先走更新策略
+- 不复制 agents/, skills/, scripts/ 等框架自身文件
+- 不创建空目录
+- CLAUDE.md 和 .claude/settings.json 由用户项目自行管理

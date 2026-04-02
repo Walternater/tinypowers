@@ -5,31 +5,26 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const TEMPLATE_DIR = path.join(ROOT, 'configs', 'templates');
-const ARTIFACTS = [
-  { label: 'PRD', file: 'PRD.md' },
-  { label: '技术方案', file: '技术方案.md' },
-  { label: '任务拆解表', file: '任务拆解表.md' },
-  { label: '生命周期状态', file: 'SPEC-STATE.md', status: 'active' },
-  { label: 'STATE', file: 'STATE.md' },
-  { label: '验证报告', file: 'VERIFICATION.md' }
-];
+
 const TRACKS = {
-  standard: {
-    mode: 'strict',
-    templates: [
-      ['SPEC-STATE.md', 'spec-state.md'],
-      ['PRD.md', 'prd-template.md'],
-      ['技术方案.md', 'tech-design.md'],
-      ['任务拆解表.md', 'task-breakdown.md']
-    ]
-  },
   fast: {
     mode: 'relaxed',
     templates: [
+      ['SPEC.md', 'spec-simple.md'],
       ['SPEC-STATE.md', 'spec-state.md'],
       ['PRD.md', 'prd-template.md'],
       ['技术方案.md', 'tech-design-fast.md'],
       ['任务拆解表.md', 'task-breakdown-fast.md']
+    ]
+  },
+  standard: {
+    mode: 'strict',
+    templates: [
+      ['SPEC.md', 'spec.md'],
+      ['SPEC-STATE.md', 'spec-state.md'],
+      ['PRD.md', 'prd-template.md'],
+      ['技术方案.md', 'tech-design.md'],
+      ['任务拆解表.md', 'task-breakdown.md']
     ]
   }
 };
@@ -58,59 +53,27 @@ function sanitizeSegment(value) {
 
 function render(content, ctx) {
   return content
-    .replaceAll('{{feature_id}}', ctx.featureId)
-    .replaceAll('{{feature_name}}', ctx.featureName)
-    .replaceAll('{{date}}', ctx.date)
-    .replaceAll('{{track}}', ctx.track)
-    .replaceAll('{{track_label}}', ctx.trackLabel)
-    .replaceAll('{{mode}}', ctx.mode)
     .replaceAll('{Feature ID}', ctx.featureId)
     .replaceAll('{date}', ctx.date)
-    .replaceAll('{phase}', 'PLAN');
-}
-
-function artifactStatus(featureDir, artifact, track) {
-  if (artifact.status) {
-    return artifact.status;
-  }
-  return fs.existsSync(path.join(featureDir, artifact.file)) ? 'done' : 'pending';
-}
-
-function syncSpecStateArtifacts(specStatePath, featureDir, track) {
-  if (!fs.existsSync(specStatePath)) {
-    return;
-  }
-
-  const header = '| 产物 | 路径 | 状态 |';
-  const lines = fs.readFileSync(specStatePath, 'utf8').split('\n');
-  const startIndex = lines.findIndex(line => line.trim() === header);
-  if (startIndex === -1) {
-    return;
-  }
-
-  let endIndex = startIndex + 2;
-  while (endIndex < lines.length && lines[endIndex].startsWith('|')) {
-    endIndex += 1;
-  }
-
-  const table = [
-    header,
-    '|------|------|------|',
-    ...ARTIFACTS.map(artifact => `| ${artifact.label} | ${artifact.file} | ${artifactStatus(featureDir, artifact, track)} |`)
-  ];
-
-  lines.splice(startIndex, endIndex - startIndex, ...table);
-  fs.writeFileSync(specStatePath, lines.join('\n'));
+    .replaceAll('{phase}', ctx.phase)
+    .replaceAll('{track}', ctx.track)
+    .replaceAll('{mode}', ctx.mode)
+    .replaceAll('{{in_scope_list}}', '- ')
+    .replaceAll('{{out_of_scope_list}}', '- ')
+    .replaceAll('{{decision_rows}}', '| D-01 | | | 待确认 |')
+    .replaceAll('{{task_rows}}', '| T-01 | | | | pending |')
+    .replaceAll('{{task_count}}', '1')
+    .replaceAll('{{acceptance_list}}', '- [ ] ');
 }
 
 function main() {
   const args = parseArgs(process.argv);
   if (!args.id || !args.name) {
-    fail('用法: node scripts/scaffold-feature.js --id CSS-1234 --name 用户登录 [--track fast|standard] [--root /path/to/project] [--force]');
+    fail('用法: node scripts/scaffold-feature.js --id FEAT-123 --name 功能名称 [--track simple|standard] [--root /path] [--force]');
   }
 
   if (!TRACKS[args.track]) {
-    fail('--track 允许值: standard, fast');
+    fail('--track 允许值: simple, standard');
   }
 
   const featureId = sanitizeSegment(args.id);
@@ -127,8 +90,9 @@ function main() {
     featureName,
     date,
     track: args.track,
-    trackLabel: args.track === 'fast' ? 'Fast' : 'Standard',
-    mode: trackConfig.mode
+    trackLabel: args.track.charAt(0).toUpperCase() + args.track.slice(1),
+    mode: trackConfig.mode,
+    phase: 'PLAN'
   };
 
   const learningsPath = path.join(featureDir, 'notepads', 'learnings.md');
@@ -137,15 +101,8 @@ function main() {
     '',
     '> 自动生成 | 最后更新: ' + date,
     '',
-    '## Wave 总结',
-    '',
-    '## 关键决策',
-    '',
-    '| ID | 决策 | 原因 |',
-    '|----|------|------|',
-    '',
-    '## 陷阱',
-    '- '
+    '## 执行记录',
+    ''
   ].join('\n'));
 
   for (const [outputName, templateName] of trackConfig.templates) {
@@ -155,11 +112,9 @@ function main() {
     fs.writeFileSync(dest, rendered);
   }
 
-  syncSpecStateArtifacts(path.join(featureDir, 'SPEC-STATE.md'), featureDir, args.track);
-
-  console.log('Feature 规划骨架已创建:');
+  console.log('Feature 骨架已创建:');
   console.log(featureDir);
-  console.log('track=' + args.track);
+  console.log('track=' + args.track + ', mode=' + ctx.mode);
 }
 
 main();
