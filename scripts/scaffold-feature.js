@@ -23,6 +23,15 @@ const TRACKS = {
       ['任务拆解表.md', 'task-breakdown.md']
     ]
   },
+  medium: {
+    mode: 'strict',
+    templates: [
+      ['SPEC-STATE.md', 'spec-state.md'],
+      ['PRD.md', 'prd-template.md'],
+      ['技术方案.md', 'tech-design-fast.md'],
+      ['任务拆解表.md', 'task-breakdown.md']
+    ]
+  },
   fast: {
     mode: 'relaxed',
     templates: [
@@ -106,11 +115,11 @@ function syncSpecStateArtifacts(specStatePath, featureDir, track) {
 function main() {
   const args = parseArgs(process.argv);
   if (!args.id || !args.name) {
-    fail('用法: node scripts/scaffold-feature.js --id CSS-1234 --name 用户登录 [--track fast|standard] [--root /path/to/project] [--force]');
+    fail('用法: node scripts/scaffold-feature.js --id CSS-1234 --name 用户登录 [--track fast|medium|standard] [--root /path/to/project] [--force]');
   }
 
   if (!TRACKS[args.track]) {
-    fail('--track 允许值: standard, fast');
+    fail('--track 允许值: standard, medium, fast');
   }
 
   const featureId = sanitizeSegment(args.id);
@@ -127,7 +136,7 @@ function main() {
     featureName,
     date,
     track: args.track,
-    trackLabel: args.track === 'fast' ? 'Fast' : 'Standard',
+    trackLabel: args.track === 'fast' ? 'Fast' : args.track === 'medium' ? 'Medium' : 'Standard',
     mode: trackConfig.mode
   };
 

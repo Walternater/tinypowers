@@ -15,7 +15,7 @@ function runNode(args, cwd = ROOT) {
 }
 
 function writeStandardPlanArtifacts(featureDir) {
-  fs.writeFileSync(path.join(featureDir, 'PRD.md'), '# PRD\n有效内容\n');
+  fs.writeFileSync(path.join(featureDir, 'PRD.md'), '# PRD\n有效内容\n\n## 验收标准\n\n- AC-1：WHEN 用户查询任务 THEN 系统 SHALL 返回已完成任务\n');
   fs.writeFileSync(path.join(featureDir, '技术方案.md'), [
     '# 技术方案',
     '',
@@ -44,7 +44,7 @@ function writeStandardPlanArtifacts(featureDir) {
 }
 
 function writeFastPlanArtifacts(featureDir) {
-  fs.writeFileSync(path.join(featureDir, 'PRD.md'), '# PRD\n快速需求说明\n');
+  fs.writeFileSync(path.join(featureDir, 'PRD.md'), '# PRD\n快速需求说明\n\n## 验收标准\n\n- AC-1：系统 SHALL 返回已完成任务列表\n');
   fs.writeFileSync(path.join(featureDir, '技术方案.md'), [
     '# 技术方案',
     '',
@@ -341,7 +341,7 @@ test('fast-track still requires sequential progression after EXEC', () => {
   assert.match(result.stderr, /进入 EXEC 后必须顺序推进/);
 });
 
-test('fast-track entering EXEC still requires design, tasks, and note', () => {
+test('fast-track entering EXEC still requires design, tasks, and acceptance criteria', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-fast-exec-'));
 
   runNode([
@@ -361,7 +361,7 @@ test('fast-track entering EXEC still requires design, tasks, and note', () => {
   ]);
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /PRD\.md 存在且非空|任务拆解表\.md 存在|锁定决策|Fast Route 进入 EXEC 需要通过 --note/);
+  assert.match(result.stderr, /PRD\.md 存在且非空|任务拆解表\.md 存在|锁定决策|验收标准|已确认/);
 });
 
 test('entering EXEC generates STATE from standard task breakdown', () => {

@@ -25,7 +25,7 @@ const ARTIFACTS = [
   { label: 'STATE', file: 'STATE.md', special: 'state' },
   { label: '验证报告', file: 'VERIFICATION.md' }
 ];
-const TRACKS = ['standard', 'fast'];
+const TRACKS = ['standard', 'medium', 'fast'];
 
 function parseArgs(argv) {
   const args = { root: process.cwd(), force: false, mode: 'strict' };
@@ -108,7 +108,7 @@ function getCurrentMode(content) {
 }
 
 function getCurrentTrack(content) {
-  const match = content.match(/track:\s*(standard|fast)/);
+  const match = content.match(/track:\s*(standard|medium|fast)/);
   return match ? match[1] : 'standard';
 }
 
@@ -327,17 +327,27 @@ function validatePrerequisites(featureDir, targetPhase, note, force, track) {
       if (!fs.existsSync(prdPath) || read(prdPath).trim().length === 0) {
         return '进入 EXEC 需要 PRD.md 存在且非空';
       }
-      if (!fs.existsSync(taskPath)) {
-        return '进入 EXEC 需要 任务拆解表.md 存在';
+      if (!fs.existsSync(taskPath) || read(taskPath).trim().length === 0) {
+        return '进入 EXEC 需要 任务拆解表.md 存在且非空';
       }
-      if (!fs.existsSync(designPath) || !/(已锁定决策|决策记录|锁定决策)/.test(read(designPath))) {
-        return '进入 EXEC 需要 技术方案.md 存在且包含锁定决策';
+      if (!fs.existsSync(designPath)) {
+        return '进入 EXEC 需要 技术方案.md 存在';
       }
-      return (note || '').trim().length > 0
-        ? null
-        : track === 'fast'
-          ? 'Fast Route 进入 EXEC 需要通过 --note 记录放行说明或简化审查结论'
-          : '进入 EXEC 需要通过 --note 记录 plan-check 或放行说明';
+      const designContent = read(designPath);
+      if (!/(已锁定决策|决策记录|锁定决策)/.test(designContent)) {
+        return '进入 EXEC 需要 技术方案.md 包含锁定决策';
+      }
+      // 内容实质门禁：PRD 含有实质性验收标准（非空白、非纯模板占位）
+      const prdContent = read(prdPath);
+      const hasAcceptanceCriteria = /(AC-\d+[：:]\s*\S|WHEN\s+\S[^`\n]+SHALL\s+\S|IF\s+\S[^`\n]+SHALL\s+\S|系统\s*SHALL\s+\S)/.test(prdContent);
+      if (!hasAcceptanceCriteria) {
+        return '进入 EXEC 需要 PRD.md 包含至少 1 条验收标准（AC-N: 内容 或 EARS 格式）';
+      }
+      const hasConfirmedDecision = /\|\s*已确认\s*\|/.test(designContent);
+      if (!hasConfirmedDecision) {
+        return '进入 EXEC 需要 技术方案.md 中至少 1 条决策状态为「已确认」（表格单元格中只写「已确认」，不含「/」）';
+      }
+      return null;
     },
     REVIEW() {
       const filePath = path.join(featureDir, 'STATE.md');
@@ -394,10 +404,17 @@ function ensureTransitionAllowed(currentPhase, targetPhase, track, mode, force) 
 }
 
 function updatePhaseBlock(content, targetPhase, date) {
-  return content
+  let result = content
     .replace(/^> 最后更新: .*?\| 当前阶段: .*$/m, `> 最后更新: ${date} | 当前阶段: ${targetPhase}`)
     .replace(/phase:\s*(INIT|REQ|DESIGN|TASKS|PLAN|EXEC|REVIEW|VERIFY|CLOSED|DONE)/, `phase: ${targetPhase}`)
     .replace(/updated:\s*[^\n]+/, `updated: ${date}`);
+
+  // 离开 PLAN 阶段时，移除 plan_step 字段（该字段仅在 PLAN 阶段有意义）
+  if (targetPhase !== 'PLAN') {
+    result = result.replace(/\nplan_step:[^\n]*(?:\n>[^\n]*)*/g, '');
+  }
+
+  return result;
 }
 
 function appendHistoryRow(content, currentPhase, targetPhase, date, note) {

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "7.0"
+  version: "8.0"
 ---
 
 # /tech:code
@@ -32,7 +32,7 @@ metadata:
 ## 主流程
 
 ```text
-Fast Route:
+Fast / Medium Route:
   Phase 0F: Gate Check
   Phase 1F: Pattern Scan + Context Preparation
   Phase 2F: Execute
@@ -46,24 +46,39 @@ Standard Route:
   Phase 4: Review + Verify
 ```
 
+> `Medium` 和 `Fast` 共用同一条执行路径（0F→1F→2F→3F），区别仅在于任务数量（Medium 允许 3-5 个）。
+
 ## Gate Check
 
-进入执行前必须确认：
-- `PRD.md` 非空
-- `技术方案.md` 存在且包含锁定决策
+进入执行前确认：
+- `PRD.md` 非空且包含验收标准
+- `技术方案.md` 存在且包含至少 1 条「已确认」决策
 - `任务拆解表.md` 存在且包含明确任务和验收标准
 - `SPEC-STATE.track` 已明确
+- （`plan_step = ready` 可视为规划完成的可选信号）
 
 推进到 `EXEC` 时：
 - 自动生成 `STATE.md`
 - `STATE.md` 应从 `任务拆解表.md` 自动提取 Wave / Task 初稿
 
+进入 EXEC 命令（实质内容门禁，无需 `--note`）：
+
+```bash
+node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
+  --root . \
+  --feature "{feature-dir-name}" \
+  --to EXEC
+```
+
 ## Pattern Scan + Context Preparation
 
 执行前先做两件事：
 
-1. 搜索最相似的已有实现
-2. 只加载当前任务真正需要的上下文
+1. **Pattern Scan**：搜索最相似的已有实现
+   - 若 `features/` 目录无其他同类实现文件，或项目处于 GREENFIELD 状态，直接标记 `GREENFIELD` 并跳过扫描
+   - 有参考实现时：提取可复用的骨架和模式
+
+2. **Context Preparation**：只加载当前任务真正需要的上下文
 
 必须注入的上下文：
 - 当前任务相关的方案片段
@@ -79,9 +94,9 @@ Standard Route:
 - 只在差异点写新逻辑
 - 没有参考实现时明确标记 `GREENFIELD`
 
-## Fast Route
+## Fast / Medium Route
 
-Fast 路径目标是减少委托和切换成本：
+Fast/Medium 路径目标是减少委托和切换成本：
 - 默认不新建 worktree
 - 默认不展开重型 subagent 链
 - 本地直接执行

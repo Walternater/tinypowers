@@ -617,7 +617,7 @@ function validateSpecState() {
 
     const content = fs.readFileSync(specStatePath, 'utf8');
     const phaseMatch = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|PLAN|EXEC|REVIEW|VERIFY|CLOSED|DONE)/);
-    const trackMatch = content.match(/track:\s*(standard|fast)/);
+    const trackMatch = content.match(/track:\s*(standard|medium|fast)/);
 
     if (!phaseMatch) {
       warn(rel, 0, 'phase 字段缺失或值无效');
