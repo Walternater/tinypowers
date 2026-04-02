@@ -48,12 +48,11 @@ Generated Project Artifacts 是 tinypowers 安装到目标项目后，由 `/tech
 - 目标项目根目录下的 `CLAUDE.md`
 - `docs/guides/` 下的初始化产物
 - `features/{id}-{name}/`
-- `features/{id}-{name}/CHANGESET.md`
 - `features/{id}-{name}/SPEC-STATE.md`
-- `features/{id}-{name}/STATE.md`
 - `features/{id}-{name}/技术方案.md`
 - `features/{id}-{name}/任务拆解表.md`
 - `features/{id}-{name}/VERIFICATION.md`
+- `features/{id}-{name}/STATE.md`（复杂执行时）
 
 规则：
 - 这些文件不属于 tinypowers 仓库自身的长期维护对象。

@@ -10,12 +10,11 @@ const ARTIFACTS = [
   { label: '技术方案', file: '技术方案.md' },
   { label: '任务拆解表', file: '任务拆解表.md' },
   { label: '生命周期状态', file: 'SPEC-STATE.md', status: 'active' },
-  { label: 'STATE', file: 'STATE.md' },
+  { label: 'STATE（复杂执行可选）', file: 'STATE.md', status: 'optional' },
   { label: '验证报告', file: 'VERIFICATION.md' }
 ];
 const TRACKS = {
   standard: {
-    mode: 'strict',
     templates: [
       ['SPEC-STATE.md', 'spec-state.md'],
       ['PRD.md', 'prd-template.md'],
@@ -24,7 +23,6 @@ const TRACKS = {
     ]
   },
   medium: {
-    mode: 'relaxed',
     templates: [
       ['SPEC-STATE.md', 'spec-state.md'],
       ['PRD.md', 'prd-template.md'],
@@ -33,7 +31,6 @@ const TRACKS = {
     ]
   },
   fast: {
-    mode: 'relaxed',
     templates: [
       ['SPEC-STATE.md', 'spec-state.md'],
       ['PRD.md', 'prd-template.md'],
@@ -72,7 +69,6 @@ function render(content, ctx) {
     .replaceAll('{{date}}', ctx.date)
     .replaceAll('{{track}}', ctx.track)
     .replaceAll('{{track_label}}', ctx.trackLabel)
-    .replaceAll('{{mode}}', ctx.mode)
     .replaceAll('{Feature ID}', ctx.featureId)
     .replaceAll('{date}', ctx.date)
     .replaceAll('{phase}', 'PLAN');
@@ -136,8 +132,7 @@ function main() {
     featureName,
     date,
     track: args.track,
-    trackLabel: { standard: 'Standard', medium: 'Medium', fast: 'Fast' }[args.track] || 'Standard',
-    mode: trackConfig.mode
+    trackLabel: { standard: 'Standard', medium: 'Medium', fast: 'Fast' }[args.track] || 'Standard'
   };
 
   const learningsPath = path.join(featureDir, 'notepads', 'learnings.md');

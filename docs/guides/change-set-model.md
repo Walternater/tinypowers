@@ -17,45 +17,34 @@
 - 这次变更为什么存在
 - 当前处于哪个阶段
 - 哪些文件是规范主入口
-- 哪些文件是执行期状态
+- 什么时候需要额外执行状态
 - 哪些材料以后应该归档
 
 ## 推荐结构
 
 ```text
 features/{需求编号}-{需求名称}/
-├── CHANGESET.md
 ├── SPEC-STATE.md
 ├── PRD.md
-├── 需求理解确认.md
 ├── 技术方案.md
 ├── 任务拆解表.md
-├── 评审记录.md
+├── VERIFICATION.md
 ├── notepads/
 │   └── learnings.md
-├── seeds/
-└── archive/
-```
-
-进入 `/tech:code` 后，会再出现：
-
-```text
-STATE.md
-VERIFICATION.md
+└── STATE.md              # 可选，仅复杂执行时
 ```
 
 ## 每个文件的职责
 
 | 文件 | 职责 |
 |------|------|
-| `CHANGESET.md` | 目录首页，描述范围、标准工件和当前共识 |
 | `SPEC-STATE.md` | 跨阶段生命周期状态机 |
 | `PRD.md` | 记录需求来源、背景和验收标准 |
-| `需求理解确认.md` | 记录澄清结果和范围共识 |
 | `技术方案.md` | 记录方案、决策、风险和验收映射 |
-| `任务拆解表.md` | 记录可执行任务、依赖和 Wave 建议 |
-| `评审记录.md` | 记录阶段确认、评审结论和后续动作 |
-| `STATE.md` | 执行态唯一真相源，进入 `/tech:code` 后使用 |
+| `任务拆解表.md` | 记录可执行任务、依赖和建议顺序 |
+| `VERIFICATION.md` | 记录测试与验证证据 |
+| `STATE.md` | 复杂执行的辅助状态文件，按需创建 |
+| `notepads/learnings.md` | feature 级经验暂存，可择优回写 `docs/knowledge.md` |
 
 ## 双状态模型
 
@@ -78,7 +67,7 @@ tinypowers 现在有两类状态文件：
 
 原则：
 - `SPEC-STATE.md` 管生命周期
-- `STATE.md` 管执行细节
+- `STATE.md` 只在复杂执行时管执行细节
 
 ## 脚手架
 
@@ -95,22 +84,19 @@ node .claude/skills/tinypowers/scripts/scaffold-feature.js --root . --id CSS-123
 ```
 
 它会创建：
-- `CHANGESET.md`
 - `SPEC-STATE.md`
 - `PRD.md`
-- `需求理解确认.md`
 - `技术方案.md`
 - `任务拆解表.md`
-- `评审记录.md`
-- `notepads/learnings.md`、`seeds/`、`archive/`
+- `notepads/learnings.md`
 
 阶段推进也可以用脚本更新：
 
 ```bash
 node .claude/skills/tinypowers/scripts/update-spec-state.js \
   --feature features/CSS-1234-用户登录 \
-  --to REQ \
-  --note "PRD ready"
+  --to EXEC \
+  --note "plan ready"
 ```
 
 这个脚本会：
@@ -119,13 +105,11 @@ node .claude/skills/tinypowers/scripts/update-spec-state.js \
 - 更新 `phase`、`updated`
 - 追加阶段历史
 - 重写产物状态表
-- 在进入 `EXEC` 时自动创建 `STATE.md`（如果模板存在）
+- 在复杂执行进入 `EXEC` 时按需创建 `STATE.md`
 
 ## 当前边界
 
-这一版 change set 模型还是轻量版：
-- 还没有像 OpenSpec 那样把 `specs/` 和 `changes/` 完全分离
-- 还没有 archive merge 流程
-- 还没有 change set 状态机自动推进器
-
-但它已经把 `features/{id}` 从普通目录升级成了标准变更工件。
+这一版 change set 模型刻意保持轻量：
+- 对外只暴露粗粒度生命周期
+- 执行期复杂度按需展开
+- 保留知识沉淀和 worktree 协作能力，但不让它们成为默认负担

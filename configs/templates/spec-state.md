@@ -7,7 +7,7 @@
 | 阶段 | 标记 | 产物 |
 |------|------|------|
 | planned | PLAN | 规划产物已就位，可进入执行 |
-| executing | EXEC | STATE.md 已创建、Wave 执行中 |
+| executing | EXEC | 已进入执行；复杂需求可维护 `STATE.md` |
 | reviewed | REVIEW | 审查和验证已完成 |
 | done | DONE | 已提交、已归档 |
 
@@ -16,16 +16,8 @@
 ```yaml
 phase: PLAN
 track: {{track}}
-mode: {{mode}}
 updated: {date}
-plan_step: req   # req | tech-design | tasks | ready
 ```
-
-> `plan_step` 仅在 `phase: PLAN` 时有意义，追踪规划进度：
-> - `req`：需求理解阶段（PRD 填写中）
-> - `tech-design`：技术方案阶段
-> - `tasks`：任务拆解阶段
-> - `ready`：规划完成，可进入 EXEC
 
 ## 阶段历史
 
@@ -41,7 +33,7 @@ plan_step: req   # req | tech-design | tasks | ready
 | 技术方案 | 技术方案.md | pending |
 | 任务拆解表 | 任务拆解表.md | pending |
 | 生命周期状态 | SPEC-STATE.md | active |
-| STATE | STATE.md | pending |
+| STATE（复杂执行可选） | STATE.md | optional |
 | 验证报告 | VERIFICATION.md | pending |
 
 ## 判断规则
@@ -50,10 +42,11 @@ plan_step: req   # req | tech-design | tasks | ready
 
 ```
 PLAN -> EXEC:     PRD / 技术方案 / 任务拆解表满足当前路由门禁
-EXEC -> REVIEW:   STATE.md 已收敛，审查与验证证据齐备
+EXEC -> REVIEW:   审查与验证证据齐备；如存在 STATE.md，则状态已收敛
 REVIEW -> DONE:   代码已提交，VERIFICATION.md 结论 = PASS
 ```
 
-`track: standard` 默认使用 `mode: strict`，按 `PLAN -> EXEC -> REVIEW -> DONE` 顺序推进。
-`track: medium` 默认使用 `mode: relaxed`，允许跳过歧义检测和 brainstorming，PLAN 文档精简（~80 行技术方案），SPEC-STATE 允许 `PLAN -> EXEC` 直达。
-`track: fast` 默认使用 `mode: relaxed`，允许更轻的 PLAN 文档，但进入 `EXEC` 后仍必须顺序推进。
+`track` 用于选择执行路由：
+- `standard`：复杂需求，允许 worktree / 多 Wave / 更完整审查
+- `medium`：中等需求，文档和执行都保持精简
+- `fast`：小需求快路径，默认不维护额外执行状态文件

@@ -39,7 +39,7 @@ test('scaffold-feature creates a planning skeleton', () => {
   const specState = fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
   assert.match(specState, /phase: PLAN/);
   assert.match(specState, /track: standard/);
-  assert.match(specState, /mode: strict/);
+  assert.doesNotMatch(specState, /mode:/);
 });
 
 test('scaffold-feature supports fast track with lightweight artifacts', () => {
@@ -76,7 +76,7 @@ test('scaffold-feature supports fast track with lightweight artifacts', () => {
   const specState = fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
   assert.match(specState, /phase: PLAN/);
   assert.match(specState, /track: fast/);
-  assert.match(specState, /mode: relaxed/);
+  assert.doesNotMatch(specState, /mode:/);
 
   const techDesign = fs.readFileSync(path.join(featureDir, '技术方案.md'), 'utf8');
   assert.match(techDesign, /Fast Route 适用性/);

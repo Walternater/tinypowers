@@ -22,7 +22,7 @@ const ARTIFACTS = [
   { label: '技术方案', file: '技术方案.md' },
   { label: '任务拆解表', file: '任务拆解表.md' },
   { label: '生命周期状态', file: 'SPEC-STATE.md', special: 'spec-state' },
-  { label: 'STATE', file: 'STATE.md', special: 'state' },
+  { label: 'STATE（复杂执行可选）', file: 'STATE.md', special: 'state' },
   { label: '验证报告', file: 'VERIFICATION.md' }
 ];
 const TRACKS = ['standard', 'medium', 'fast'];
@@ -280,6 +280,16 @@ function buildStateContent(context, track, taskBreakdown) {
   return lines.join('\n') + '\n';
 }
 
+function shouldCreateStateFile(track, taskBreakdown) {
+  if (!taskBreakdown.trim()) {
+    return false;
+  }
+
+  const tasks = extractTaskRows(taskBreakdown);
+  const waves = extractSuggestedWaves(taskBreakdown, tasks);
+  return track === 'standard' || waves.length > 1 || tasks.length > 3;
+}
+
 function ensureStateFile(featureDir, context) {
   const statePath = path.join(featureDir, 'STATE.md');
   if (fs.existsSync(statePath)) {
@@ -290,6 +300,10 @@ function ensureStateFile(featureDir, context) {
   const specStatePath = path.join(featureDir, 'SPEC-STATE.md');
   const taskBreakdown = fs.existsSync(taskBreakdownPath) ? read(taskBreakdownPath) : '';
   const track = fs.existsSync(specStatePath) ? getCurrentTrack(read(specStatePath)) : 'standard';
+
+  if (!shouldCreateStateFile(track, taskBreakdown)) {
+    return;
+  }
 
   if (taskBreakdown.trim().length > 0) {
     write(statePath, buildStateContent(context, track, taskBreakdown));
@@ -350,10 +364,10 @@ function validatePrerequisites(featureDir, targetPhase, note, force, track) {
       return null;
     },
     REVIEW() {
-      const filePath = path.join(featureDir, 'STATE.md');
+      const filePath = path.join(featureDir, 'VERIFICATION.md');
       return fs.existsSync(filePath)
         ? null
-        : '进入 REVIEW 需要 STATE.md 已存在';
+        : '进入 REVIEW 需要 VERIFICATION.md 已存在，用于承接审查和验证证据';
     },
     DONE() {
       const filePath = path.join(featureDir, 'VERIFICATION.md');
@@ -390,16 +404,8 @@ function ensureTransitionAllowed(currentPhase, targetPhase, track, mode, force) 
     return;
   }
 
-  if (track !== 'fast') {
-    return;
-  }
-
-  const execIndex = phaseIndex('EXEC');
-  if (currentIndex < execIndex && targetIndex > execIndex && !isSequential) {
-    fail(`Fast Route 只允许从 PLAN 进入 EXEC，不能直接跳到 ${targetPhase}`);
-  }
-  if (currentIndex >= execIndex && !isSequential) {
-    fail(`进入 EXEC 后必须顺序推进: ${currentPhase} -> ${targetPhase} 不允许跳步`);
+  if (!isSequential) {
+    fail(`禁止跳步: ${currentPhase} -> ${targetPhase}。如需强制推进，添加 --force 或 --mode relaxed`);
   }
 }
 
@@ -409,7 +415,6 @@ function updatePhaseBlock(content, targetPhase, date) {
     .replace(/phase:\s*(INIT|REQ|DESIGN|TASKS|PLAN|EXEC|REVIEW|VERIFY|CLOSED|DONE)/, `phase: ${targetPhase}`)
     .replace(/updated:\s*[^\n]+/, `updated: ${date}`);
 
-  // 离开 PLAN 阶段时，移除 plan_step 字段（该字段仅在 PLAN 阶段有意义）
   if (targetPhase !== 'PLAN') {
     result = result.replace(/\nplan_step:[^\n]*(?:\n>[^\n]*)*/g, '');
   }
@@ -450,9 +455,7 @@ function artifactStatus(featureDir, artifact, currentPhase, track) {
     return 'active';
   }
   if (artifact.special === 'state') {
-    return phaseIndex(currentPhase) >= phaseIndex('EXEC') && fs.existsSync(path.join(featureDir, artifact.file))
-      ? 'active'
-      : 'pending';
+    return fs.existsSync(path.join(featureDir, artifact.file)) ? 'active' : 'optional';
   }
   return fs.existsSync(path.join(featureDir, artifact.file)) ? 'done' : 'pending';
 }

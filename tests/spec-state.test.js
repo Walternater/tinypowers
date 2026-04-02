@@ -121,7 +121,7 @@ test('update-spec-state prevents skipping phases without force', () => {
   assert.match(result.stderr, /禁止跳步/);
 });
 
-test('update-spec-state --mode relaxed allows skipping phases', () => {
+test('update-spec-state --force allows skipping phases', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-relaxed-'));
 
   runNode([
@@ -141,8 +141,8 @@ test('update-spec-state --mode relaxed allows skipping phases', () => {
     '--feature', featureName,
     '--root', projectRoot,
     '--to', 'DONE',
-    '--mode', 'relaxed',
-    '--note', 'relaxed jump'
+    '--force',
+    '--note', 'force jump'
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -150,48 +150,7 @@ test('update-spec-state --mode relaxed allows skipping phases', () => {
   assert.match(specState, /phase: DONE/);
 });
 
-test('update-spec-state reads mode from SPEC-STATE file', () => {
-  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-filemode-'));
-
-  runNode([
-    path.join(ROOT, 'scripts/scaffold-feature.js'),
-    '--id', 'CSS-9999',
-    '--name', '文件模式',
-    '--root', projectRoot
-  ]);
-
-  const featureName = 'CSS-9999-文件模式';
-  const featureDir = path.join(projectRoot, 'features', featureName);
-  writeStandardPlanArtifacts(featureDir);
-
-  const specPath = path.join(featureDir, 'SPEC-STATE.md');
-  let content = fs.readFileSync(specPath, 'utf8');
-  content = content.replace('mode: strict', 'mode: relaxed');
-  fs.writeFileSync(specPath, content);
-
-  const result = runNode([
-    path.join(ROOT, 'scripts/update-spec-state.js'),
-    '--feature', featureName,
-    '--root', projectRoot,
-    '--to', 'EXEC',
-    '--note', 'move to exec first'
-  ]);
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-
-  const reviewResult = runNode([
-    path.join(ROOT, 'scripts/update-spec-state.js'),
-    '--feature', featureName,
-    '--root', projectRoot,
-    '--to', 'REVIEW',
-    '--note', 'file says relaxed'
-  ]);
-
-  assert.equal(reviewResult.status, 0, reviewResult.stderr || reviewResult.stdout);
-  const updated = fs.readFileSync(specPath, 'utf8');
-  assert.match(updated, /phase: REVIEW/);
-});
-
-test('update-spec-state requires verification before DONE', () => {
+test('update-spec-state requires verification evidence before REVIEW and DONE', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-done-'));
 
   runNode([
@@ -221,19 +180,19 @@ test('update-spec-state requires verification before DONE', () => {
     '--to', 'REVIEW',
     '--note', 'review done'
   ]);
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-
-  result = runNode([
-    path.join(ROOT, 'scripts/update-spec-state.js'),
-    '--feature', featureName,
-    '--root', projectRoot,
-    '--to', 'DONE',
-    '--note', 'commit done'
-  ]);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /VERIFICATION\.md/);
 
   fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), 'PASS\n');
+  result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'REVIEW',
+    '--note', 'review done'
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
   result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
@@ -272,38 +231,10 @@ test('fast-track scaffold keeps relaxed mode and track after phase update', () =
   const updated = fs.readFileSync(specPath, 'utf8');
   assert.match(updated, /phase: EXEC/);
   assert.match(updated, /track: fast/);
-  assert.match(updated, /mode: relaxed/);
+  assert.doesNotMatch(updated, /mode:/);
 });
 
-test('fast-track cannot skip from PLAN directly to DONE', () => {
-  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-fast-plan-'));
-
-  runNode([
-    path.join(ROOT, 'scripts/scaffold-feature.js'),
-    '--id', 'CSS-1357',
-    '--name', '执行后顺序',
-    '--track', 'fast',
-    '--root', projectRoot
-  ]);
-
-  const featureName = 'CSS-1357-执行后顺序';
-  const featureDir = path.join(projectRoot, 'features', featureName);
-  writeFastPlanArtifacts(featureDir);
-  fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), 'PASS\n');
-
-  const result = runNode([
-    path.join(ROOT, 'scripts/update-spec-state.js'),
-    '--feature', featureName,
-    '--root', projectRoot,
-    '--to', 'DONE',
-    '--note', 'skip rest'
-  ]);
-
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /Fast Route 只允许从 PLAN 进入 EXEC/);
-});
-
-test('fast-track still requires sequential progression after EXEC', () => {
+test('fast-track still requires sequential progression without force', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-fast-seq-'));
 
   runNode([
@@ -338,7 +269,7 @@ test('fast-track still requires sequential progression after EXEC', () => {
   ]);
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /进入 EXEC 后必须顺序推进/);
+  assert.match(result.stderr, /禁止跳步/);
 });
 
 test('fast-track entering EXEC still requires design, tasks, and acceptance criteria', () => {
@@ -394,7 +325,7 @@ test('entering EXEC generates STATE from standard task breakdown', () => {
   assert.match(state, /T-002 补测试/);
 });
 
-test('entering EXEC generates STATE from fast task breakdown', () => {
+test('entering EXEC skips STATE for lightweight fast task breakdown', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-state-fast-'));
 
   runNode([
@@ -418,8 +349,5 @@ test('entering EXEC generates STATE from fast task breakdown', () => {
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
-  const state = fs.readFileSync(path.join(featureDir, 'STATE.md'), 'utf8');
-  assert.match(state, /执行路由 \| `fast`/);
-  assert.match(state, /T-001 增加 completed 过滤/);
-  assert.match(state, /T-002 增加回归测试/);
+  assert.equal(fs.existsSync(path.join(featureDir, 'STATE.md')), false);
 });
