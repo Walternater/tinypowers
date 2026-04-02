@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "4.1"
+  version: "4.2"
 ---
 
 # /tech:commit
@@ -16,7 +16,8 @@ metadata:
 
 ## 前置条件
 
-- `VERIFICATION.md` 已存在且结论为 PASS/通过
+- Fast 路径：`STATE.md` 中包含验证通过结论
+- Medium/Standard 路径：`VERIFICATION.md` 已存在且结论为 PASS/通过
 - 测试结果是最新的
 - 工作区无无关改动
 - `SPEC-STATE` 当前为 `REVIEW`
@@ -26,13 +27,20 @@ metadata:
 ```text
 Fast Route:
   Step 1F: Document Sync + Git Commit + Push
-  Step 2F: Knowledge Capture（被动，如有 learnings）
+  Step 2F: Knowledge Capture（被动，如有 learnings，写入 PR 描述）
+
+Medium Route:
+  Step 1M: Document Sync
+  Step 2M: SPEC-STATE → DONE（提交前推进，避免额外 commit）
+  Step 3M: Git Commit + PR + Branch Cleanup
+  Step 4M: Knowledge Capture（被动，如有 learnings，写入 PR 描述）
 
 Standard Route:
   Step 1: Document Sync
-  Step 2: SPEC-STATE → DONE（提交前推进，避免额外 commit）
-  Step 3: Git Commit + PR + Branch Cleanup
-  Step 4: Knowledge Capture（被动，如有 learnings）
+  Step 2: 交付清单检查
+  Step 3: SPEC-STATE → DONE（提交前推进，避免额外 commit）
+  Step 4: Git Commit + PR + Branch Cleanup
+  Step 5: Knowledge Capture（被动，如有 learnings，写入 PR 描述）
 ```
 
 ## Document Sync
@@ -50,7 +58,7 @@ Standard Route:
 
 ## Knowledge Capture（被动模式）
 
-从 `notepads/learnings.md` 中挑出值得沉淀的内容写入 `docs/knowledge.md`。
+从 `notepads/learnings.md` 中挑出值得沉淀的内容写入 PR 描述。
 
 值得沉淀的内容：
 - 内部组件的非显而易见用法
@@ -60,8 +68,16 @@ Standard Route:
 **被动原则**：
 - 只在 `notepads/learnings.md` 有实质内容时才触发
 - Fast 路径直接跳过（没有 learnings 就不做）
-- Standard 路径有 learnings 时才写入 `docs/knowledge.md`
+- Standard 路径有 learnings 时将学习总结写入 PR 描述
 - 不为沉淀而沉淀——空 learnings 不创建/不修改 knowledge.md
+
+## 交付清单检查
+
+Standard 路径在提交前检查：
+- 所有任务拆解表中的任务已完成
+- 验证证据齐备
+- 文档与实现一致
+- 无无关改动混入
 
 ## Git Commit
 

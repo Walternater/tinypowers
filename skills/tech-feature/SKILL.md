@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "7.0"
+  version: "7.1"
 ---
 
 # /tech:feature
@@ -82,10 +82,9 @@ Medium Route:
   Phase 3M: PLAN 收口
 
 Standard Route:
-  Phase 1: 需求理解
-  Phase 2: 歧义检测 + 方案探索
-  Phase 3: 技术方案 + 决策锁定
-  Phase 4: 任务拆解 + PLAN 收口
+  Phase 1: 需求理解 + 歧义检测
+  Phase 2: 技术方案 + 决策锁定
+  Phase 3: 任务拆解 + PLAN 收口
 ```
 
 ## Phase 0: 准备
@@ -155,7 +154,7 @@ Medium 路径一旦出现这些信号，应升级为 `Standard`：
 
 ## Standard Route
 
-### Phase 1: 需求理解
+### Phase 1: 需求理解 + 歧义检测
 
 读取 `PRD.md`，用 `requirements-guide.md` 形成结构化理解：
 - 背景和目标
@@ -165,11 +164,9 @@ Medium 路径一旦出现这些信号，应升级为 `Standard`：
 - 非功能需求
 - 更新 `plan_step: req`
 
-### Phase 2: 歧义检测 + 方案探索
+用 `ambiguity-check.md` 识别高优先级歧义，必要时用 `superpowers:brainstorming` 探索 2-3 个可行方案。更新 `plan_step: tech-design`。
 
-遵循 `ambiguity-check.md`，先识别高优先级歧义，再用 `superpowers:brainstorming` 探索 2-3 个可行方案。更新 `plan_step: tech-design`。
-
-### Phase 3: 技术方案 + 决策锁定
+### Phase 2: 技术方案 + 决策锁定
 
 `技术方案.md` 至少要覆盖：
 - 目标与范围
@@ -178,16 +175,11 @@ Medium 路径一旦出现这些信号，应升级为 `Standard`：
 - 风险与回滚
 - 锁定决策（关键决策标记 `已确认`）
 
-关键决策应记录为稳定 ID：
-- D-01 架构 / 框架选型
-- D-02 数据结构 / 表结构
-- D-03 对外接口契约
-- D-04 中间件或依赖选型
-- D-05 特殊安全方案
+关键决策使用可选编号 D-0N（如 D-01, D-02...），按需记录，不强制分类。
 
 更新 `plan_step: tech-design`。
 
-### Phase 4: 任务拆解 + PLAN 收口
+### Phase 3: 任务拆解 + PLAN 收口
 
 复杂需求可委托 `superpowers:writing-plans`，但输出必须满足：
 - 层级清晰（Wave / Task）
@@ -221,8 +213,8 @@ Medium 路径一旦出现这些信号，应升级为 `Standard`：
 | `ambiguity-check.md` | 歧义检测规则 |
 
 **委托 superpowers**:
-- Standard Phase 2 → `superpowers:brainstorming`
-- Standard Phase 4 → `superpowers:writing-plans`
+- Standard Phase 1 → `superpowers:brainstorming`（按需）
+- Standard Phase 3 → `superpowers:writing-plans`
 - Medium 不委托 superpowers，直接用精简模板完成
 
 ## Gotchas

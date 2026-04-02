@@ -32,15 +32,15 @@ metadata:
 ## 主流程
 
 ```text
-Fast / Medium Route:
+Fast Route:
   Phase 0F: Gate Check
-  Phase 1F: Pattern Scan + Context Preparation
+  Phase 1F: Context Preparation
   Phase 2F: Execute
-  Phase 3F: Review + Verify
+  Phase 3F: Quick Self-Check + Verify
 
 Medium Route:
   Phase 0M: Gate Check
-  Phase 1M: Pattern Scan + Context Preparation
+  Phase 1M: Context Preparation + Pattern Scan
   Phase 2M: Execute
   Phase 3M: Review + Verify
 
@@ -52,7 +52,7 @@ Standard Route:
   Phase 4: Review + Verify
 ```
 
-> `Medium` 和 `Fast` 共用同一条执行路径（0F→1F→2F→3F），区别仅在于任务数量（Medium 允许 3-5 个）。
+> `Fast` 路径将 3 轮 review 合并为 1 次快速自检。
 
 ## Gate Check
 
@@ -100,18 +100,18 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 - 只在差异点写新逻辑
 - 没有参考实现时明确标记 `GREENFIELD`
 
-## Fast / Medium Route
+## Fast Route
 
-Fast/Medium 路径目标是减少委托和切换成本：
+Fast 路径目标是减少委托和切换成本：
 - 默认不新建 worktree
 - 默认不展开重型 subagent 链
 - 本地直接执行
-- Review + Verify 合并收口
+- 快速自检 + 验证合并收口
 
 但这些底线不变：
 - 缝合优先
 - TDD 优先
-- 验证证据必须保留
+- 验证证据必须保留（写入 STATE.md）
 
 ## Medium Route
 
@@ -131,14 +131,16 @@ Standard 路径保留完整治理能力：
 
 ## 审查与验证
 
-无论哪条路径，都必须至少完成：
-- 方案符合性检查
-- 安全风险检查
-- 代码质量检查
-- 验证证据产出（`VERIFICATION.md`）
+按路径选择不同策略：
 
-建议顺序：
+| 路径 | Review | 验证输出 | 测试要求 |
+|------|--------|----------|----------|
+| Fast | 一次快速自检（方案/安全/质量） | 写入 `STATE.md` 验证段落 | 核心逻辑测试 |
+| Medium | 3 轮审查（方案+安全+质量） | `VERIFICATION.md` | 测试计划 + 简要报告 |
+| Standard | 3 轮审查（方案+安全+质量） | `VERIFICATION.md` | 测试计划 + 单元 + 集成 + 报告 |
 
+Fast 路径建议顺序：自检 → 验证
+Medium/Standard 路径建议顺序：
 ```text
 compliance-reviewer（方案符合性 + 安全） -> superpowers:requesting-code-review（代码质量） -> verification（验证）
 ```
@@ -148,7 +150,7 @@ compliance-reviewer（方案符合性 + 安全） -> superpowers:requesting-code
 ```text
 features/{id}-{name}/
 ├── STATE.md
-├── VERIFICATION.md
+├── VERIFICATION.md  （Fast 路径写入 STATE.md，Medium/Standard 路径生成此文件）
 └── notepads/learnings.md
 ```
 
