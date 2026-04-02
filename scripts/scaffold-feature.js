@@ -10,8 +10,9 @@ const ARTIFACTS = [
   { label: '技术方案', file: '技术方案.md' },
   { label: '任务拆解表', file: '任务拆解表.md' },
   { label: '生命周期状态', file: 'SPEC-STATE.md', status: 'active' },
-  { label: 'STATE', file: 'STATE.md' },
-  { label: '验证报告', file: 'VERIFICATION.md' }
+  { label: '验证报告', file: 'VERIFICATION.md' },
+  { label: '测试计划', file: '测试计划.md' },
+  { label: '测试报告', file: '测试报告.md' }
 ];
 const TRACKS = {
   standard: {

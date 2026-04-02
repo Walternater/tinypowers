@@ -178,6 +178,7 @@ test('update-spec-state reads mode from SPEC-STATE file', () => {
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
+  fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), 'PASS\n');
   const reviewResult = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
@@ -205,7 +206,7 @@ test('update-spec-state requires verification before DONE', () => {
   const featureDir = path.join(projectRoot, 'features', featureName);
   writeStandardPlanArtifacts(featureDir);
 
-  let result = runNode([
+  let   result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
     '--root', projectRoot,
@@ -214,6 +215,7 @@ test('update-spec-state requires verification before DONE', () => {
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
+  fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), 'PASS\n');
   result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
@@ -223,6 +225,7 @@ test('update-spec-state requires verification before DONE', () => {
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
+  fs.unlinkSync(path.join(featureDir, 'VERIFICATION.md'));
   result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
@@ -364,62 +367,4 @@ test('fast-track entering EXEC still requires design, tasks, and acceptance crit
   assert.match(result.stderr, /PRD\.md 存在且非空|任务拆解表\.md 存在|锁定决策|验收标准|已确认/);
 });
 
-test('entering EXEC generates STATE from standard task breakdown', () => {
-  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-state-standard-'));
 
-  runNode([
-    path.join(ROOT, 'scripts/scaffold-feature.js'),
-    '--id', 'CSS-4321',
-    '--name', '状态初稿',
-    '--root', projectRoot
-  ]);
-
-  const featureName = 'CSS-4321-状态初稿';
-  const featureDir = path.join(projectRoot, 'features', featureName);
-  writeStandardPlanArtifacts(featureDir);
-
-  const result = runNode([
-    path.join(ROOT, 'scripts/update-spec-state.js'),
-    '--feature', featureName,
-    '--root', projectRoot,
-    '--to', 'EXEC',
-    '--note', 'plan check passed'
-  ]);
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-
-  const state = fs.readFileSync(path.join(featureDir, 'STATE.md'), 'utf8');
-  assert.match(state, /执行路由 \| `standard`/);
-  assert.match(state, /### Wave 1 PENDING/);
-  assert.match(state, /T-001 补 service 过滤/);
-  assert.match(state, /T-002 补测试/);
-});
-
-test('entering EXEC generates STATE from fast task breakdown', () => {
-  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-state-fast-'));
-
-  runNode([
-    path.join(ROOT, 'scripts/scaffold-feature.js'),
-    '--id', 'CSS-8642',
-    '--name', '快速状态',
-    '--track', 'fast',
-    '--root', projectRoot
-  ]);
-
-  const featureName = 'CSS-8642-快速状态';
-  const featureDir = path.join(projectRoot, 'features', featureName);
-  writeFastPlanArtifacts(featureDir);
-
-  const result = runNode([
-    path.join(ROOT, 'scripts/update-spec-state.js'),
-    '--feature', featureName,
-    '--root', projectRoot,
-    '--to', 'EXEC',
-    '--note', 'fast route ready'
-  ]);
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-
-  const state = fs.readFileSync(path.join(featureDir, 'STATE.md'), 'utf8');
-  assert.match(state, /执行路由 \| `fast`/);
-  assert.match(state, /T-001 增加 completed 过滤/);
-  assert.match(state, /T-002 增加回归测试/);
-});
