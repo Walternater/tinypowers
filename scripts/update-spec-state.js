@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const PHASES = ['INIT', 'REQ', 'DESIGN', 'TASKS', 'EXEC', 'REVIEW', 'VERIFY', 'CLOSED'];
+const PHASES = ['PLAN', 'EXEC', 'REVIEW', 'DONE'];
 const ARTIFACTS = [
   { label: 'CHANGESET', file: 'CHANGESET.md' },
   { label: 'PRD', file: 'PRD.md' },
@@ -81,7 +81,7 @@ function phaseIndex(phase) {
 }
 
 function getCurrentPhase(content) {
-  const match = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|EXEC|REVIEW|VERIFY|CLOSED)/);
+  const match = content.match(/phase:\s*(PLAN|EXEC|REVIEW|DONE)/);
   if (!match) {
     fail('SPEC-STATE.md 中缺少合法的 phase');
   }
@@ -125,41 +125,28 @@ function validatePrerequisites(featureDir, targetPhase, note, force) {
   }
 
   const checks = {
-    REQ() {
-      const prdPath = path.join(featureDir, 'PRD.md');
-      return fs.existsSync(prdPath) && read(prdPath).trim().length > 0
-        ? null
-        : '进入 REQ 需要 PRD.md 存在且非空';
-    },
-    DESIGN() {
-      const filePath = path.join(featureDir, '需求理解确认.md');
-      return fs.existsSync(filePath) && /已确认/.test(read(filePath))
-        ? null
-        : '进入 DESIGN 需要 需求理解确认.md 包含“已确认”标记';
-    },
-    TASKS() {
-      const filePath = path.join(featureDir, '技术方案.md');
-      return fs.existsSync(filePath) && /(已锁定决策|决策记录)/.test(read(filePath))
-        ? null
-        : '进入 TASKS 需要 技术方案.md 包含决策记录';
-    },
     EXEC() {
-      const filePath = path.join(featureDir, '任务拆解表.md');
-      return fs.existsSync(filePath) && (note || '').trim().length > 0
-        ? null
-        : '进入 EXEC 需要 任务拆解表.md 存在，并通过 --note 记录 plan-check 或放行说明';
+      const techPath = path.join(featureDir, '技术方案.md');
+      const taskPath = path.join(featureDir, '任务拆解表.md');
+      if (!fs.existsSync(techPath)) {
+        return '进入 EXEC 需要 技术方案.md 存在';
+      }
+      if (!fs.existsSync(taskPath)) {
+        return '进入 EXEC 需要 任务拆解表.md 存在';
+      }
+      return null;
     },
     REVIEW() {
-      const filePath = path.join(featureDir, 'STATE.md');
-      return fs.existsSync(filePath)
+      const statePath = path.join(featureDir, 'STATE.md');
+      return fs.existsSync(statePath)
         ? null
         : '进入 REVIEW 需要 STATE.md 已存在';
     },
-    CLOSED() {
-      const filePath = path.join(featureDir, 'VERIFICATION.md');
-      return fs.existsSync(filePath) && /(PASS|通过)/.test(read(filePath))
+    DONE() {
+      const verifyPath = path.join(featureDir, 'VERIFICATION.md');
+      return fs.existsSync(verifyPath) && /(PASS|通过)/.test(read(verifyPath))
         ? null
-        : '进入 CLOSED 需要 VERIFICATION.md 存在且结论为 PASS/通过';
+        : '进入 DONE 需要 VERIFICATION.md 存在且结论为 PASS/通过';
     }
   };
 
@@ -177,7 +164,7 @@ function validatePrerequisites(featureDir, targetPhase, note, force) {
 function updatePhaseBlock(content, targetPhase, date) {
   return content
     .replace(/^> 最后更新: .*?\| 当前阶段: .*$/m, `> 最后更新: ${date} | 当前阶段: ${targetPhase}`)
-    .replace(/phase:\s*(INIT|REQ|DESIGN|TASKS|EXEC|REVIEW|VERIFY|CLOSED)/, `phase: ${targetPhase}`)
+    .replace(/phase:\s*(PLAN|EXEC|REVIEW|DONE)/, `phase: ${targetPhase}`)
     .replace(/updated:\s*[^\n]+/, `updated: ${date}`);
 }
 
@@ -192,12 +179,25 @@ function appendHistoryRow(content, currentPhase, targetPhase, date, note) {
   }
 
   let insertIndex = historyHeaderIndex + 1;
+  let foundSeparator = false;
   while (insertIndex < lines.length) {
     const trimmed = lines[insertIndex].trim();
+    if (trimmed.startsWith('|') && trimmed.includes('---')) {
+      insertIndex += 1;
+      foundSeparator = true;
+      break;
+    }
     if (!trimmed.startsWith('|')) {
       break;
     }
     insertIndex += 1;
+  }
+
+  if (!foundSeparator) {
+    insertIndex = historyHeaderIndex + 1;
+    while (insertIndex < lines.length && lines[insertIndex].trim().startsWith('|')) {
+      insertIndex += 1;
+    }
   }
 
   lines.splice(insertIndex, 0, row);

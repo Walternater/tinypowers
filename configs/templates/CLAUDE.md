@@ -86,17 +86,19 @@ author: {{author}}
 | `/tech:code` | 执行编码、审查和验证 |
 | `/tech:commit` | 收口文档、提交和 PR |
 
-## 模板变量
+## 模板变量说明
 
-| 变量 | 含义 | 示例 |
-|------|------|------|
-| `{{project_name}}` | 项目目录名 | `my-project` |
-| `{{ProjectName}}` | 首字母大写项目名 | `MyProject` |
-| `{{tech_stack}}` | 技术栈描述 | `Java (Maven)` |
-| `{{tech_stack_short}}` | 技术栈简称 | `java` |
-| `{{build_tool}}` | 构建工具 | `Maven` |
-| `{{build_command}}` | 构建命令 | `mvn test` |
-| `{{service_port}}` | 服务端口 | `8080` |
-| `{{branch_pattern}}` | 分支命名模式 | `feature/{id}-{short-desc}` |
-| `{{author}}` | Git 用户名 | `John Doe` |
-| `{{date}}` | 当前日期 | `2026-03-28` |
+> 以下表格列出模板中使用的变量占位符，仅用于说明，不会被替换。
+
+```text
+{{project_name}}    → 项目目录名，如 my-project
+{{ProjectName}}     → 首字母大写项目名，如 MyProject
+{{tech_stack}}      → 技术栈描述，如 Java (Maven)
+{{tech_stack_short}} → 技术栈简称，如 java
+{{build_tool}}      → 构建工具，如 Maven
+{{build_command}}   → 构建命令，如 mvn test
+{{service_port}}    → 服务端口，如 8080
+{{branch_pattern}}  → 分支命名模式，如 feature/{id}-{short-desc}
+{{author}}          → Git 用户名，如 John Doe
+{{date}}            → 当前日期，如 2026-03-28
+```

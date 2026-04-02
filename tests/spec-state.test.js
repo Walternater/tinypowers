@@ -29,14 +29,14 @@ test('update-spec-state advances one phase and appends history', () => {
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
     '--root', projectRoot,
-    '--to', 'REQ',
-    '--note', 'PRD ready'
+    '--to', 'EXEC',
+    '--note', 'planning done'
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const specState = fs.readFileSync(path.join(projectRoot, 'features', featureName, 'SPEC-STATE.md'), 'utf8');
-  assert.match(specState, /phase: REQ/);
-  assert.match(specState, /\| INIT \| REQ \| PRD ready \|/);
+  assert.match(specState, /phase: EXEC/);
+  assert.match(specState, /\| PLAN \| EXEC \| planning done \|/);
 });
 
 test('update-spec-state prevents skipping phases without force', () => {
@@ -54,7 +54,7 @@ test('update-spec-state prevents skipping phases without force', () => {
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
     '--root', projectRoot,
-    '--to', 'DESIGN'
+    '--to', 'DONE'
   ]);
 
   assert.equal(result.status, 1);
@@ -76,14 +76,14 @@ test('update-spec-state --mode relaxed allows skipping phases', () => {
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
     '--root', projectRoot,
-    '--to', 'EXEC',
+    '--to', 'DONE',
     '--mode', 'relaxed',
     '--note', 'simple task skip'
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const specState = fs.readFileSync(path.join(projectRoot, 'features', featureName, 'SPEC-STATE.md'), 'utf8');
-  assert.match(specState, /phase: EXEC/);
+  assert.match(specState, /phase: DONE/);
 });
 
 test('update-spec-state reads mode from SPEC-STATE file', () => {
@@ -106,16 +106,16 @@ test('update-spec-state reads mode from SPEC-STATE file', () => {
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
     '--root', projectRoot,
-    '--to', 'TASKS',
+    '--to', 'REVIEW',
     '--note', 'file says relaxed'
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const updated = fs.readFileSync(specPath, 'utf8');
-  assert.match(updated, /phase: TASKS/);
+  assert.match(updated, /phase: REVIEW/);
 });
 
-test('update-spec-state no longer requires code-review artifact to enter VERIFY', () => {
+test('update-spec-state no longer requires code-review artifact to enter DONE', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-verify-'));
 
   runNode([
@@ -144,11 +144,11 @@ test('update-spec-state no longer requires code-review artifact to enter VERIFY'
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
     '--root', projectRoot,
-    '--to', 'VERIFY',
+    '--to', 'DONE',
     '--note', 'start verify without review file'
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const updated = fs.readFileSync(specPath, 'utf8');
-  assert.match(updated, /phase: VERIFY/);
+  assert.match(updated, /phase: DONE/);
 });

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "6.0"
+  version: "6.1"
 ---
 
 # /tech:code
@@ -16,15 +16,22 @@ metadata:
 
 本 skill 是**薄编排层**——定义 WHAT（门禁、缝合策略、上下文），委托 superpowers 定义 HOW（怎么派 subagent、怎么做 review、怎么验证）。
 
+## 复杂度路由
+
+| 模式 | 判定条件 | 流程差异 |
+|------|---------|---------|
+| **Fast** | 单模块、≤3 个文件改动、无破坏性变更 | 跳过 Phase 1（Worktree）、跳过 Phase 3（Pattern Scan 简化为快速参考）、Phase 5 审查合并为 1 轮 |
+| **Standard** | 多模块、有 DB 变更、跨层改动 | 完整 7 Phase 流程 |
+
 ## 输入
 
 - `features/{id}-{name}/任务拆解表.md`、`技术方案.md`、`STATE.md`、`SPEC-STATE.md`
 - `STATE.md` 不存在则启动时创建
-- `SPEC-STATE.md` 存在时，当前 phase 必须为 `TASKS` 或 `EXEC`
+- `SPEC-STATE.md` 存在时，当前 phase 必须为 `EXEC`
 
 <HARD-GATE>
 **执行前门禁检查** - 以下条件必须全部满足才能进入执行：
-1. `SPEC-STATE.md` 存在且当前 phase 为 `TASKS` 或 `EXEC`
+1. `SPEC-STATE.md` 存在且当前 phase 为 `EXEC`
 2. `任务拆解表.md` 存在且通过 `tech-plan-checker` 验证
 3. `技术方案.md` 存在且包含已锁定决策（D-0N 格式）
 
@@ -35,12 +42,11 @@ metadata:
 
 ```text
 Phase 0: Gate Check
-Phase 1: Isolated Worktree Setup
-Phase 2: Context Preparation
-Phase 3: Pattern Scan
-Phase 4: Execute (delegate to superpowers)
-Phase 5: Review (tinypowers agents → superpowers)
-Phase 6: Verify (delegate to superpowers)
+Phase 1: Isolated Worktree Setup（Standard only）
+Phase 2: Context Preparation + Pattern Scan（Fast: 合并 / Standard: 分两步）
+Phase 3: Execute (delegate to superpowers)
+Phase 4: Review（Fast: 1 轮 / Standard: 3 轮串行）
+Phase 5: Verify (delegate to superpowers)
 ```
 
 ## 硬约束
@@ -68,7 +74,9 @@ Phase 6: Verify (delegate to superpowers)
 - 对照 `技术方案.md` 锁定决策，确认无偏离 D-0N 约束
 - 最多重试 3 次，仍失败则暂停
 
-## Phase 1: Isolated Worktree Setup
+## Phase 1: Isolated Worktree Setup（Standard only）
+
+> Fast 模式跳过此 Phase，直接在当前分支开发。
 
 默认在这里委托 `superpowers:using-git-worktrees` 创建或复用隔离环境。
 
@@ -76,23 +84,61 @@ Phase 6: Verify (delegate to superpowers)
 - 如果当前已经在正确的隔离 worktree 中，直接复用
 - 如果不存在隔离环境，完成 Gate Check 后再创建
 
-## Phase 2: Context Preparation
+## Phase 2: Context Preparation + Pattern Scan
 
-为后续 Phase 预加载上下文。详见 `context-preload.md`。
+为后续 Phase 预加载上下文。
 
+**上下文加载规则**：
 - 读取 `技术方案.md`、`任务拆解表.md`、`STATE.md`
 - 加载领域知识（`docs/knowledge.md`）
 - 加载 feature 级 learnings（`notepads/learnings.md`）
 
-## Phase 3: Pattern Scan
+**裁剪规则**：
 
-为每个任务搜索最相似的已有实现。详见 `pattern-scan.md`。
+| 内容类型 | 裁剪策略 | 理由 |
+|---------|---------|------|
+| 技术方案全文 | 只注入当前任务相关章节 | 避免全量注入 |
+| 接口定义 | 只注入当前任务涉及的接口 | 按任务裁剪 |
+| 数据库设计 | 只注入当前任务涉及的表 | 按任务裁剪 |
+| 决策记录 | 全量注入 | 决策是全局约束 |
+| 规则文件 | 不注入（由 Hook 加载） | Hook 自动处理 |
 
-- 按文件类型、业务域、功能模式三个维度搜索
-- 每个任务产出参考锚点或 `GREENFIELD` 标记
-- 缝合策略：标注保留/替换/新增
+**Pattern Scan**（Standard 模式完整执行，Fast 模式简化为快速参考）：
 
-## Phase 4: Execute
+为每个任务搜索最相似的已有实现。搜索策略：
+
+| 搜索维度 | 方法 | 示例 |
+|---------|------|------|
+| 同类型文件 | 按文件类型/层匹配 | 新建 Controller → 搜现有 Controller |
+| 同业务域 | 按目录名、模块名、接口路径匹配 | 用户模块 → 搜 src/user/ 下文件 |
+| 同模式 | 按功能模式匹配 | CRUD → 找最近的 CRUD 实现 |
+
+每个任务产出参考锚点或 `GREENFIELD` 标记。
+
+缝合执行规则：非 GREENFIELD 任务必须先读取参考实现全文，理解其结构后再编码。编码顺序：复制骨架 → 替换业务字段和接口地址 → 在差异点编写新逻辑。
+
+**Wave 内学习捕获**：Wave 执行过程中发现的经验，实时记录到 `notepads/learnings.md`。
+
+捕获格式：
+```markdown
+### [日期] 简要描述
+- **类型**: 踩坑 / 组件用法 / 平台约束 / 方案纠正
+- **发现于**: T-XXX（任务 ID）
+- **内容**: 具体描述
+```
+
+不记录的内容：公开文档能查到的通用知识、纯粹的 typos、重复已有的 learnings 条目。
+
+**Anti-Rationalization 自检**：
+
+| 你可能在想 | 更可靠的判断 |
+|-----------|--------------|
+| 这只是个小改动 | 小改动同样可能破坏边界条件 |
+| 我已经检查过了 | 自查不等于独立验证 |
+| 用户催得急 | 带着已知风险继续，返工成本更高 |
+| 这一步应该不会出问题 | "应该"不是证据，跑完检查才是 |
+
+## Phase 3: Execute
 
 **委托 `superpowers:subagent-driven-development` 执行。**
 
@@ -104,27 +150,33 @@ Phase 6: Verify (delegate to superpowers)
 - 领域知识（按任务裁剪）
 - TDD 要求
 
-执行过程中发现的 learnings 实时记录到 `notepads/learnings.md`（格式见 `pattern-scan.md`）。
+> Fast 模式：简单任务可直接编码，不需要 subagent 委托。
 
-## Phase 5: Review
+执行过程中发现的 learnings 实时记录到 `notepads/learnings.md`。
+
+## Phase 4: Review
 
 先做 tinypowers 专项审查（确认"做对了东西"），再做 superpowers 代码质量审查。
 
 <HARD-GATE>
-**审查顺序不可跳步** — 前一步未通过禁止进入下一步：
-1. 方案符合性未通过 → 禁止进入安全审查
-2. 安全审查未通过 → 禁止进入代码质量审查
+**审查顺序不可跳步** — 前一步未通过禁止进入下一步。
 </HARD-GATE>
 
+**Standard 模式**（3 轮串行）：
 ```text
 1. agents/spec-compliance-reviewer      — 技术方案符合性（tinypowers 独有）
 2. agents/security-reviewer             — 安全风险审查（tinypowers 独有）
 3. superpowers:requesting-code-review    — 代码质量审查
 ```
 
+**Fast 模式**（1 轮综合审查）：
+```text
+1. 综合审查（方案符合性 + 安全 + 代码质量合并为一轮）
+```
+
 每步最多重试 3 次，仍失败则暂停。
 
-## Phase 6: Verify
+## Phase 5: Verify
 
 **委托 `superpowers:verification-before-completion` 执行。**
 
@@ -151,13 +203,10 @@ features/{id}-{name}/
 
 ## 配套文档
 
-| 文档 | 作用 |
-|------|------|
-| `context-preload.md` | 上下文预加载 + Anti-Rationalization + 交接检查 |
-| `pattern-scan.md` | 缝合扫描 + Wave 内学习捕获 |
+> context-preload 和 pattern-scan 已内联到本文件 Phase 2 中。
 
 **委托 superpowers**:
-- Phase 1 → `superpowers:using-git-worktrees`
-- Phase 4 → `superpowers:subagent-driven-development`
-- Phase 5 → `superpowers:requesting-code-review`
-- Phase 6 → `superpowers:verification-before-completion`
+- Phase 1 → `superpowers:using-git-worktrees`（Standard only）
+- Phase 3 → `superpowers:subagent-driven-development`
+- Phase 4 → `superpowers:requesting-code-review`（Standard only）
+- Phase 5 → `superpowers:verification-before-completion`

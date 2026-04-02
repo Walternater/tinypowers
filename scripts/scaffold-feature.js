@@ -34,7 +34,7 @@ function render(content, ctx) {
     .replaceAll('{{date}}', ctx.date)
     .replaceAll('{Feature ID}', ctx.featureId)
     .replaceAll('{date}', ctx.date)
-    .replaceAll('{phase}', 'INIT');
+    .replaceAll('{phase}', 'PLAN');
 }
 
 function main() {
@@ -49,9 +49,7 @@ function main() {
   const featureDir = path.join(args.root, 'features', `${featureId}-${featureName}`);
 
   fs.mkdirSync(featureDir, { recursive: true });
-  for (const dir of ['seeds', 'archive', 'notepads']) {
-    fs.mkdirSync(path.join(featureDir, dir), { recursive: true });
-  }
+  fs.mkdirSync(path.join(featureDir, 'notepads'), { recursive: true });
 
   const ctx = { featureId, featureName, date };
 
@@ -73,13 +71,11 @@ function main() {
   ].join('\n'));
 
   const templates = [
-    ['CHANGESET.md', 'change-set.md'],
     ['SPEC-STATE.md', 'spec-state.md'],
     ['PRD.md', 'prd-template.md'],
     ['需求理解确认.md', 'requirements-confirmation.md'],
     ['技术方案.md', 'tech-design.md'],
-    ['任务拆解表.md', 'task-breakdown.md'],
-    ['评审记录.md', 'review-log.md']
+    ['任务拆解表.md', 'task-breakdown.md']
   ];
 
   for (const [outputName, templateName] of templates) {
