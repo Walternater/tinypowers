@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "8.2"
+  version: "8.3"
 ---
 
 # /tech:code
@@ -26,7 +26,7 @@ metadata:
 
 - 进入本 skill 时，`SPEC-STATE` 必须为 `PLAN` 或 `EXEC`
 - 开始执行后推进到 `EXEC`
-- **★ 测试报告输出后暂停，等待用户确认**，确认后继续 Review + Verify，再推进到 `REVIEW`
+- **★ 测试报告输出后暂停，等待用户确认**，确认后继续 Verify，再推进到 `REVIEW`
 - 禁止在 `/tech:commit` 前自动提交
 
 ## 主流程
@@ -36,18 +36,20 @@ Fast / Medium Route:
   Phase 0F: Gate Check
   Phase 1F: Context Preparation（含快速参考扫描）
   Phase 2F: Execute
-  Phase 3F: Test
+  Phase 3F: Review（代码审查）
+  Phase 4F: Test（测试计划 + 测试报告）
   ★ 人工确认：测试报告输出后暂停，等待用户确认后继续
-  Phase 4F: Review + Verify → SPEC-STATE → REVIEW
+  Phase 5F: Verify → SPEC-STATE → REVIEW
 
 Standard Route:
   Phase 0: Gate Check
   Phase 1: Worktree Setup（可选，视需求规模决定）
   Phase 2: Context Preparation（含参考扫描）
   Phase 3: Execute
-  Phase 4: Test
+  Phase 4: Review（代码审查）
+  Phase 5: Test（测试计划 + 测试报告）
   ★ 人工确认：测试报告输出后暂停，等待用户确认后继续
-  Phase 5: Review + Verify → SPEC-STATE → REVIEW
+  Phase 6: Verify → SPEC-STATE → REVIEW
 ```
 
 > `Medium` 和 `Fast` 共用同一条执行路径，区别仅在于任务数量（Medium 允许 3-5 个）。
@@ -61,9 +63,7 @@ Standard Route:
 - `SPEC-STATE.track` 已明确
 - （`plan_step = ready` 可视为规划完成的可选信号）
 
-推进到 `EXEC` 时：
-- 自动生成 `STATE.md`
-- `STATE.md` 应从 `任务拆解表.md` 自动提取 Wave / Task 初稿
+推进到 `EXEC` 时，如果决定维护 `STATE.md`，从 `任务拆解表.md` 提取 Wave / Task 初稿。
 
 进入 EXEC 命令（实质内容门禁，无需 `--note`）：
 
@@ -94,28 +94,27 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 
 ## Test（所有路径）
 
-编码完成后、Review 之前，执行测试阶段：
+Review 完成后，执行测试阶段：
 
-- 编写测试用例并运行
-- 产出 `测试报告.md`（覆盖：测试范围、用例数、通过率、失败原因）
+- 编写测试计划（覆盖范围、用例列表），产出 `测试计划.md`
+- 执行测试用例，产出 `测试报告.md`（覆盖：测试范围、用例数、通过率、失败原因）
 
-**Fast 路径**：至少覆盖核心逻辑的正向和反向用例，测试结果也可记录在 `STATE.md` 对应 Task 的验收栏；`测试报告.md` 可选。
+**Fast 路径**：测试计划可简化为内联描述，不单独创建 `测试计划.md`；`测试报告.md` 可选，但测试结论须在交付前明确。
 
-**Medium / Standard 路径**：必须产出 `测试报告.md`，覆盖核心路径。
+**Medium / Standard 路径**：必须产出 `测试计划.md` 和 `测试报告.md`，覆盖核心路径。
 
-> 这是关键确认点——测试报告（或 Fast 路径的验收记录）输出后，**暂停等待用户确认**，再进入 Review。
+> 这是关键确认点——测试报告输出后，**暂停等待用户确认**，再进入 Verify。
 
 ## Fast / Medium Route
 
 Fast/Medium 路径目标是减少委托和切换成本：
 - 默认不新建 worktree
 - 本地直接执行
-- Review + Verify 合并收口
 
-Fast 路径审查与验证（一轮快速检查）：
+Fast 路径审查（一轮快速检查）：
 - 方案符合性 + 代码质量合并为一次自检
 - 安全风险检查（仅关注输入验证、权限、敏感信息泄露）
-- 验证证据写入 `STATE.md` 的对应 Task 状态中，**不单独创建 `VERIFICATION.md`**
+- 审查结论须明确（可内联记录，**不单独创建 `VERIFICATION.md`**）
 
 Medium 路径审查与验证：
 - Review 用 `compliance-reviewer` 统一审查
@@ -138,11 +137,11 @@ Standard 路径保留完整治理能力：
 
 按路径分级执行：
 
-| 路径 | Review | Verify | 测试要求 | 验证文档 |
-|------|--------|--------|---------|---------|
-| Fast | 自检（方案符合性 + 代码质量合并） | 本地验证 | 核心逻辑正向 + 反向用例 | STATE.md 内记录 |
-| Medium | `compliance-reviewer` | `superpowers:verification-before-completion` | 测试计划 + 核心路径覆盖 | 简要测试报告 |
-| Standard | `compliance-reviewer` + `requesting-code-review` | `superpowers:verification-before-completion` | 测试计划 + 单元 + 集成测试 | `VERIFICATION.md` + 测试报告 |
+| 路径 | Review | Test | Verify | 验证文档 |
+|------|--------|------|--------|---------|
+| Fast | 自检（方案符合性 + 代码质量合并） | 核心逻辑正向 + 反向用例，结论须明确 | 本地验证 | 内联记录（可选文档） |
+| Medium | `compliance-reviewer` | 测试计划 + 测试报告（核心路径覆盖） | `superpowers:verification-before-completion` | 测试计划.md + 测试报告.md |
+| Standard | `compliance-reviewer` + `requesting-code-review` | 测试计划 + 单元 + 集成测试 + 测试报告 | `superpowers:verification-before-completion` | `VERIFICATION.md` + 测试计划.md + 测试报告.md |
 
 所有路径都必须完成安全风险检查。
 
@@ -158,6 +157,7 @@ compliance-reviewer（方案符合性 + 安全） -> superpowers:requesting-code
 features/{id}-{name}/
 ├── STATE.md                 # 可选，多任务/跨 Wave/跨会话时维护
 ├── VERIFICATION.md          # Medium/Standard 产出，Fast 路径不创建
+├── 测试计划.md              # Medium/Standard 产出，Fast 路径可内联
 ├── 测试报告.md              # Medium/Standard 产出，Fast 路径可选
 └── notepads/
     └── learnings.md
@@ -168,7 +168,7 @@ features/{id}-{name}/
 ## 配套说明
 
 - `STATE.md` 是可选的执行期跟踪文档；建议在多任务、跨 Wave、跨会话执行时维护
-- Fast 路径：Task 验收记录即为验证证据，无需额外文档
+- Fast 路径：审查结论和测试结论可内联记录，无需额外文档
 - Medium/Standard 路径：`VERIFICATION.md` 是进入 `/tech:commit` 的前置条件
 - 同一问题连续失败 3 次，应停止并上升到架构讨论
 
@@ -176,7 +176,7 @@ features/{id}-{name}/
 - Phase 1 → `superpowers:using-git-worktrees`（可选，视需求规模）
 - Phase 3 → `superpowers:subagent-driven-development`（可选，任务 >5 个时）
 - Phase 4 → `compliance-reviewer` + `superpowers:requesting-code-review`
-- Medium/Standard Verify → `superpowers:verification-before-completion`
+- Phase 6 → `superpowers:verification-before-completion`
 
 **委托 tinypowers agents**:
 - Review 阶段 → `compliance-reviewer`（方案符合性 + 安全审查合一）
