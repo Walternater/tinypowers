@@ -25,7 +25,7 @@ const ARTIFACTS = [
   { label: 'STATE', file: 'STATE.md', special: 'state' },
   { label: '验证报告', file: 'VERIFICATION.md' }
 ];
-const TRACKS = ['standard', 'fast'];
+const TRACKS = ['standard', 'medium', 'fast'];
 
 function parseArgs(argv) {
   const args = { root: process.cwd(), force: false, mode: 'strict' };
@@ -108,7 +108,7 @@ function getCurrentMode(content) {
 }
 
 function getCurrentTrack(content) {
-  const match = content.match(/track:\s*(standard|fast)/);
+  const match = content.match(/track:\s*(standard|medium|fast)/);
   return match ? match[1] : 'standard';
 }
 
@@ -337,6 +337,8 @@ function validatePrerequisites(featureDir, targetPhase, note, force, track) {
         ? null
         : track === 'fast'
           ? 'Fast Route 进入 EXEC 需要通过 --note 记录放行说明或简化审查结论'
+          : track === 'medium'
+            ? 'Medium Route 进入 EXEC 需要通过 --note 记录方案确认或收口说明'
           : '进入 EXEC 需要通过 --note 记录 plan-check 或放行说明';
     },
     REVIEW() {
@@ -411,6 +413,9 @@ function appendHistoryRow(content, currentPhase, targetPhase, date, note) {
   }
 
   let insertIndex = historyHeaderIndex + 1;
+  while (insertIndex < lines.length && lines[insertIndex].trim() === '') {
+    insertIndex += 1;
+  }
   while (insertIndex < lines.length) {
     const trimmed = lines[insertIndex].trim();
     if (!trimmed.startsWith('|')) {

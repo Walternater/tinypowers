@@ -44,8 +44,9 @@ updated: {date}
 ```
 PLAN -> EXEC:     PRD / 技术方案 / 任务拆解表满足当前路由门禁
 EXEC -> REVIEW:   STATE.md 已收敛，审查与验证证据齐备
-REVIEW -> DONE:   代码已提交，VERIFICATION.md 结论 = PASS
+REVIEW -> DONE:   VERIFICATION.md 结论 = PASS，交付内容已冻结并准备随提交一起收口
 ```
 
 `track: standard` 默认使用 `mode: strict`，按 `PLAN -> EXEC -> REVIEW -> DONE` 顺序推进。
+`track: medium` 默认使用 `mode: strict`，允许更轻的规划模板，但仍按顺序推进。
 `track: fast` 默认使用 `mode: relaxed`，允许更轻的 PLAN 文档，但进入 `EXEC` 后仍必须顺序推进。

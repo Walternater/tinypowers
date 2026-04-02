@@ -14,6 +14,15 @@ const ARTIFACTS = [
   { label: '验证报告', file: 'VERIFICATION.md' }
 ];
 const TRACKS = {
+  medium: {
+    mode: 'strict',
+    templates: [
+      ['SPEC-STATE.md', 'spec-state.md'],
+      ['PRD.md', 'prd-medium.md'],
+      ['技术方案.md', 'tech-design-medium.md'],
+      ['任务拆解表.md', 'task-breakdown-medium.md']
+    ]
+  },
   standard: {
     mode: 'strict',
     templates: [
@@ -42,6 +51,12 @@ function parseArgs(argv) {
     if (arg === '--name') { args.name = argv[i + 1]; i += 1; continue; }
     if (arg === '--root') { args.root = path.resolve(argv[i + 1]); i += 1; continue; }
     if (arg === '--track') { args.track = String(argv[i + 1] || '').trim().toLowerCase(); i += 1; continue; }
+    if (arg === '--brief') { args.brief = argv[i + 1] || ''; i += 1; continue; }
+    if (arg === '--in-scope') { args.inScope = argv[i + 1] || ''; i += 1; continue; }
+    if (arg === '--out-of-scope') { args.outOfScope = argv[i + 1] || ''; i += 1; continue; }
+    if (arg === '--modules') { args.modules = argv[i + 1] || ''; i += 1; continue; }
+    if (arg === '--acceptance') { args.acceptance = argv[i + 1] || ''; i += 1; continue; }
+    if (arg === '--tasks') { args.tasks = argv[i + 1] || ''; i += 1; continue; }
     if (arg === '--force') { args.force = true; }
   }
   return args;
@@ -64,9 +79,42 @@ function render(content, ctx) {
     .replaceAll('{{track}}', ctx.track)
     .replaceAll('{{track_label}}', ctx.trackLabel)
     .replaceAll('{{mode}}', ctx.mode)
+    .replaceAll('{{brief}}', ctx.brief)
+    .replaceAll('{{in_scope_list}}', ctx.inScopeList)
+    .replaceAll('{{out_of_scope_list}}', ctx.outOfScopeList)
+    .replaceAll('{{acceptance_list}}', ctx.acceptanceList)
+    .replaceAll('{{modules_list}}', ctx.modulesList)
+    .replaceAll('{{task_rows}}', ctx.taskRows)
     .replaceAll('{Feature ID}', ctx.featureId)
     .replaceAll('{date}', ctx.date)
     .replaceAll('{phase}', 'PLAN');
+}
+
+function splitItems(value) {
+  return String(value || '')
+    .split(';')
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function bulletList(value, fallback = '- ') {
+  const items = splitItems(value);
+  if (items.length === 0) {
+    return fallback;
+  }
+  return items.map(item => '- ' + item).join('\n');
+}
+
+function buildTaskRows(value) {
+  const items = splitItems(value);
+  if (items.length === 0) {
+    return '| T-001 | | 实现 / 测试 / 文档 | | | |\n| T-002 | | 实现 / 测试 / 文档 | | | |';
+  }
+
+  return items.map((item, index) => {
+    const taskId = 'T-' + String(index + 1).padStart(3, '0');
+    return '| ' + taskId + ' | ' + item + ' | 实现 / 测试 / 文档 | 待补验收标准 | 待补涉及文件/模块 | |';
+  }).join('\n');
 }
 
 function artifactStatus(featureDir, artifact, track) {
@@ -106,11 +154,11 @@ function syncSpecStateArtifacts(specStatePath, featureDir, track) {
 function main() {
   const args = parseArgs(process.argv);
   if (!args.id || !args.name) {
-    fail('用法: node scripts/scaffold-feature.js --id CSS-1234 --name 用户登录 [--track fast|standard] [--root /path/to/project] [--force]');
+    fail('用法: node scripts/scaffold-feature.js --id CSS-1234 --name 用户登录 [--track fast|medium|standard] [--brief "..."] [--tasks "任务1;任务2"] [--root /path/to/project] [--force]');
   }
 
   if (!TRACKS[args.track]) {
-    fail('--track 允许值: standard, fast');
+    fail('--track 允许值: standard, medium, fast');
   }
 
   const featureId = sanitizeSegment(args.id);
@@ -127,8 +175,14 @@ function main() {
     featureName,
     date,
     track: args.track,
-    trackLabel: args.track === 'fast' ? 'Fast' : 'Standard',
-    mode: trackConfig.mode
+    trackLabel: args.track === 'fast' ? 'Fast' : args.track === 'medium' ? 'Medium' : 'Standard',
+    mode: trackConfig.mode,
+    brief: args.brief || '待补一句话需求摘要',
+    inScopeList: bulletList(args.inScope),
+    outOfScopeList: bulletList(args.outOfScope),
+    acceptanceList: bulletList(args.acceptance),
+    modulesList: bulletList(args.modules),
+    taskRows: buildTaskRows(args.tasks)
   };
 
   const learningsPath = path.join(featureDir, 'notepads', 'learnings.md');

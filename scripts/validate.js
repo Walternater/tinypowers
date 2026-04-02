@@ -617,7 +617,7 @@ function validateSpecState() {
 
     const content = fs.readFileSync(specStatePath, 'utf8');
     const phaseMatch = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|PLAN|EXEC|REVIEW|VERIFY|CLOSED|DONE)/);
-    const trackMatch = content.match(/track:\s*(standard|fast)/);
+    const trackMatch = content.match(/track:\s*(standard|medium|fast)/);
 
     if (!phaseMatch) {
       warn(rel, 0, 'phase 字段缺失或值无效');
@@ -671,10 +671,13 @@ function validateFeatureScaffold() {
     'configs/templates/spec-state.md',
     'configs/templates/state.md',
     'configs/templates/prd-template.md',
+    'configs/templates/prd-medium.md',
     'configs/templates/settings.json',
     'configs/templates/tech-design.md',
+    'configs/templates/tech-design-medium.md',
     'configs/templates/tech-design-fast.md',
     'configs/templates/task-breakdown.md',
+    'configs/templates/task-breakdown-medium.md',
     'configs/templates/task-breakdown-fast.md'
   ];
 
@@ -708,6 +711,20 @@ function validateFeatureScaffold() {
     }
   } else {
     error('scripts/init-project.js', 0, '缺少 init 自动化脚本');
+  }
+
+  for (const relPath of ['scripts/generate-verification.js', 'scripts/update-state.js']) {
+    const scriptPath = path.join(ROOT, relPath);
+    if (!fs.existsSync(scriptPath)) {
+      error(relPath, 0, '缺少 workflow 辅助脚本');
+      continue;
+    }
+    try {
+      execFileSync('node', ['--check', scriptPath], { stdio: 'pipe', timeout: 5000 });
+      ok(relPath, 'workflow 辅助脚本语法检查通过');
+    } catch (e) {
+      error(relPath, 0, 'workflow 辅助脚本语法错误: ' + (e.stderr ? e.stderr.toString().trim() : e.message));
+    }
   }
 
   if (fs.existsSync(path.join(ROOT, 'docs', 'guides', 'change-set-model.md'))) {

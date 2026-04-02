@@ -81,3 +81,33 @@ test('scaffold-feature supports fast track with lightweight artifacts', () => {
   const techDesign = fs.readFileSync(path.join(featureDir, '技术方案.md'), 'utf8');
   assert.match(techDesign, /Fast Route 适用性/);
 });
+
+test('scaffold-feature supports medium track with seeded drafting fields', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-scaffold-medium-'));
+
+  execFileSync(
+    'node',
+    [
+      path.join(ROOT, 'scripts/scaffold-feature.js'),
+      '--id', 'CSS-9012',
+      '--name', '中档需求',
+      '--track', 'medium',
+      '--brief', '给任务列表增加中等复杂筛选能力',
+      '--in-scope', '新增接口;补齐测试',
+      '--tasks', '扩展查询;补齐测试;整理验证',
+      '--root', projectRoot
+    ],
+    { cwd: ROOT, stdio: 'ignore' }
+  );
+
+  const featureDir = path.join(projectRoot, 'features', 'CSS-9012-中档需求');
+  const specState = fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
+  const prd = fs.readFileSync(path.join(featureDir, 'PRD.md'), 'utf8');
+  const taskBreakdown = fs.readFileSync(path.join(featureDir, '任务拆解表.md'), 'utf8');
+
+  assert.match(specState, /track: medium/);
+  assert.match(specState, /mode: strict/);
+  assert.match(prd, /给任务列表增加中等复杂筛选能力/);
+  assert.match(taskBreakdown, /T-001/);
+  assert.match(taskBreakdown, /扩展查询/);
+});

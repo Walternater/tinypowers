@@ -231,6 +231,12 @@ function main() {
   };
 
   const created = [];
+  const ensuredDirs = [];
+
+  const ensureProjectDir = relativePath => {
+    ensureDir(path.join(projectRoot, relativePath));
+    ensuredDirs.push(relativePath.endsWith('/') ? relativePath : relativePath + '/');
+  };
 
   const renderTemplate = (templateName, targetRel) => {
     const templatePath = path.join(installRoot, 'configs', 'templates', templateName);
@@ -269,14 +275,14 @@ function main() {
     created.push('configs/rules/mysql/');
   }
 
-  ensureDir(path.join(projectRoot, 'features'));
-  ensureDir(path.join(projectRoot, 'docs'));
-  ensureDir(path.join(projectRoot, 'docs', 'guides'));
+  ensureProjectDir('features');
+  ensureProjectDir('docs');
+  ensureProjectDir(path.join('docs', 'guides'));
 
   console.log('init-project 完成');
   console.log('项目根目录: ' + projectRoot);
   console.log('创建/更新内容:');
-  for (const item of created) {
+  for (const item of [...new Set([...ensuredDirs, ...created])]) {
     console.log('- ' + item);
   }
 
@@ -290,6 +296,7 @@ function main() {
   }
 
   console.log('初始化验证通过');
+  console.log('建议验证命令: node "' + path.join(installRoot, 'scripts', 'doctor.js') + '" --project "' + projectRoot + '"');
 }
 
 main();

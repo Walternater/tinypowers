@@ -7,6 +7,17 @@ const ROOT = path.resolve(__dirname, '..');
 const MANIFEST_PATH = path.join(ROOT, 'manifests', 'components.json');
 const SETTINGS_FILE = path.join('.claude', 'settings.json');
 
+function canonicalPath(targetPath) {
+  const resolved = path.resolve(targetPath);
+  try {
+    return fs.realpathSync.native
+      ? fs.realpathSync.native(resolved)
+      : fs.realpathSync(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
 function parseArgs(argv) {
   const result = { _: [] };
   for (let i = 2; i < argv.length; i += 1) {
@@ -41,7 +52,7 @@ function readFile(p) {
 
 function detectInstallRoot(args) {
   if (args['install-root']) {
-    return path.resolve(args['install-root']);
+    return canonicalPath(args['install-root']);
   }
 
   if (args.global) {
@@ -51,23 +62,23 @@ function detectInstallRoot(args) {
   const projectRoot = path.resolve(args.project || process.cwd());
   const projectInstall = path.join(projectRoot, '.claude', 'skills', 'tinypowers');
   if (exists(projectInstall)) {
-    return projectInstall;
+    return canonicalPath(projectInstall);
   }
 
-  return ROOT;
+  return canonicalPath(ROOT);
 }
 
 function detectProjectRoot(args, installRoot) {
   if (args.project) {
-    return path.resolve(args.project);
+    return canonicalPath(args.project);
   }
 
-  if (installRoot === ROOT) {
-    return ROOT;
+  if (canonicalPath(installRoot) === canonicalPath(ROOT)) {
+    return canonicalPath(ROOT);
   }
 
   const candidate = path.resolve(installRoot, '..', '..', '..');
-  return candidate;
+  return canonicalPath(candidate);
 }
 
 function checkFile(relPath, baseDir, findings, label, required = true) {
@@ -176,7 +187,7 @@ function checkHooks(projectRoot, installRoot, findings, installedComponents) {
 }
 
 function checkProjectArtifacts(projectRoot, findings, installRoot) {
-  if (projectRoot === ROOT && installRoot === ROOT) {
+  if (canonicalPath(projectRoot) === canonicalPath(ROOT) && canonicalPath(installRoot) === canonicalPath(ROOT)) {
     findings.info.push('当前运行在框架仓库自身，不要求出现 CLAUDE.md / features/');
     return;
   }

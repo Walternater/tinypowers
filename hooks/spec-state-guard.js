@@ -46,7 +46,7 @@ const CODE_BASH_PATTERNS = [
 ];
 
 const ALLOWED_BASH_PATTERNS = [
-  /\b(node|bun)\s+\S*(scaffold-feature|update-spec-state|doctor|validate|install-manifest|repair)\.js\b/,
+  /\b(node|bun)\s+\S*(scaffold-feature|update-spec-state|update-state|generate-verification|doctor|validate|install-manifest|repair)\.js\b/,
   /\b(npm|pnpm|yarn)\s+(run\s+)?(validate|doctor|check|lint|test|typecheck|ci)\b/
 ];
 

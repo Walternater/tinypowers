@@ -28,6 +28,10 @@ Fast Route:
   Step 1F: Document Sync + minimal Knowledge Capture
   Step 2F: Git Commit + Push/PR
 
+Medium Route:
+  Step 1M: Document Sync + targeted Knowledge Capture
+  Step 2M: Pre-close SPEC-STATE + Git Commit + Push/PR
+
 Standard Route:
   Step 1: Document Sync
   Step 2: Knowledge Capture
@@ -77,6 +81,16 @@ Evidence: [验证结果]
 
 `Constraint / Rejected / Confidence` 不再要求写入 trailer；这些信息应优先记录在 `技术方案.md`。
 
+## DONE 收口时机
+
+为避免功能提交后再补一个纯状态提交，推荐在真正 `git commit` 前完成：
+
+```bash
+node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" --feature {feature_dir} --to DONE --note "ready to commit"
+```
+
+然后将功能代码、文档同步和 `SPEC-STATE.md` 一起进入同一个 commit。
+
 ## PR + Branch Cleanup
 
 Standard 路径可继续委托 `superpowers:finishing-a-development-branch`。
@@ -94,7 +108,7 @@ Fast 路径优先直接使用 git 命令：
 ## 生命周期收口
 
 提交完成后：
-- 将 `SPEC-STATE` 推进到 `DONE`
+- `SPEC-STATE` 应已在同一个提交中处于 `DONE`
 - 保留 `VERIFICATION.md`
 - 确保 reviewer 只看 PR 也能理解改动
 

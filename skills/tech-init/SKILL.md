@@ -128,10 +128,10 @@ lazy mode 下只创建 `docs/knowledge.md` 模板。
 
 ## 6. 初始化验证
 
-初始化完成后执行：
+初始化完成后优先执行目标项目级验证：
 
 ```bash
-node "${TINYPOWERS_DIR}/scripts/validate.js"
+node "${TINYPOWERS_DIR}/scripts/doctor.js" --project .
 ```
 
 重点检查：
@@ -140,13 +140,15 @@ node "${TINYPOWERS_DIR}/scripts/validate.js"
 - 模板变量是否已替换
 - Java 规则是否已落地
 
+`validate.js` 只用于校验 tinypowers 仓库自身的定义与模板，不作为目标项目初始化后的首选验证入口。
+
 ## 配套文档
 
 | 文档 | 作用 |
 |------|------|
 | `claude-init.md` | `.claude/` 初始化和 merge 规则 |
 | `scripts/init-project.js` | 初始化自动化脚本 |
-| `scripts/validate.js` | 初始化后完整性校验 |
+| `scripts/doctor.js` | 目标项目初始化后的完整性校验 |
 
 ## Gotchas
 

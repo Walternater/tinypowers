@@ -91,7 +91,7 @@ test('update-spec-state advances one phase and appends history', () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const specState = fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
   assert.match(specState, /phase: EXEC/);
-  assert.match(specState, /\| PLAN \| EXEC \| plan ready \|/);
+  assert.match(specState, /## 阶段历史\s*\n\s*\| 时间 \| 从 \| 到 \| 备注 \|\n\|------\|-----\|-----\|------\|\n\| .* \| - \| PLAN \| 需求目录创建 \|\n\| .* \| PLAN \| EXEC \| plan ready \|/);
 });
 
 test('update-spec-state prevents skipping phases without force', () => {
@@ -273,6 +273,36 @@ test('fast-track scaffold keeps relaxed mode and track after phase update', () =
   assert.match(updated, /phase: EXEC/);
   assert.match(updated, /track: fast/);
   assert.match(updated, /mode: relaxed/);
+});
+
+test('medium-track scaffold keeps strict mode and track after phase update', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-medium-track-'));
+
+  runNode([
+    path.join(ROOT, 'scripts/scaffold-feature.js'),
+    '--id', 'CSS-8642',
+    '--name', '中档过滤',
+    '--track', 'medium',
+    '--root', projectRoot
+  ]);
+
+  const featureName = 'CSS-8642-中档过滤';
+  const featureDir = path.join(projectRoot, 'features', featureName);
+  writeStandardPlanArtifacts(featureDir);
+
+  const result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'EXEC',
+    '--note', 'medium route ready'
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const updated = fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
+  assert.match(updated, /phase: EXEC/);
+  assert.match(updated, /track: medium/);
+  assert.match(updated, /mode: strict/);
 });
 
 test('fast-track cannot skip from PLAN directly to DONE', () => {

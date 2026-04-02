@@ -38,6 +38,12 @@ Fast Route:
   Phase 2F: Execute
   Phase 3F: Review + Verify
 
+Medium Route:
+  Phase 0M: Gate Check
+  Phase 1M: Context Preparation + Focused Pattern Scan
+  Phase 2M: Execute
+  Phase 3M: Review + Verify
+
 Standard Route:
   Phase 0: Gate Check
   Phase 1: Worktree Setup
@@ -92,6 +98,21 @@ Fast 路径目标是减少委托和切换成本：
 - TDD 优先
 - 验证证据必须保留
 
+## Medium Route
+
+Medium 路径目标是保留治理，但减少切换成本：
+- 默认不强制新建 worktree
+- 默认不展开重型 subagent 链
+- 保留完整审查与验证
+- 推荐使用脚本减少执行期文档维护
+
+建议脚本：
+
+```bash
+node "${TINYPOWERS_DIR}/scripts/update-state.js" --feature {feature_dir} --task T-001 --status done
+node "${TINYPOWERS_DIR}/scripts/generate-verification.js" --root . --feature {feature_dir} --command "mvn test" --scope "核心场景1;核心场景2"
+```
+
 ## Standard Route
 
 Standard 路径保留完整治理能力：
@@ -135,4 +156,4 @@ features/{id}-{name}/
 - Standard Phase 1 → `superpowers:using-git-worktrees`
 - Standard Phase 3 → `superpowers:subagent-driven-development`
 - Standard Phase 4 → `superpowers:requesting-code-review`
-- Standard / Fast Verify → `superpowers:verification-before-completion`
+- Standard / Medium / Fast Verify → `superpowers:verification-before-completion`

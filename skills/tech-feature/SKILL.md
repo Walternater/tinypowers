@@ -16,7 +16,7 @@ metadata:
 
 ## 默认骨架
 
-Standard / Fast 都只预生成最小必需工件：
+Standard / Medium / Fast 都只预生成最小必需工件：
 
 ```text
 features/{需求编号}-{需求名称}/
@@ -52,11 +52,13 @@ PLAN -> EXEC -> REVIEW -> DONE
 Phase 0 必须先做分级：
 
 - `Fast`：单模块或单链路、无表结构变更、无安全敏感、预计 1-2 个任务可完成
+- `Medium`：单服务或单模块、3-5 个任务、无表结构变更、无跨系统依赖
 - `Standard`：超出以上任意一条，或需求仍存在明显歧义
 - `Complex`：跨系统、架构级变更、预计超过 2 周
 
 当前 skill 实际支持：
 - `Fast`
+- `Medium`
 - `Standard`
 
 `Complex` 暂按 `Standard` 走，但应额外增加人工评审。
@@ -70,6 +72,10 @@ Fast Route:
   Phase 1F: 需求理解 + 最小方案
   Phase 2F: 最小任务拆解 + PLAN 收口
 
+Medium Route:
+  Phase 1M: 需求理解 + 精简方案
+  Phase 2M: 任务拆解 + PLAN 收口
+
 Standard Route:
   Phase 1: 需求理解
   Phase 2: 歧义检测 + 方案探索
@@ -80,11 +86,20 @@ Standard Route:
 ## Phase 0: 准备
 
 1. 解析需求 ID、标题、目录名
-2. 判断 `track: fast | standard`
+2. 判断 `track: fast | medium | standard`
 3. 运行脚手架：
 
 ```bash
-node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {name} --track {fast|standard}
+node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" \
+  --root . \
+  --id {id} \
+  --name {name} \
+  --track {fast|medium|standard} \
+  --brief "{一句话需求}" \
+  --in-scope "{范围1;范围2}" \
+  --out-of-scope "{非范围1;非范围2}" \
+  --acceptance "{验收1;验收2}" \
+  --tasks "{任务1;任务2;任务3}"
 ```
 
 4. 明确输出：
@@ -124,6 +139,34 @@ Fast 路径一旦出现这些信号，应立即升级为 `Standard`：
 - 技术方案需要权衡多个方案
 - 任务超过 2 个
 - 发现跨模块或跨系统依赖
+
+## Medium Route
+
+适用于“明显高于小改动、又没必要走完整 Standard”的中档需求。
+
+### Phase 1M: 需求理解 + 精简方案
+
+- 用 `scaffold-feature.js --brief/--in-scope/--acceptance` 先生成半成品文档
+- 在 `PRD.md` 补齐目标、范围、验收标准
+- 在 `技术方案.md` 写清：
+  - 主要模块
+  - 关键接口或数据影响
+  - 锁定决策（至少 1 条 D-0N）
+
+### Phase 2M: 任务拆解 + PLAN 收口
+
+- 在 `任务拆解表.md` 保持 3-5 个任务
+- 每个任务要有：
+  - 明确验收标准
+  - 涉及文件/模块
+  - 可执行顺序
+- 结束时保持 `SPEC-STATE = PLAN`
+
+Medium 路径一旦出现这些信号，应升级到 `Standard`：
+- 出现跨系统依赖
+- 任务数超过 5 个
+- 涉及数据库结构变更
+- 需要正式方案权衡或额外评审
 
 ## Standard Route
 
@@ -195,5 +238,6 @@ Fast 路径一旦出现这些信号，应立即升级为 `Standard`：
 ## Gotchas
 
 - 小需求套完整流程会导致大量空文档，应优先判定 `Fast`
+- 中等复杂需求如果直接走 `Standard`，很容易在规划阶段写出大量低价值文档，应优先考虑 `Medium`
 - 决策不锁定，`/tech:code` 很容易边写边改方向
 - 任务只有“功能正常”这类模糊验收标准，后续验证一定会失焦
