@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "4.0"
+  version: "5.0"
 ---
 
 # /tech:init
@@ -40,9 +40,8 @@ metadata:
 1. 技术栈检测
 2. 检测结果确认
 3. 选择更新策略
-4. 运行 init-project.js 落地骨架
+4. 运行 init-project.js 落地骨架（含内置验证）
 5. 可选知识扫描 / lazy mode
-6. 执行初始化验证
 ```
 
 ## 0. 预检
@@ -88,7 +87,7 @@ metadata:
 
 ## 4. 运行 init-project.js
 
-真正落地动作由脚本完成：
+真正落地动作由脚本完成，脚本执行完毕后会**自动运行内置验证**，无需额外调用其他脚本：
 
 ```bash
 node "${TINYPOWERS_DIR}/scripts/init-project.js" \
@@ -108,6 +107,7 @@ node "${TINYPOWERS_DIR}/scripts/init-project.js" \
 - 复制 hooks
 - 渲染 `CLAUDE.md`
 - 渲染 `.claude/settings.json`
+- **验证初始化完整性**（内置，退出码非 0 即失败）
 
 `.claude` 细节和 merge 规则保留在：
 - `claude-init.md`
@@ -124,32 +124,18 @@ node "${TINYPOWERS_DIR}/scripts/init-project.js" \
 - 只有构建文件，没有实现代码
 - 采样文件不足 2 个
 
-lazy mode 下只创建 `docs/knowledge.md` 模板。
-
-## 6. 初始化验证
-
-初始化完成后执行：
-
-```bash
-node "${TINYPOWERS_DIR}/scripts/validate.js"
-```
-
-重点检查：
-- guide 是否齐全
-- hooks 和 settings 是否存在
-- 模板变量是否已替换
-- Java 规则是否已落地
+lazy mode 下只创建 `docs/knowledge.md` 模板，不做实际扫描。
 
 ## 配套文档
 
 | 文档 | 作用 |
 |------|------|
 | `claude-init.md` | `.claude/` 初始化和 merge 规则 |
-| `scripts/init-project.js` | 初始化自动化脚本 |
-| `scripts/validate.js` | 初始化后完整性校验 |
+| `scripts/init-project.js` | 初始化自动化脚本（含内置完整性验证） |
 
 ## Gotchas
 
 - 空项目不要强做知识扫描，成本高于收益
 - 非 Java 项目不要继续初始化，否则会得到不匹配的入口文档
 - 已存在的 `.claude/settings.json` 不应盲目覆盖，应先走更新策略
+- `scripts/validate.js` 是 tinypowers 框架自身的组件校验器，**不适合**在目标项目初始化流程中调用

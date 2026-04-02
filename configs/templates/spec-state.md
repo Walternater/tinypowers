@@ -18,7 +18,14 @@ phase: PLAN
 track: {{track}}
 mode: {{mode}}
 updated: {date}
+plan_step: req   # req | tech-design | tasks | ready
 ```
+
+> `plan_step` 仅在 `phase: PLAN` 时有意义，追踪规划进度：
+> - `req`：需求理解阶段（PRD 填写中）
+> - `tech-design`：技术方案阶段
+> - `tasks`：任务拆解阶段
+> - `ready`：规划完成，可进入 EXEC
 
 ## 阶段历史
 

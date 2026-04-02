@@ -5,18 +5,18 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "6.0"
+  version: "7.0"
 ---
 
 # /tech:feature
 
 ## 作用
 
-把一个模糊需求整理成“可执行的计划态”。本 skill 负责复杂度分级、需求澄清、方案锁定和任务拆解，并把生命周期状态统一收口到 `PLAN`。
+把一个模糊需求整理成"可执行的计划态"。本 skill 负责复杂度分级、需求澄清、方案锁定和任务拆解，并把生命周期状态统一收口到 `PLAN`。
 
 ## 默认骨架
 
-Standard / Fast 都只预生成最小必需工件：
+所有 track 都只预生成最小必需工件：
 
 ```text
 features/{需求编号}-{需求名称}/
@@ -47,19 +47,27 @@ PLAN -> EXEC -> REVIEW -> DONE
 - `/tech:code` 完成审查和验证后推进到 `REVIEW`
 - `/tech:commit` 提交完成后推进到 `DONE`
 
+PLAN 阶段内部用 `plan_step` 字段追踪规划进度（见 SPEC-STATE.md）：
+
+```text
+req -> tech-design -> tasks -> ready
+```
+
 ## 复杂度分级
 
-Phase 0 必须先做分级：
+Phase 0 必须先做分级，**选最匹配的一档**：
 
-- `Fast`：单模块或单链路、无表结构变更、无安全敏感、预计 1-2 个任务可完成
-- `Standard`：超出以上任意一条，或需求仍存在明显歧义
-- `Complex`：跨系统、架构级变更、预计超过 2 周
+| Track | 典型特征 |
+|-------|---------|
+| `Fast` | 单模块单链路、无表结构变更、无安全敏感、1-2 个任务 |
+| `Medium` | 单系统内、3-5 个任务、有接口变更但无架构调整、无跨系统依赖 |
+| `Standard` | 跨系统/架构级变更、>5 个任务、需求仍有明显歧义 |
 
-当前 skill 实际支持：
-- `Fast`
-- `Standard`
+> `Complex`（跨团队、架构级、>2 周）暂按 `Standard` 走，额外增加人工评审。
 
-`Complex` 暂按 `Standard` 走，但应额外增加人工评审。
+**升级信号**（出现任意一条立即升级）：
+- Fast → Medium：任务超过 2 个、发现跨模块依赖、技术方案需多方案权衡
+- Medium → Standard：发现跨系统依赖、任务超过 5 个、需求存在高优先级歧义
 
 ## 主流程
 
@@ -69,6 +77,10 @@ Phase 0: 准备（解析需求 + 分级 + 脚手架）
 Fast Route:
   Phase 1F: 需求理解 + 最小方案
   Phase 2F: 最小任务拆解 + PLAN 收口
+
+Medium Route:
+  Phase 1M: 需求理解 + 方案确认
+  Phase 2M: 任务拆解 + PLAN 收口
 
 Standard Route:
   Phase 1: 需求理解
@@ -80,17 +92,14 @@ Standard Route:
 ## Phase 0: 准备
 
 1. 解析需求 ID、标题、目录名
-2. 判断 `track: fast | standard`
+2. 判断 `track: fast | medium | standard`，明确说明理由
 3. 运行脚手架：
 
 ```bash
-node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {name} --track {fast|standard}
+node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {name} --track {fast|medium|standard}
 ```
 
-4. 明确输出：
-- 为什么选择这个 track
-- 当前需求是否需要额外 worktree（默认不需要）
-- 哪些文档是按需补，不预生成
+4. 更新 `SPEC-STATE.md` 的 `plan_step: req`（scaffold 默认值，无需手动改）
 
 ## Fast Route
 
@@ -98,32 +107,34 @@ node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {
 
 ### Phase 1F: 需求理解 + 最小方案
 
-- 在 `PRD.md` 写清背景、范围、验收标准
-- 用 `requirements-guide.md` 的问题框架快速确认：
-  - 为什么做
-  - 谁使用
-  - In Scope / Out of Scope
-  - 验收标准
+- 在 `PRD.md` 写清背景、范围、验收标准（至少 1 条 AC-N）
 - 在 `技术方案.md` 补齐：
   - 参考实现锚点
   - 最小设计
-  - 锁定决策（至少 1 条 D-0N）
+  - 锁定决策（至少 1 条 D-01，状态=已确认）
+- 更新 `plan_step: tech-design`
 
 ### Phase 2F: 最小任务拆解 + PLAN 收口
 
 - 在 `任务拆解表.md` 中压缩为 1-2 个最小可执行任务
-- 每个任务必须写清：
-  - 验收标准
-  - 涉及文件/模块
-  - 验证方式
-- 明确是否允许并行
-- 完成后保持 `SPEC-STATE = PLAN`
+- 每个任务必须写清验收标准和涉及文件
+- 更新 `plan_step: ready`，保持 `SPEC-STATE = PLAN`
 
-Fast 路径一旦出现这些信号，应立即升级为 `Standard`：
-- 需求仍有高优先级歧义
-- 技术方案需要权衡多个方案
-- 任务超过 2 个
-- 发现跨模块或跨系统依赖
+## Medium Route
+
+适用于中等复杂度需求，使用轻量技术方案模板，但任务可多于 2 个。
+
+### Phase 1M: 需求理解 + 方案确认
+
+- 在 `PRD.md` 写清背景、范围、验收标准（至少 2 条 AC-N）
+- 确认高优先级歧义已消除
+- 在 `技术方案.md` 补齐核心设计和锁定决策（状态=已确认）
+- 更新 `plan_step: tech-design`
+
+### Phase 2M: 任务拆解 + PLAN 收口
+
+- 在 `任务拆解表.md` 拆解 3-5 个任务，标注 Wave 和并行关系
+- 更新 `plan_step: ready`，保持 `SPEC-STATE = PLAN`
 
 ## Standard Route
 
@@ -135,19 +146,20 @@ Fast 路径一旦出现这些信号，应立即升级为 `Standard`：
 - 功能范围
 - 验收标准
 - 非功能需求
+- 更新 `plan_step: req`
 
 ### Phase 2: 歧义检测 + 方案探索
 
-遵循 `ambiguity-check.md`，先识别高优先级歧义，再用 `superpowers:brainstorming` 探索 2-3 个可行方案。
+遵循 `ambiguity-check.md`，先识别高优先级歧义，再用 `superpowers:brainstorming` 探索 2-3 个可行方案。更新 `plan_step: tech-design`。
 
 ### Phase 3: 技术方案 + 决策锁定
 
 `技术方案.md` 至少要覆盖：
 - 目标与范围
-- 核心流程
-- 接口 / 数据 / 配置影响
+- 核心设计
+- 接口 / 数据 / 配置影响（仅有变更时填写）
 - 风险与回滚
-- 锁定决策
+- 锁定决策（关键决策标记 `已确认`）
 
 关键决策应记录为稳定 ID：
 - D-01 架构 / 框架选型
@@ -156,23 +168,26 @@ Fast 路径一旦出现这些信号，应立即升级为 `Standard`：
 - D-04 中间件或依赖选型
 - D-05 特殊安全方案
 
+更新 `plan_step: tech-design`。
+
 ### Phase 4: 任务拆解 + PLAN 收口
 
 复杂需求可委托 `superpowers:writing-plans`，但输出必须满足：
-- 层级清晰（Epic / Story / Task）
+- 层级清晰（Wave / Task）
 - 每个 Task 可验证
-- 每个 Task 粒度可执行
 - 依赖关系明确
 
-完成后保持 `SPEC-STATE = PLAN`，进入 `/tech:code`。
+更新 `plan_step: ready`，保持 `SPEC-STATE = PLAN`，进入 `/tech:code`。
 
 ## PLAN 阶段门禁
 
-进入 `/tech:code` 前至少要满足：
-- `PRD.md` 存在且非空
-- `技术方案.md` 存在且包含锁定决策
+进入 `/tech:code` 前至少要满足（`plan_step = ready`）：
+- `PRD.md` 存在且包含至少 1 条验收标准（`AC-N` 或 EARS 格式）
+- `技术方案.md` 存在且包含至少 1 条状态为「已确认」的决策
 - `任务拆解表.md` 存在且任务可执行
 - `track` 已明确，且与文档体量匹配
+
+这些条件对应 `update-spec-state.js` 进入 EXEC 的实质内容检测，不需要额外 `--note`。
 
 ## 完成标准
 
@@ -195,5 +210,7 @@ Fast 路径一旦出现这些信号，应立即升级为 `Standard`：
 ## Gotchas
 
 - 小需求套完整流程会导致大量空文档，应优先判定 `Fast`
+- 中等需求（3-5任务）用 `Medium`，避免 `Standard` 的重量和 `Fast` 的限制
 - 决策不锁定，`/tech:code` 很容易边写边改方向
-- 任务只有“功能正常”这类模糊验收标准，后续验证一定会失焦
+- 任务只有"功能正常"这类模糊验收标准，后续验证一定会失焦
+- `技术方案.md` 的"可选段"（上线准备、灰度策略、评审记录）默认不填，有需要再追加
