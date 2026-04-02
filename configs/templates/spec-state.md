@@ -19,7 +19,8 @@
 
 ```yaml
 phase: INIT
-mode: strict
+track: {{track}}
+mode: {{mode}}
 updated: {date}
 ```
 
@@ -57,4 +58,5 @@ REVIEW -> VERIFY: 验证阶段已启动
 VERIFY -> CLOSED: VERIFICATION.md 结论 = PASS
 ```
 
-禁止跳步。任何阶段产物缺失，等于该阶段未完成。
+`track: standard` 默认使用 `mode: strict`，禁止跳步。
+`track: fast` 默认使用 `mode: relaxed`，允许压缩 REQ / DESIGN / TASKS 的文档推进，但仍不能跳过 REVIEW / VERIFY / CLOSED。

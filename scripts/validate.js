@@ -34,6 +34,8 @@ const VIRTUAL_OUTPUT_REFERENCES = new Set([
   'SPEC-STATE.md',
   'STATE.md',
   'VERIFICATION.md',
+  '需求理解确认.md',
+  '评审记录.md',
   '任务拆解表.md',
   '技术方案.md',
   'learnings.md'
@@ -616,22 +618,34 @@ function validateSpecState() {
 
     const content = fs.readFileSync(specStatePath, 'utf8');
     const phaseMatch = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|EXEC|REVIEW|VERIFY|CLOSED)/);
+    const trackMatch = content.match(/track:\s*(standard|fast)/);
 
     if (!phaseMatch) {
       warn(rel, 0, 'phase 字段缺失或值无效');
       continue;
     }
 
+    if (!trackMatch) {
+      warn(rel, 0, 'track 字段缺失或值无效');
+      continue;
+    }
+
     const phase = phaseMatch[1];
+    const track = trackMatch[1];
     const phaseOrder = ['INIT', 'REQ', 'DESIGN', 'TASKS', 'EXEC', 'REVIEW', 'VERIFY', 'CLOSED'];
     const phaseIndex = phaseOrder.indexOf(phase);
 
-    const requiredArtifacts = [
-      { minPhase: 'REQ', file: 'PRD.md' },
-      { minPhase: 'DESIGN', file: '需求理解确认.md' },
-      { minPhase: 'TASKS', file: '技术方案.md' },
-      { minPhase: 'EXEC', file: '任务拆解表.md' },
-    ];
+    const requiredArtifacts = track === 'fast'
+      ? [
+          { minPhase: 'TASKS', file: '技术方案.md' },
+          { minPhase: 'EXEC', file: '任务拆解表.md' }
+        ]
+      : [
+          { minPhase: 'REQ', file: 'PRD.md' },
+          { minPhase: 'DESIGN', file: '需求理解确认.md' },
+          { minPhase: 'TASKS', file: '技术方案.md' },
+          { minPhase: 'EXEC', file: '任务拆解表.md' }
+        ];
 
     let allOk = true;
     for (const req of requiredArtifacts) {
@@ -645,7 +659,7 @@ function validateSpecState() {
     }
 
     if (allOk) {
-      ok(rel, 'phase=' + phase);
+      ok(rel, 'phase=' + phase + ', track=' + track);
     }
   }
 }
@@ -660,7 +674,9 @@ function validateFeatureScaffold() {
     'configs/templates/prd-template.md',
     'configs/templates/requirements-confirmation.md',
     'configs/templates/tech-design.md',
+    'configs/templates/tech-design-fast.md',
     'configs/templates/task-breakdown.md',
+    'configs/templates/task-breakdown-fast.md',
     'configs/templates/review-log.md'
   ];
 

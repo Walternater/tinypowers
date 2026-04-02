@@ -6,9 +6,10 @@
 |------|------|
 | 需求编号 | `{{feature_id}}` |
 | 需求名称 | `{{feature_name}}` |
+| 执行路由 | `{{track_label}}` |
 
 ## 记录表
 
 | 日期 | 阶段 | 参与人 | 结论 | 后续动作 |
 |------|------|--------|------|----------|
-| `{{date}}` | `tech:feature / Phase 0` | | 已创建 change set 骨架 | 补充 PRD，进入需求理解 |
+| `{{date}}` | `tech:feature / Phase 0` | | 已创建 `{{track_label}}` change set 骨架 | 继续补齐当前路由所需产物 |

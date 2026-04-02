@@ -5,22 +5,23 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "6.0"
+  version: "6.1"
 ---
 
 # /tech:code
 
 ## 作用
 
-把 `tech-feature` 产出的任务表和技术方案，落成可恢复、可审查、可验证的实现过程。
+把 `tech-feature` 产出的任务表和技术方案，落成可恢复、可审查、可验证的实现过程。v6.1 继承 `Fast / Standard` 双路由。
 
 本 skill 是**薄编排层**——定义 WHAT（门禁、缝合策略、上下文），委托 superpowers 定义 HOW（怎么派 subagent、怎么做 review、怎么验证）。
 
 ## 输入
 
 - `features/{id}-{name}/任务拆解表.md`、`技术方案.md`、`STATE.md`、`SPEC-STATE.md`
-- `STATE.md` 不存在则启动时创建
+- `STATE.md` 不存在则在进入 `EXEC` 时按 `任务拆解表.md` 自动生成初稿
 - `SPEC-STATE.md` 存在时，当前 phase 必须为 `TASKS` 或 `EXEC`
+- `track: fast` 时允许前置文档更轻，但 `技术方案.md` 和 `任务拆解表.md` 仍必须存在
 
 <HARD-GATE>
 **执行前门禁检查** - 以下条件必须全部满足才能进入执行：
@@ -34,13 +35,20 @@ metadata:
 ## 主流程
 
 ```text
-Phase 0: Gate Check
-Phase 1: Isolated Worktree Setup
-Phase 2: Context Preparation
-Phase 3: Pattern Scan
-Phase 4: Execute (delegate to superpowers)
-Phase 5: Review (tinypowers agents → superpowers)
-Phase 6: Verify (delegate to superpowers)
+Fast Route:
+  Phase 0F: Gate Check
+  Phase 1F: Pattern Scan + Context Preparation
+  Phase 2F: Execute
+  Phase 3F: Review + Verify
+
+Standard Route:
+  Phase 0: Gate Check
+  Phase 1: Isolated Worktree Setup
+  Phase 2: Context Preparation
+  Phase 3: Pattern Scan
+  Phase 4: Execute (delegate to superpowers)
+  Phase 5: Review (tinypowers agents → superpowers)
+  Phase 6: Verify (delegate to superpowers)
 ```
 
 ## 硬约束
@@ -64,9 +72,43 @@ Phase 6: Verify (delegate to superpowers)
 确认可以进入执行。
 
 - 如果 `SPEC-STATE.md` 存在，更新 phase 为 `EXEC`
+- 如果 `STATE.md` 不存在，基于 `任务拆解表.md` 自动生成 Wave / Task 初稿
 - 调用 `tech-plan-checker` 检查任务表格式、依赖关系、任务粒度
 - 对照 `技术方案.md` 锁定决策，确认无偏离 D-0N 约束
 - 最多重试 3 次，仍失败则暂停
+
+## 路由继承
+
+- 从 `SPEC-STATE.md` 读取 `track`
+- `fast` 默认走压缩执行路线，除非用户明确升级
+- `standard` 保持完整 worktree / subagent / review 流程
+
+## Fast Route
+
+适用于已在 `/tech:feature` 中确认为小需求快路径的场景。
+
+### Phase 0F: Gate Check
+
+- 确认 `SPEC-STATE.md` 为 `track: fast`
+- 检查 `技术方案.md` 中有锁定决策
+- 检查 `任务拆解表.md` 中有明确任务和验证方式
+- 进入 `EXEC` 时自动生成最小 `STATE.md` 初稿
+
+### Phase 1F: Pattern Scan + Context Preparation
+
+- 先搜索最相似的已有实现作为锚点
+- 仅加载当前任务需要的最小上下文
+- 若当前已经在合适工作树，可跳过额外 worktree 步骤
+
+### Phase 2F: Execute
+
+- 优先本地直接执行，不默认展开重型委托
+- 保留缝合优先和 TDD 约束
+
+### Phase 3F: Review + Verify
+
+- 至少完成一次综合审查
+- 保留验证证据，不因 Fast 路由跳过 `VERIFICATION.md`
 
 ## Phase 1: Isolated Worktree Setup
 
@@ -157,7 +199,7 @@ features/{id}-{name}/
 | `pattern-scan.md` | 缝合扫描 + Wave 内学习捕获 |
 
 **委托 superpowers**:
-- Phase 1 → `superpowers:using-git-worktrees`
-- Phase 4 → `superpowers:subagent-driven-development`
-- Phase 5 → `superpowers:requesting-code-review`
-- Phase 6 → `superpowers:verification-before-completion`
+- Standard Phase 1 → `superpowers:using-git-worktrees`
+- Standard Phase 4 → `superpowers:subagent-driven-development`
+- Standard Phase 5 → `superpowers:requesting-code-review`
+- Standard / Fast Verify → `superpowers:verification-before-completion`

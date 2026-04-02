@@ -201,7 +201,7 @@ metadata:
 - 链接没有明显断裂
 
 验证细节见：
-- `verification.md`
+- `node "${TINYPOWERS_DIR}/scripts/validate.js"`
 
 ## 典型输出
 
@@ -255,7 +255,7 @@ build/
 |------|------|
 | `stack-detection.md` | 技术栈检测规则 |
 | `knowledge-scanning.md` | 领域知识扫描策略和输出格式 |
-| `verification.md` | 初始化验证规则 |
+| `scripts/validate.js` | 初始化后完整性校验 |
 
 ## Gotchas
 

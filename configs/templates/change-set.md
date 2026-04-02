@@ -6,6 +6,7 @@
 |------|------|
 | 需求编号 | `{{feature_id}}` |
 | 需求名称 | `{{feature_name}}` |
+| 执行路由 | `{{track_label}}` |
 | 当前状态 | `proposed` |
 | 当前阶段 | `tech:feature / Phase 0` |
 | 创建时间 | `{{date}}` |
@@ -40,5 +41,6 @@ archive/             -> 后续归档材料
 ## 当前结论
 
 - change set 骨架已创建
+- 本次按 `{{track_label}}` 路由推进
 - 正式阶段推进以 `SPEC-STATE.md` 为准
 - 进入 `/tech:code` 后，以 `STATE.md` 作为执行期唯一真相源

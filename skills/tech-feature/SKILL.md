@@ -5,16 +5,18 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.0"
+  version: "5.1"
 ---
 
 # /tech:feature
 
 ## 作用
 
-把一个模糊需求整理成"可执行的需求定义"。本 skill 是**薄编排层**——定义 WHAT（门禁、产物、决策锁定），需求探索遵循 `superpowers:brainstorming` 方法论，任务拆解委托 `superpowers:writing-plans`。
+把一个模糊需求整理成"可执行的需求定义"。本 skill 是**薄编排层**——定义 WHAT（门禁、产物、决策锁定），需求探索遵循 `superpowers:brainstorming` 方法论，复杂需求的任务拆解委托 `superpowers:writing-plans`。
 
 ## 最终产物
+
+Standard Route:
 
 ```text
 features/{需求编号}-{需求名称}/
@@ -31,15 +33,30 @@ features/{需求编号}-{需求名称}/
 └── archive/
 ```
 
+Fast Route:
+
+```text
+features/{需求编号}-{需求名称}/
+├── CHANGESET.md
+├── SPEC-STATE.md
+├── 技术方案.md
+├── 任务拆解表.md
+├── 评审记录.md
+├── notepads/
+│   └── learnings.md
+├── seeds/
+└── archive/
+```
+
 ## Spec 状态机
 
-每个 Feature 必须在 Phase 0 创建 `SPEC-STATE.md`，并在每个 Phase 完成后更新阶段标记。
+每个 Feature 必须在 Phase 0 创建 `SPEC-STATE.md`，并在每个 Phase 完成后更新阶段标记。`track: standard` 默认对应 `mode: strict`；`track: fast` 默认对应 `mode: relaxed`。
 
 ```text
 INIT → REQ → DESIGN → TASKS → EXEC → REVIEW → VERIFY → CLOSED
 ```
 
-前置条件：
+Standard Route 前置条件：
 
 | 推进到 | 必须存在的产物 |
 |--------|--------------|
@@ -48,15 +65,24 @@ INIT → REQ → DESIGN → TASKS → EXEC → REVIEW → VERIFY → CLOSED
 | TASKS | 技术方案.md 含已锁定决策 |
 | EXEC | 任务拆解表.md 通过 plan-check |
 
+Fast Route 允许压缩 `REQ / DESIGN / TASKS` 的文档阶段，但仍必须提供：
+- `技术方案.md` 中的最小设计与锁定决策
+- `任务拆解表.md` 中的任务、验收标准与验证方式
+- `评审记录.md` 中至少一条当前结论
+
 ## 主流程
 
 ```text
-Phase 0: 准备（种子扫描 + change set 骨架）
-Phase 1: 需求理解（tinypowers 独有）
-Phase 2: 歧义检测 + 多方案探索（方法论: superpowers:brainstorming）
-Phase 3: 技术方案（tinypowers agents/architect）
-Phase 4: 任务拆解（委托 superpowers:writing-plans）
-Phase 5: 任务表验证（tinypowers agents/tech-plan-checker）
+Phase 0: 准备（种子扫描 + change set 骨架 + 复杂度分级）
+Fast Route:
+  Phase 1F: 需求理解 + 简化技术方案
+  Phase 2F: 简化任务拆解 + 可执行性确认
+Standard Route:
+  Phase 1: 需求理解（tinypowers 独有）
+  Phase 2: 歧义检测 + 多方案探索（方法论: superpowers:brainstorming）
+  Phase 3: 技术方案（tinypowers agents/architect）
+  Phase 4: 任务拆解（委托 superpowers:writing-plans）
+  Phase 5: 任务表验证（tinypowers agents/tech-plan-checker）
 ```
 
 ## 硬约束
@@ -65,6 +91,16 @@ Phase 5: 任务表验证（tinypowers agents/tech-plan-checker）
 - 技术方案完成后必须显式确认，不能用普通文字代替
 - 已确认决策在 `/tech:code` 阶段不能被擅自推翻
 - 任务拆解完成后必须显式确认，不能直接流入 `/tech:code`
+
+## 复杂度分级
+
+优先判断是否可以走 `Fast Route`：
+- 单模块或单链路改动
+- 不涉及数据库结构变更
+- 不引入新的外部系统依赖
+- 预计 1-2 个任务、1 人日内可完成
+
+满足全部条件可走 `Fast`；否则走 `Standard`。
 
 ## Phase 0: 准备
 
@@ -82,7 +118,7 @@ Phase 5: 任务表验证（tinypowers agents/tech-plan-checker）
 ### 创建目录骨架
 
 ```bash
-node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {name}
+node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {name} --track {fast|standard}
 ```
 
 如果未设置 `TINYPOWERS_DIR`，有两个 fallback：
@@ -90,6 +126,30 @@ node "${TINYPOWERS_DIR}/scripts/scaffold-feature.js" --root . --id {id} --name {
 - 项目级安装时直接运行 `node .claude/skills/tinypowers/scripts/scaffold-feature.js --root . --id {id} --name {name}`
 
 默认**不**在 `/tech:feature` 阶段创建 worktree。隔离环境由 `/tech:code` Phase 0 在正式开工前创建。
+
+### 复杂度判定输出
+
+Phase 0 结束前必须明确：
+- `track`: `fast` 或 `standard`
+- 选择依据
+- 如果是 `fast`，明确说明为什么不需要完整 PRD / 需求确认文档
+
+## Fast Route
+
+适用于小需求快路径。目标是保留门禁和决策锁定，但减少文档数量与交互轮次。
+
+### Phase 1F: 需求理解 + 简化技术方案
+
+- 直接在 `CHANGESET.md` 中写清背景、范围、验收目标
+- 在 `技术方案.md` 中补齐最小设计、参考锚点和锁定决策
+- 若过程中发现需求仍有明显歧义，应升级为 `Standard`
+
+### Phase 2F: 简化任务拆解 + 可执行性确认
+
+- 在 `任务拆解表.md` 中把任务压缩到 1-2 个最小可执行单元
+- 任务必须写清验收标准、涉及文件和验证方式
+- 在 `评审记录.md` 里记录一次简化评审结论
+- 推进 `SPEC-STATE` 到 `TASKS`，准备进入 `/tech:code`
 
 ## Phase 1: 需求理解
 
@@ -150,6 +210,7 @@ tinypowers 的补充要求（注入到 writing-plans 的上下文中）：
 - `技术方案.md` 已确认
 - 关键决策已锁定
 - `任务拆解表.md` 已确认可执行
+- `track` 已明确且与产物规模匹配
 
 ## 配套文档
 
@@ -161,10 +222,10 @@ tinypowers 的补充要求（注入到 writing-plans 的上下文中）：
 | `verification.md` | 完成验证标准 |
 
 **委托 superpowers**:
-- Phase 4 → `superpowers:writing-plans`
+- Standard Phase 4 → `superpowers:writing-plans`
 
 **方法论引用**:
-- Phase 1+2 → `superpowers:brainstorming`
+- Standard Phase 1+2 → `superpowers:brainstorming`
 
 ## Gotchas
 
