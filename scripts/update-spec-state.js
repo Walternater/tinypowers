@@ -11,6 +11,7 @@ const ARTIFACTS = [
   { label: '任务拆解表', file: '任务拆解表.md' },
   { label: '生命周期状态', file: 'SPEC-STATE.md', special: 'spec-state' },
   { label: 'STATE', file: 'STATE.md', special: 'state' },
+  { label: '测试报告', file: '测试报告.md' },
   { label: '验证报告', file: 'VERIFICATION.md' }
 ];
 

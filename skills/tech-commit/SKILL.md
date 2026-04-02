@@ -1,11 +1,11 @@
 ---
 name: tech:commit
-description: 当用户要求提交代码、创建 PR、同步文档、沉淀知识、或完成 feature 收口时触发。
+description: 当用户要求提交代码、创建 PR、同步文档、或完成 feature 收口时触发。
 license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "4.0"
+  version: "5.0"
 ---
 
 # /tech:commit
@@ -33,25 +33,24 @@ metadata:
 
 ## 输入
 
-已通过验证的代码变更、技术方案、任务拆解表、STATE.md、审查与验证产物。
+已通过验证的代码变更、技术方案、任务拆解表、STATE.md、测试报告、VERIFICATION.md。
 
 ## 主流程
 
 ### Standard
 
 ```text
-Step 1: Document Sync（tinypowers 独有）
-Step 2: Knowledge Capture / 物料飞轮（tinypowers 独有）
-Step 3: Git Commit（tinypowers 独有）
-Step 4: PR + Branch Cleanup（委托 superpowers:finishing-a-development-branch）
+Step 1: Document Sync
+Step 2: Git Commit
+Step 3: PR + Branch Cleanup（委托 superpowers:finishing-a-development-branch）
 ```
 
 ### Fast
 
 ```text
-Step 1: 文档同步 + 知识沉淀（合并）
-Step 2: Git Commit
-Step 3: Push + PR 链接
+Step 1: 文档快速过检
+Step 2: Git Commit + Push
+Step 3: PR 链接
 ```
 
 ## 硬约束
@@ -59,9 +58,8 @@ Step 3: Push + PR 链接
 - 只提交已通过验证的改动
 - 提交信息必须可读、可追溯
 - PR 只在分支、远程和工作区状态都正确时创建
-- CHANGELOG 只记录面向版本的有效变化
 
-## 1. Document Sync（Standard）
+## Step 1: Document Sync
 
 确认代码落地后需要同步的说明文档。不是重写，而是保持一致。
 
@@ -73,73 +71,19 @@ Step 3: Push + PR 链接
 
 不同步的文档会在后续产生误导，比没有文档更危险。
 
-优先同步这些文档：
+### 快速过检（Fast）
 
-| 文档 | 触发条件 |
-|------|----------|
-| `features/{id}-{name}/技术方案.md` | 实现细节、验收状态或决策落地发生变化 |
-| API 文档 | Controller、路由、请求响应结构变更 |
-| README | 用法、入口、配置、能力边界发生变化 |
-| 数据库文档 | 表结构、字段、索引、迁移方式变更 |
-| 部署文档 | 启动方式、环境变量、依赖服务变更 |
+只检查直接涉及的接口和配置，不做全量文档扫描。
 
-文档同步完成后至少再确认：
-- 接口签名和代码一致
-- 状态描述和实际交付一致
-- 没有继续引用旧路径或旧命令
-- 没有把未完成项写成已完成
-
-## 2. Knowledge Capture（Standard）
-
-把 `/tech:code` Wave 内捕获的学习经验沉淀到项目级知识库，形成物料飞轮。
-
-### 做什么
-
-1. 读取 `features/{id}-{name}/notepads/learnings.md`，评估每条学习是否值得沉淀到项目级
-2. 对值得沉淀的条目，归类写入 `docs/knowledge.md`（不存在则用模板创建）
-3. 不值得沉淀的条目保留在 feature 级 learnings 中不删除
-
-### 沉淀判断标准
-
-| 值得沉淀 | 不值得沉淀 |
-|---------|-----------|
-| 内部组件的非显而易见用法 | 公开文档可查的知识 |
-| 平台/框架级别的约束和陷阱 | 仅本次需求特有的业务逻辑 |
-| 调试发现的隐蔽 bug 模式 | 一次性的 typos 和格式问题 |
-| 跨需求可复用的编码模式 | 已在 `docs/knowledge.md` 中存在的条目 |
-
-### 沉淀格式
-
-按 `docs/knowledge.md` 的三类分区写入：
-
-```text
-## 组件用法 ← 内部组件的非标用法
-## 平台约束 ← 违反后会出问题的硬约束
-## 踩坑记录 ← 隐蔽 bug 模式和调试经验
-```
-
-每条沉淀附带来源标记：`→ 发现于 {feature_id}`
-
-### 设计原则
-
-- **增量追加**，不覆盖已有知识
-- **人确认**：沉淀内容应展示给用户，用户可删除或修改
-- **不阻断**：knowledge.md 不存在时自动创建，learnings 为空时跳过
-
-## 3. Git Commit
+## Step 2: Git Commit
 
 提交前收口检查：
-- [ ] 测试和验证结果是最新的（非历史通过）
-- [ ] 工作区无无关改动（`git status` 干净或仅含预期文件）
+- [ ] 测试和验证结果是最新的
+- [ ] 工作区无无关改动
 - [ ] 文件边界清楚（一个 commit 只做一件事）
 - [ ] 提交信息准确描述改动内容
-- [ ] 关键决策已记录
-- [ ] 验证证据已附
-- [ ] 未解决项已标注
 
-### Commit Trailer
-
-结构化 trailer 只保留 Evidence：
+### Commit 格式
 
 ```text
 type(scope): description
@@ -149,23 +93,20 @@ Evidence: [验证结果或测试通过证据]
 
 Fast 路径：只需自然语言 body，不需要 Trailer。
 
-默认结构：
-- prefix：`[AI-Gen]`、`[AI-Review]`、`[Manual]`
-- type：`feat`、`fix`、`docs`、`refactor`、`test`、`chore`、`perf`、`ci`、`revert`
-- scope：优先用 feature id 或领域模块；如果会让标题更模糊可以省略
-- description：动作导向、简短明确，不写 `update code`、`fix bugs` 这类空话
-
-body / footer 用来补"为什么这样改"、重要权衡、`Closes #123` 或 `BREAKING CHANGE` 等上下文。
-
 ### 常见场景
 
-- 新功能：`[AI-Gen] feat({id}): ...`
-- 审查修复：`[AI-Review] fix({id}): ...`
-- 文档同步：`[AI-Gen] docs({id}): ...`
+- 新功能：`feat({id}): ...`
+- 审查修复：`fix({id}): ...`
+- 文档同步：`docs({id}): ...`
 
-## 4. PR + Branch Cleanup（Standard）
+## Step 3: PR + Branch Cleanup（Standard）
 
-推送后根据 remote URL 自动检测平台，生成 PR/MR 创建链接。
+**委托 `superpowers:finishing-a-development-branch` 执行。**
+
+- 推送后根据 remote URL 自动检测平台，生成 PR/MR 创建链接
+- 决定分支去留（merge / keep / discard）
+- 清理 worktree（如果使用了 worktree）
+- 确认工作区恢复干净状态
 
 ### 平台检测与链接生成
 
@@ -186,64 +127,33 @@ PR 描述至少应包含：
 - `Summary`：一句话概括改动目标
 - `Changes`：最重要的 2-4 个改动点
 - `Testing`：验证命令或验证方式
-- `Docs` / `Notes`：文档同步情况和剩余注意事项
 
-合并前再确认：
-- reviewer 已完成必要审查
-- 关键反馈已处理
-- CI 或项目门禁状态正常
-- PR 描述没有过期
-
-### CHANGELOG
-
-触发条件（全部满足才更新）：
-- 仓库明确维护 `CHANGELOG.md`
-- 本次变更会出现在后续版本说明中
-- 新增、修复或变更会被项目使用者感知
-
-不必更新的场景：纯内部重构、过程性提交、不对外暴露的微小整理。
-
-如果仓库采用 Keep a Changelog 风格，优先按 `Added / Changed / Fixed / Security` 归类，按"读者会感知到的变化"聚合，不按 commit 历史机械照抄。
-
-### Branch Cleanup
-
-**委托 `superpowers:finishing-a-development-branch` 执行。**
-
-- 决定分支去留（merge / keep / discard）
-- 清理 worktree（如果使用了 `superpowers:using-git-worktrees`）
-- 确认工作区恢复干净状态
-
-## Fast: 收口（合并 Step 1+2+3+4）
-
-Fast 路径将四步合并为精简流程：
-
-### Step 1: 文档同步 + 知识沉淀
-
-快速过一遍文档一致性（只检查直接涉及的接口和配置），快速扫描 learnings 决定是否沉淀。learnings 为空则跳过。
-
-### Step 2: Git Commit
-
-```bash
-git add <相关文件>
-git commit -m "type(scope): description" -m "body（自然语言描述改动内容）"
-```
-
-### Step 3: Push + PR 链接
+### Fast 路径
 
 ```bash
 git push -u origin <current-branch>
 ```
 
-输出 PR/MR 创建链接（根据 remote URL 自动检测 GitHub/GitLab）。
+输出 PR/MR 创建链接。
 
 如果 SPEC-STATE 存在，更新 phase 为 `DONE`。
+
+## 提交后提示
+
+提交完成后，检查 `notepads/learnings.md` 是否有值得沉淀到 `docs/knowledge.md` 的内容。
+
+值得沉淀的：
+- 内部组件的非显而易见用法
+- 平台/框架级别的约束和陷阱
+- 调试发现的隐蔽 bug 模式
+
+**不强制执行**——有值得沉淀的内容时提醒用户，由用户决定是否沉淀。learnings 为空则跳过。
 
 ## 输出
 
 ```text
-features/{id}-{name}/: 技术方案.md, VERIFICATION.md, notepads/learnings.md
-docs/knowledge.md          ← 项目级知识沉淀（Standard Step 2 / Fast Step 1 更新）
-Git: commit history (含 trailers) + pushed branch
+features/{id}-{name}/: 技术方案.md, VERIFICATION.md, 测试报告.md, notepads/learnings.md
+Git: commit history + pushed branch
 PR: pull request (如适用)
 ```
 
@@ -254,12 +164,11 @@ PR: pull request (如适用)
 - reviewer 可以只看 PR 就理解改动
 
 **委托 superpowers**:
-- Standard Step 4 → `superpowers:finishing-a-development-branch`
+- Standard Step 3 → `superpowers:finishing-a-development-branch`
 
 ## Gotchas
 
 - **Commit 后才发现文档没同步**：代码改了但 API 文档没更新 → reviewer 看到过时文档 → Document Sync 必须逐项检查不能跳过
-- **Knowledge 沉淀了公开知识**：把 React useState 用法写进 knowledge.md → 噪音淹没真正有用的内部知识 → 沉淀判断标准严格按"公开资料查不到"过滤
 - **推送到了错误分支**：本地在 feature-A 但 push 到了 feature-B 的远程 → `git push` 前必须确认当前分支与目标分支一致
-- **Fast 路径不需要 Trailer**：小改动用自然语言 body 即可，强行写 Trailer 增加无意义的仪式感
-- **SPEC-STATE 推进时机**：Standard 在 Step 4 Branch Cleanup 时推进到 `DONE`；Fast 在 Step 3 Push 后推进
+- **Fast 路径不需要 Trailer**：小改动用自然语言 body 即可
+- **SPEC-STATE 推进时机**：Standard 在 Step 3 Branch Cleanup 时推进到 `DONE`；Fast 在 push 后推进

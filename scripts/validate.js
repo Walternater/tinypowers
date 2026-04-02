@@ -29,11 +29,11 @@ const fix = argv.includes('--fix');
 const VIRTUAL_OUTPUT_REFERENCES = new Set([
   'CLAUDE.md',
   'CHANGELOG.md',
-  'CHANGESET.md',
   'PRD.md',
   'SPEC-STATE.md',
   'STATE.md',
   'VERIFICATION.md',
+  '测试报告.md',
   '任务拆解表.md',
   '技术方案.md',
   'learnings.md'
@@ -651,14 +651,11 @@ function validateFeatureScaffold() {
   console.log('\n=== Change Set 骨架校验 ===\n');
 
   const requiredTemplates = [
-    'configs/templates/change-set.md',
     'configs/templates/spec-state.md',
     'configs/templates/state.md',
     'configs/templates/prd-template.md',
-    'configs/templates/requirements-confirmation.md',
     'configs/templates/tech-design.md',
-    'configs/templates/task-breakdown.md',
-    'configs/templates/review-log.md'
+    'configs/templates/task-breakdown.md'
   ];
 
   for (const relPath of requiredTemplates) {
@@ -683,8 +680,6 @@ function validateFeatureScaffold() {
 
   if (fs.existsSync(path.join(ROOT, 'docs', 'guides', 'change-set-model.md'))) {
     ok('docs/guides/change-set-model.md', 'change set 模型说明存在');
-  } else {
-    error('docs/guides/change-set-model.md', 0, '缺少 change set 模型说明');
   }
 }
 

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "6.0"
+  version: "7.0"
 ---
 
 # /tech:feature
@@ -31,28 +31,24 @@ Phase 0 结束时自动判定路由，不可跳过。
 
 ```text
 features/{id}-{name}/
-├── CHANGESET.md
 ├── SPEC-STATE.md
 ├── PRD.md
-├── 需求理解确认.md
 ├── 技术方案.md
 ├── 任务拆解表.md
-├── 评审记录.md
-├── notepads/
-│   └── learnings.md
-├── seeds/
-└── archive/
+└── notepads/
+    └── learnings.md
 ```
 
 ### Fast 产物（精简版）
 
 ```text
 features/{id}-{name}/
-├── CHANGESET.md
 ├── SPEC-STATE.md
 ├── PRD.md              # 精简版（<=30 行）：目标 + 范围 + 验收标准
 └── 任务拆解表.md        # 精简版（<=20 行）：任务列表 + 验收标准
 ```
+
+按需创建：`seeds/`（暂不纳入的想法）、`archive/`（归档材料）。
 
 ## Spec 状态机
 
@@ -96,13 +92,6 @@ Fast 跳过：歧义检测（Phase 2）、architect agent（Phase 3）、brainst
 - Fast 路径的复杂度判定必须在 Phase 0 完成，不得中途切换
 
 ## Phase 0: 准备
-
-### 种子扫描
-
-开始新需求前，先扫描已有 `features/*/seeds/`：
-- 找出和当前需求相关的 dormant 种子
-- 询问用户是否纳入本次需求
-- 如果纳入，更新种子状态并合并到分析上下文
 
 ### 解析需求
 

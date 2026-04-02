@@ -34,6 +34,7 @@ updated: {date}
 | 任务拆解表 | 任务拆解表.md | pending |
 | 生命周期状态 | SPEC-STATE.md | active |
 | STATE | STATE.md | pending |
+| 测试报告 | 测试报告.md | pending |
 | 验证报告 | VERIFICATION.md | pending |
 
 ## 判断规则
