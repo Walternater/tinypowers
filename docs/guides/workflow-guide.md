@@ -220,6 +220,7 @@ compliance-reviewer（方案符合性 + 安全）
 - `notepads/learnings.md` 是 feature 级暂存区
 - 只有出现 `[PERSIST]` 或满足明确复用条件时，才建议回写 `docs/knowledge.md`
 - `/tech:init` 阶段则应优先把 README 与当前工程里的关键选型沉淀到 `docs/knowledge.md`
+- 第一次 init、且 README / knowledge 还很空时，优先先走一次 `brainstorming`，再完整初始化这两份文档
 
 ## 日常使用建议
 

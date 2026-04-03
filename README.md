@@ -94,6 +94,7 @@ configs/rules/
 ```text
 /tech:init
   -> 初始化项目入口、规范、模板、hooks
+  -> 第一次 init 时优先用 brainstorming 补全 README / knowledge
 
 /tech:feature
   -> 需求理解 -> 技术方案 -> 任务拆解 -> 方案确认

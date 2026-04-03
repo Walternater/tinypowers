@@ -34,6 +34,7 @@ metadata:
 - 小项目知识库默认 lazy mode：创建模板即可，不强制做重扫描
 - 初始化动作尽量脚本化，AI 负责检测、确认和验证
 - README 和知识库要服务后续开发，不只是留空模板
+- 第一次 init 且 README / `docs/knowledge.md` 仍接近空白时，优先用 `brainstorming` 完整梳理项目职责、关键链路和关键选型，再回填文档
 
 ## 主流程
 
@@ -132,6 +133,7 @@ node "${TINYPOWERS_DIR}/scripts/init-project.js" \
 如果 README 缺失或信息明显不足：
 - 补一个最小可用 README
 - 至少让接手者知道“项目职责、启动方式、主要模块、对外依赖”
+- 如果这是项目第一次 init，且现有信息分散在代码、配置和口头背景里，优先用 `brainstorming` 把项目说明梳理完整，再写入 README
 
 ### 5.2 `docs/knowledge.md` 沉淀
 
@@ -140,6 +142,10 @@ node "${TINYPOWERS_DIR}/scripts/init-project.js" \
 - RPC / 消息 / 外部系统交互选型
 - 关键链路或系统边界
 - 平台级约束、隐蔽坑位、默认约定
+
+推荐策略：
+- 第一次 init：先用 `brainstorming` 汇总 README、代码结构、配置和工程背景，再整理到 `docs/knowledge.md`
+- 后续 update：只增量修正过期内容，不重复做完整梳理
 
 只记录模型无法从公开资料获取或无法仅靠通用经验可靠推断的内容。
 
