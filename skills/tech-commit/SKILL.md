@@ -49,6 +49,7 @@ metadata:
 - `测试计划.md`（仅 `medium / standard` 路径）
 - `测试报告.md`（仅 `medium / standard` 路径）
 - README / 部署说明
+- ReDoc / OpenAPI / 接口说明
 - API 或数据库文档
 
 要求：

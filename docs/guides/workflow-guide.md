@@ -46,6 +46,7 @@ features/{需求编号}-{需求名称}/
 说明：
 - `SPEC-STATE.md` 负责粗粒度生命周期状态
 - `技术方案.md` 是方案与关键决策的主文档
+- `上线计划` 应作为技术方案的一部分保留，不再靠自由发挥追加
 - `任务拆解表.md` 是执行入口
 - `VERIFICATION.md` 是最终验证主载体，Fast 路径只要求这一份
 - `测试计划.md` 与 `测试报告.md` 只在 `medium / standard` 路径作为显式交付物
@@ -104,6 +105,13 @@ PRD
 - 锁定关键决策
 - 生成任务拆解表
 - 输出 `CHECK-1` 摘要，作为进入开发前的显式边界
+
+技术方案至少应覆盖：
+- 目标与范围
+- 核心设计
+- 接口 / 数据 / 配置影响
+- 上线计划
+- 风险与回滚
 
 硬门禁：
 - 技术方案未达到可执行粒度，不能进入编码
@@ -211,6 +219,7 @@ compliance-reviewer（方案符合性 + 安全）
 - `docs/knowledge.md` 是项目级知识库
 - `notepads/learnings.md` 是 feature 级暂存区
 - 只有出现 `[PERSIST]` 或满足明确复用条件时，才建议回写 `docs/knowledge.md`
+- `/tech:init` 阶段则应优先把 README 与当前工程里的关键选型沉淀到 `docs/knowledge.md`
 
 ## 日常使用建议
 
