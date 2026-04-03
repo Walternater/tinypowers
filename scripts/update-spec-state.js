@@ -2,6 +2,13 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+  hasAcceptanceCriteria,
+  hasConfirmedDecision,
+  extractVerificationResult,
+  hasVerificationConclusion,
+  rewriteArtifactTable
+} = require('./lib/artifact-state');
 
 const ROOT = path.resolve(__dirname, '..');
 const PHASES = ['PLAN', 'EXEC', 'REVIEW', 'DONE'];
@@ -17,16 +24,6 @@ const PHASE_ALIASES = {
   CLOSED: 'DONE',
   DONE: 'DONE'
 };
-const ARTIFACTS = [
-  { label: 'PRD', file: 'PRD.md' },
-  { label: '技术方案', file: '技术方案.md' },
-  { label: '任务拆解表', file: '任务拆解表.md' },
-  { label: '测试计划', file: '测试计划.md' },
-  { label: '测试报告', file: '测试报告.md' },
-  { label: '生命周期状态', file: 'SPEC-STATE.md', special: 'spec-state' },
-  { label: 'STATE（复杂执行可选）', file: 'STATE.md' },
-  { label: '验证报告', file: 'VERIFICATION.md' }
-];
 const TRACKS = ['standard', 'medium', 'fast'];
 
 function parseArgs(argv) {
@@ -79,13 +76,24 @@ function featureDirFromArg(root, feature) {
   }
 
   const normalized = feature.replace(/\\/g, '/');
-  if (normalized.startsWith('features/')) {
-    return path.resolve(root, normalized);
+  const featuresRoot = path.resolve(root, 'features');
+  const candidate = normalized.startsWith('features/')
+    ? path.resolve(root, normalized)
+    : normalized.includes('/')
+      ? path.resolve(root, normalized)
+      : path.resolve(featuresRoot, normalized);
+  const relative = path.relative(featuresRoot, candidate);
+
+  if (
+    relative === '' ||
+    relative === '.' ||
+    relative.startsWith('..') ||
+    path.isAbsolute(relative)
+  ) {
+    fail(`非法 --feature，必须指向 features/ 下的需求目录: ${feature}`);
   }
-  if (normalized.includes('/')) {
-    return path.resolve(root, normalized);
-  }
-  return path.resolve(root, 'features', normalized);
+
+  return candidate;
 }
 
 function phaseIndex(phase) {
@@ -153,27 +161,31 @@ function validatePrerequisites(featureDir, targetPhase, note, force, track) {
       }
       // 内容实质门禁：PRD 含有实质性验收标准（非空白、非纯模板占位）
       const prdContent = read(prdPath);
-      const hasAcceptanceCriteria = /(AC-\d+[：:]\s*\S|WHEN\s+\S[^`\n]+SHALL\s+\S|IF\s+\S[^`\n]+SHALL\s+\S|系统\s*SHALL\s+\S)/.test(prdContent);
-      if (!hasAcceptanceCriteria) {
+      const hasReadyAcceptanceCriteria = hasAcceptanceCriteria(prdContent);
+      if (!hasReadyAcceptanceCriteria) {
         return '进入 EXEC 需要 PRD.md 包含至少 1 条验收标准（AC-N: 内容 或 EARS 格式）';
       }
-      const hasConfirmedDecision = /\|\s*已确认\s*\|/.test(designContent);
-      if (!hasConfirmedDecision) {
+      if (!hasConfirmedDecision(designContent)) {
         return '进入 EXEC 需要 技术方案.md 中至少 1 条决策状态为「已确认」（表格单元格中只写「已确认」，不含「/」）';
       }
       return null;
     },
     REVIEW() {
-      const required = ['测试计划.md', '测试报告.md', 'VERIFICATION.md'];
+      const required = track === 'fast'
+        ? ['VERIFICATION.md']
+        : ['测试计划.md', '测试报告.md', 'VERIFICATION.md'];
       const missing = required.filter(file => !fs.existsSync(path.join(featureDir, file)));
       if (missing.length > 0) {
+        if (track === 'fast') {
+          return '进入 REVIEW 需要 VERIFICATION.md 已存在，缺少: ' + missing.join(', ');
+        }
         return '进入 REVIEW 需要测试计划、测试报告和 VERIFICATION.md 已存在，缺少: ' + missing.join(', ');
       }
       return null;
     },
     DONE() {
       const filePath = path.join(featureDir, 'VERIFICATION.md');
-      return fs.existsSync(filePath) && /(PASS|通过)/.test(read(filePath))
+      return fs.existsSync(filePath) && extractVerificationResult(read(filePath)) === 'PASS'
         ? null
         : '进入 DONE 需要 VERIFICATION.md 存在且结论为 PASS/通过';
     }
@@ -252,41 +264,6 @@ function appendHistoryRow(content, currentPhase, targetPhase, date, note) {
   return lines.join('\n');
 }
 
-function artifactStatus(featureDir, artifact) {
-  if (artifact.special === 'spec-state') {
-    return 'active';
-  }
-  return fs.existsSync(path.join(featureDir, artifact.file)) ? 'done' : 'pending';
-}
-
-function rewriteArtifactTable(content, featureDir, currentPhase, track) {
-  const header = '| 产物 | 路径 | 状态 |';
-  const start = content.indexOf(header);
-  if (start === -1) {
-    return content;
-  }
-
-  const lines = content.split('\n');
-  const startIndex = lines.findIndex(line => line.trim() === header);
-  if (startIndex === -1) {
-    return content;
-  }
-
-  let endIndex = startIndex + 2;
-  while (endIndex < lines.length && lines[endIndex].startsWith('|')) {
-    endIndex += 1;
-  }
-
-  const table = [
-    header,
-    '|------|------|------|',
-    ...ARTIFACTS.map(artifact => `| ${artifact.label} | ${artifact.file} | ${artifactStatus(featureDir, artifact)} |`)
-  ];
-
-  lines.splice(startIndex, endIndex - startIndex, ...table);
-  return lines.join('\n');
-}
-
 function main() {
   const args = parseArgs(process.argv);
   const targetPhase = canonicalPhase(args.to);
@@ -332,7 +309,7 @@ function main() {
 
   let next = updatePhaseBlock(content, targetPhase, date);
   next = appendHistoryRow(next, currentPhase, targetPhase, date, args.note || '阶段推进');
-  next = rewriteArtifactTable(next, featureDir, targetPhase, currentTrack);
+  next = rewriteArtifactTable(next, featureDir);
   write(specStatePath, next);
 
   console.log(`SPEC-STATE 已更新: ${currentPhase} -> ${targetPhase}`);

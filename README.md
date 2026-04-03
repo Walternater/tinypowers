@@ -36,7 +36,7 @@
 | Decision Guardian | 决策锁定防漂移，编码阶段不能擅自修改已锁定决策 |
 | Anti-Rationalization | 防止自我合理化绕过门禁 |
 | Worktree Isolation | 复杂需求可使用独立 worktree 隔离执行 |
-| Knowledge Base | `docs/knowledge.md` + `notepads/learnings.md` 的知识沉淀链路 |
+| Knowledge Base | `docs/knowledge.md` + 可选的 `notepads/learnings.md` 提升链路 |
 
 ## 能力地图
 
@@ -44,7 +44,7 @@
 
 | Skill | 用途 |
 |-------|------|
-| `tech-init` | 初始化目标项目的 AI 工作流骨架 |
+| `tech-init` | 初始化目标项目骨架，并同步 README / 项目级知识入口 |
 | `tech-feature` | 需求理解、技术方案、任务拆解 |
 | `tech-code` | 开发执行、审查修复、测试验证 |
 | `tech-commit` | 文档同步、提交、PR 流程 |
@@ -94,6 +94,7 @@ configs/rules/
 ```text
 /tech:init
   -> 初始化项目入口、规范、模板、hooks
+  -> 第一次 init 时优先用 brainstorming 补全 README / knowledge
 
 /tech:feature
   -> 需求理解 -> 技术方案 -> 任务拆解 -> 方案确认
@@ -135,6 +136,19 @@ git clone https://github.com/Walternater/tinypowers.git ~/.tinypowers && ~/.tiny
 
 一行命令，将 tinypowers 安装到 `~/.claude/skills/tinypowers/`，所有项目共享。
 
+默认安装面只包含运行时必需内容：
+
+- workflow skills / agents / hooks
+- 初始化与诊断脚本
+- 运行时指南与模板
+
+默认不会把这些仓库维护材料复制进目标项目：
+
+- `docs/plans/`
+- `docs/workflow-optimization-*.md`
+- `tests/`
+- 其他仅供框架仓库维护使用的文档
+
 ### 安装到指定项目
 
 ```bash
@@ -142,6 +156,12 @@ cd /path/to/project
 /path/to/tinypowers/install.sh              # 自动检测技术栈
 /path/to/tinypowers/install.sh java-fullstack  # 指定 profile
 ```
+
+项目级安装仍然支持，但更适合：
+
+- 只想在单个项目里试用
+- 需要对项目内副本做隔离定制
+- 不希望所有项目共用一套 tinypowers
 
 ### 全部参数
 
@@ -154,9 +174,18 @@ cd /path/to/project
 | `--components a,b` | 指定组件列表 |
 
 可用 profile：
-- `java-fullstack`：Java + Spring Boot + MySQL 全套
+- `java-fullstack`：Java + Spring Boot + MySQL 全套 runtime
 - `java-light`：Java + Spring Boot（无 MySQL）
-- `minimal`：仅核心 skill
+- `minimal`：最小 runtime（`core + docs-runtime`）
+
+常见组件：
+
+- `core`：skills / agents / hooks / 安装与诊断脚本
+- `docs-runtime`：运行时指南
+- `rules-*`：语言或数据库规则
+- `templates`：初始化模板
+- `contexts`：工作模式定义
+- `repo-maintenance`：优化方案、执行计划等仓库维护文档（默认不安装）
 
 ### 安装后
 
@@ -167,6 +196,9 @@ cd /path/to/project
 # 验证安装
 node ~/.claude/skills/tinypowers/scripts/doctor.js --project .
 ```
+
+如果你用的是项目级安装，对应脚本路径会是 `.claude/skills/tinypowers/scripts/doctor.js`。
+`doctor` 现在除了检查安装完整性，也会提示 hooks 接线和项目运行时准备情况。
 
 ## 快速开始
 
@@ -188,7 +220,7 @@ node ~/.claude/skills/tinypowers/scripts/doctor.js --project .
 
 ```bash
 npm run validate   # 校验 Agent/Skill 定义完整性
-npm run doctor     # 诊断安装状态
+npm run doctor     # 诊断安装状态、hooks 接线和运行时准备情况
 npm test           # 跑回归测试
 ```
 

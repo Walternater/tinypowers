@@ -2,6 +2,7 @@
   "version": 1,
   "defaultComponents": [
     "core",
+    "docs-runtime",
     "rules-common",
     "templates",
     "contexts"
@@ -14,7 +15,6 @@
         "skills/",
         "agents/",
         "hooks/",
-        "docs/",
         ".claude-plugin/",
         ".codex/",
         "manifests/",
@@ -26,8 +26,21 @@
         "scripts/repair.js",
         "scripts/scaffold-feature.js",
         "scripts/update-spec-state.js",
+        "scripts/update-verification.js",
+        "scripts/lib/",
         "package.json",
         "README.md"
+      ]
+    },
+    "docs-runtime": {
+      "description": "运行时与初始化所需指南",
+      "required": false,
+      "sources": [
+        "docs/guides/development-spec.md",
+        "docs/guides/workflow-guide.md",
+        "docs/guides/change-set-model.md",
+        "docs/guides/runtime-matrix.md",
+        "docs/guides/generated-vs-curated-policy.md"
       ]
     },
     "rules-common": {
@@ -71,20 +84,33 @@
       "sources": [
         "tests/"
       ]
+    },
+    "repo-maintenance": {
+      "description": "框架仓库维护材料：优化方案、执行计划等",
+      "required": false,
+      "sources": [
+        "docs/plans/",
+        "docs/workflow-optimization-plan.md",
+        "docs/workflow-optimization-wp-a-checklist.md",
+        "docs/workflow-optimization-wp-b-checklist.md",
+        "docs/workflow-optimization-wp-c-checklist.md",
+        "docs/workflow-optimization-wp-d-checklist.md",
+        "docs/workflow-optimization-wp-e-checklist.md"
+      ]
     }
   },
   "profiles": {
     "java-fullstack": {
       "description": "Java + Spring Boot + MySQL 全栈",
-      "components": ["core", "rules-common", "rules-java", "rules-mysql", "templates", "contexts"]
+      "components": ["core", "docs-runtime", "rules-common", "rules-java", "rules-mysql", "templates", "contexts"]
     },
     "java-light": {
       "description": "Java 后端（无数据库规范）",
-      "components": ["core", "rules-common", "rules-java", "templates"]
+      "components": ["core", "docs-runtime", "rules-common", "rules-java", "templates"]
     },
     "minimal": {
       "description": "仅核心工作流，不带规范",
-      "components": ["core"]
+      "components": ["core", "docs-runtime"]
     }
   },
   "stackDetection": {

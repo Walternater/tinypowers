@@ -18,9 +18,10 @@ metadata:
 
 执行完成后，目标项目至少应具备：
 - `CLAUDE.md`
+- `README.md`（已有则更新，无则补最小项目说明）
 - `docs/guides/development-spec.md`
 - `docs/guides/workflow-guide.md`
-- `docs/knowledge.md`（小项目可只放空模板）
+- `docs/knowledge.md`（应沉淀 README 和当前工程里的关键选型）
 - `configs/rules/common/`
 - `configs/rules/java/`
 - `features/`
@@ -32,6 +33,8 @@ metadata:
 - Java-only，避免给非 Java 项目生成误导性 guides 和规则
 - 小项目知识库默认 lazy mode：创建模板即可，不强制做重扫描
 - 初始化动作尽量脚本化，AI 负责检测、确认和验证
+- README 和知识库要服务后续开发，不只是留空模板
+- 第一次 init 且 README / `docs/knowledge.md` 仍接近空白时，优先用 `brainstorming` 完整梳理项目职责、关键链路和关键选型，再回填文档
 
 ## 主流程
 
@@ -41,7 +44,7 @@ metadata:
 2. 检测结果确认
 3. 选择更新策略
 4. 运行 init-project.js 落地骨架（含内置验证）
-5. 可选知识扫描 / lazy mode
+5. README 同步与知识沉淀
 ```
 
 ## 0. 预检
@@ -114,17 +117,46 @@ node "${TINYPOWERS_DIR}/scripts/init-project.js" \
 
 ## 5. 知识扫描 / lazy mode
 
-只记录模型无法从公开资料获取的内容：
-- 内部依赖的特殊用法
-- 平台级约束
-- 隐蔽坑位
+初始化后要补两类项目上下文：
+
+### 5.1 README 同步
+
+至少检查或补齐：
+- 项目做什么
+- 如何启动 / 构建 / 验证
+- 核心模块或目录
+- 对外接口或调用入口
+
+如果 README 已存在：
+- 优先更新过期内容，不重写项目已有风格
+
+如果 README 缺失或信息明显不足：
+- 补一个最小可用 README
+- 至少让接手者知道“项目职责、启动方式、主要模块、对外依赖”
+- 如果这是项目第一次 init，且现有信息分散在代码、配置和口头背景里，优先用 `brainstorming` 把项目说明梳理完整，再写入 README
+
+### 5.2 `docs/knowledge.md` 沉淀
+
+基于 `README.md` 和当前工程实际内容，优先沉淀这些最关键的信息：
+- 当前项目用了哪些中间件
+- RPC / 消息 / 外部系统交互选型
+- 关键链路或系统边界
+- 平台级约束、隐蔽坑位、默认约定
+
+推荐策略：
+- 第一次 init：先用 `brainstorming` 汇总 README、代码结构、配置和工程背景，再整理到 `docs/knowledge.md`
+- 后续 update：只增量修正过期内容，不重复做完整梳理
+
+只记录模型无法从公开资料获取或无法仅靠通用经验可靠推断的内容。
 
 采样即可，不做全量扫描。以下情况默认 lazy mode：
 - 空项目
 - 只有构建文件，没有实现代码
 - 采样文件不足 2 个
 
-lazy mode 下只创建 `docs/knowledge.md` 模板，不做实际扫描。
+lazy mode 下也应至少：
+- 检查 README 是否需要补最小项目说明
+- 在 `docs/knowledge.md` 中保留项目关键选型骨架，而不是只留空白模板
 
 ## 配套文档
 

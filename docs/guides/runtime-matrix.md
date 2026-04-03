@@ -25,8 +25,14 @@ Runtime Matrix 解决四个问题：
 
 | 宿主 | 推荐安装位置 | 说明 |
 |------|--------------|------|
-| Claude Code | `.claude/skills/tinypowers/` 或 `~/.claude/skills/tinypowers/` | 当前默认安装目标 |
+| Claude Code | `~/.claude/skills/tinypowers/` | 推荐共享安装；项目级副本仅在需要隔离定制时使用 |
 | Codex | 项目内 `.claude/skills/tinypowers/`，或通过 `~/.agents/skills/tinypowers` 暴露 skills | Codex 更偏 skill discovery |
+
+补充说明：
+
+- Claude Code 的默认推荐路径已经切到全局安装：`install.sh --global`
+- 默认安装面只包含 runtime essentials，不等于完整仓库副本
+- `docs/plans/`、优化方案和测试目录默认不进入目标项目
 
 ## 命令与能力映射
 

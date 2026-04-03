@@ -5,6 +5,10 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
+const README_MARKER_START = '<!-- tinypowers:init-readme:start -->';
+const README_MARKER_END = '<!-- tinypowers:init-readme:end -->';
+const KNOWLEDGE_MARKER_START = '<!-- tinypowers:init-knowledge:start -->';
+const KNOWLEDGE_MARKER_END = '<!-- tinypowers:init-knowledge:end -->';
 
 function parseArgs(argv) {
   const args = {
@@ -63,6 +67,11 @@ function writeFile(targetPath, content, force) {
   return true;
 }
 
+function writeAlways(targetPath, content) {
+  ensureDir(path.dirname(targetPath));
+  fs.writeFileSync(targetPath, content);
+}
+
 function copyFile(source, target, force) {
   if (!fs.existsSync(source)) {
     fail('缺少源文件: ' + source);
@@ -114,6 +123,169 @@ function render(content, context) {
     .replaceAll('{{branch_pattern}}', context.branchPattern)
     .replaceAll('{{author}}', context.author)
     .replaceAll('{{hooks_dir}}', context.hooksDir);
+}
+
+function upsertManagedBlock(content, startMarker, endMarker, block) {
+  const wrapped = `${startMarker}\n${block.trim()}\n${endMarker}`;
+  const start = content.indexOf(startMarker);
+  const end = content.indexOf(endMarker);
+
+  if (start !== -1 && end !== -1 && end > start) {
+    return `${content.slice(0, start)}${wrapped}${content.slice(end + endMarker.length)}`;
+  }
+
+  const base = content.trimEnd();
+  return base ? `${base}\n\n${wrapped}\n` : `${wrapped}\n`;
+}
+
+function collectProjectText(projectRoot) {
+  const candidates = [
+    'README.md',
+    'pom.xml',
+    'build.gradle',
+    'build.gradle.kts',
+    'src/main/resources/application.yml',
+    'src/main/resources/application.yaml',
+    'src/main/resources/application.properties'
+  ];
+
+  return candidates
+    .map(rel => {
+      const full = path.join(projectRoot, rel);
+      return fs.existsSync(full) ? read(full) : '';
+    })
+    .join('\n');
+}
+
+function detectProjectSignals(projectRoot, context) {
+  const source = `${collectProjectText(projectRoot)}\n${context.techStack}\n${context.buildTool}`.toLowerCase();
+  const middleware = [];
+  const rpc = [];
+
+  const addUnique = (list, value) => {
+    if (!list.includes(value)) {
+      list.push(value);
+    }
+  };
+
+  if (source.includes('spring-boot') || source.includes('org.springframework') || context.techStack.toLowerCase().includes('java')) {
+    addUnique(middleware, 'Spring Boot');
+  }
+  if (source.includes('mysql') || context.includeMysql) {
+    addUnique(middleware, 'MySQL');
+  }
+  if (source.includes('redis')) {
+    addUnique(middleware, 'Redis');
+  }
+  if (source.includes('mybatis')) {
+    addUnique(middleware, 'MyBatis');
+  }
+  if (source.includes('kafka')) {
+    addUnique(middleware, 'Kafka');
+  }
+  if (source.includes('rabbitmq') || source.includes('amqp')) {
+    addUnique(middleware, 'RabbitMQ');
+  }
+  if (source.includes('rocketmq')) {
+    addUnique(middleware, 'RocketMQ');
+  }
+  if (source.includes('nacos')) {
+    addUnique(middleware, 'Nacos');
+  }
+  if (source.includes('dubbo')) {
+    addUnique(rpc, 'Dubbo RPC');
+  }
+  if (source.includes('openfeign') || source.includes('feign')) {
+    addUnique(rpc, 'OpenFeign / HTTP RPC');
+  }
+  if (source.includes('grpc')) {
+    addUnique(rpc, 'gRPC');
+  }
+
+  return { middleware, rpc };
+}
+
+function generateReadmeBlock(context) {
+  return [
+    '## AI Workflow Bootstrap',
+    '',
+    `- 技术栈：${context.techStack}`,
+    `- 构建工具：${context.buildTool}`,
+    `- 验证命令：\`${context.buildCommand}\``,
+    '- AI 工作流入口：`CLAUDE.md`、`docs/guides/development-spec.md`、`docs/guides/workflow-guide.md`',
+    '- 项目级知识入口：`docs/knowledge.md`'
+  ].join('\n');
+}
+
+function writeReadme(projectRoot, context, force) {
+  const readmePath = path.join(projectRoot, 'README.md');
+  const block = generateReadmeBlock(context);
+
+  if (!fs.existsSync(readmePath) || force) {
+    const content = [
+      `# ${context.projectName}`,
+      '',
+      `基于 ${context.techStack} 的项目。`,
+      '',
+      '## 本地开发',
+      '',
+      `- 构建验证：\`${context.buildCommand}\``,
+      '',
+      `${README_MARKER_START}`,
+      `${block}`,
+      `${README_MARKER_END}`,
+      ''
+    ].join('\n');
+    writeAlways(readmePath, content);
+    return force && fs.existsSync(readmePath) ? 'overwritten' : 'created';
+  }
+
+  const updated = upsertManagedBlock(read(readmePath), README_MARKER_START, README_MARKER_END, block);
+  writeAlways(readmePath, updated);
+  return 'updated';
+}
+
+function generateKnowledgeBlock(context, signals) {
+  const middlewareLines = signals.middleware.length
+    ? signals.middleware.map(item => `- ${item}：当前工程已检测到，后续补充默认约定与限制`)
+    : ['- 暂未从当前工程检测到明确中间件，后续接入后补充'];
+  const rpcLines = signals.rpc.length
+    ? signals.rpc.map(item => `- ${item}：当前工程已检测到，后续补充上下游系统与关键约束`)
+    : ['- 暂未从当前工程检测到明确 RPC / 消息组件'];
+
+  return [
+    '## 初始化提炼摘要',
+    '',
+    '### 项目关键摘要',
+    `- 项目名称：${context.projectName}`,
+    `- 技术栈：${context.techStack}`,
+    `- 构建工具：${context.buildTool}`,
+    `- 默认验证命令：\`${context.buildCommand}\``,
+    '',
+    '### 中间件与基础设施',
+    ...middlewareLines,
+    '',
+    '### RPC / 消息 / 外部系统交互',
+    ...rpcLines
+  ].join('\n');
+}
+
+function writeKnowledge(projectRoot, installRoot, context, force) {
+  const templatePath = path.join(installRoot, 'configs', 'templates', 'knowledge.md');
+  const targetPath = path.join(projectRoot, 'docs', 'knowledge.md');
+  const signals = detectProjectSignals(projectRoot, context);
+  const block = generateKnowledgeBlock(context, signals);
+  const template = render(read(templatePath), context).trimEnd();
+
+  if (!fs.existsSync(targetPath) || force) {
+    const content = `${template}\n\n${KNOWLEDGE_MARKER_START}\n${block}\n${KNOWLEDGE_MARKER_END}\n`;
+    writeAlways(targetPath, content);
+    return force && fs.existsSync(targetPath) ? 'overwritten' : 'created';
+  }
+
+  const updated = upsertManagedBlock(read(targetPath), KNOWLEDGE_MARKER_START, KNOWLEDGE_MARKER_END, block);
+  writeAlways(targetPath, updated);
+  return 'updated';
 }
 
 function mergeUnique(target = [], incoming = []) {
@@ -174,6 +346,7 @@ function writeSettings(projectRoot, installRoot, context, force) {
 function verifyProject(projectRoot, includeMysql, skipKnowledge) {
   const checks = [
     ['CLAUDE.md', () => fs.existsSync(path.join(projectRoot, 'CLAUDE.md'))],
+    ['README.md', () => fs.existsSync(path.join(projectRoot, 'README.md'))],
     ['CLAUDE.md 模板变量已替换', () => {
       const claudePath = path.join(projectRoot, 'CLAUDE.md');
       if (!fs.existsSync(claudePath)) return false;
@@ -191,6 +364,10 @@ function verifyProject(projectRoot, includeMysql, skipKnowledge) {
 
   if (!skipKnowledge) {
     checks.push(['docs/knowledge.md', () => fs.existsSync(path.join(projectRoot, 'docs', 'knowledge.md'))]);
+    checks.push(['docs/knowledge.md 初始化摘要', () => {
+      const knowledgePath = path.join(projectRoot, 'docs', 'knowledge.md');
+      return fs.existsSync(knowledgePath) && read(knowledgePath).includes(KNOWLEDGE_MARKER_START);
+    }]);
   }
 
   if (includeMysql) {
@@ -227,7 +404,8 @@ function main() {
     servicePort: args.servicePort,
     branchPattern: args.branchPattern,
     author,
-    hooksDir
+    hooksDir,
+    includeMysql: args.includeMysql
   };
 
   const created = [];
@@ -242,10 +420,13 @@ function main() {
   };
 
   renderTemplate('CLAUDE.md', 'CLAUDE.md');
+  const readmeStatus = writeReadme(projectRoot, context, args.force);
+  created.push(`README.md (${readmeStatus})`);
   const settingsStatus = writeSettings(projectRoot, installRoot, context, args.force);
   created.push(`.claude/settings.json (${settingsStatus})`);
   if (!args.skipKnowledge) {
-    renderTemplate('knowledge.md', 'docs/knowledge.md');
+    const knowledgeStatus = writeKnowledge(projectRoot, installRoot, context, args.force);
+    created.push(`docs/knowledge.md (${knowledgeStatus})`);
   }
 
   for (const guide of ['development-spec.md', 'workflow-guide.md']) {

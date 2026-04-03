@@ -21,7 +21,7 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 |------|--------------|------|
 | `tech-init` | `research` | 初始化目标项目骨架和入口文件 |
 | `tech-feature` | `research` | 需求理解、技术方案、任务拆解 |
-| `tech-code` | `dev` + `review` | 开发执行、审查修复、测试计划/报告、验证 |
+| `tech-code` | `dev` + `review` | 开发执行、审查修复、验证收口 |
 | `tech-commit` | `review` | 收口提交、PR、文档同步 |
 
 ## Agents
@@ -31,8 +31,17 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 | `architect` | 技术方案设计 |
 | `decision-guardian` | 锁定关键决策，防止实现漂移 |
 | `compliance-reviewer` | 方案符合性 + 安全审查（合二为一） |
+| `code-reviewer` | 代码质量、可维护性、异常处理、测试支撑、资源风险审查 |
 
-> **已委托 superpowers:** 任务拆解 → `superpowers:writing-plans`，代码审查 → `superpowers:requesting-code-review`，完成验证 → `superpowers:verification-before-completion`
+## Scripts
+
+| Script | 责任 |
+|--------|------|
+| `scripts/scaffold-feature.js` | 创建 feature 最小骨架并初始化 `SPEC-STATE.md` |
+| `scripts/update-spec-state.js` | 推进 `PLAN -> EXEC -> REVIEW -> DONE` 并重写产物状态 |
+| `scripts/update-verification.js` | 将合规审查与代码审查结果稳定写回 `VERIFICATION.md` |
+| `scripts/validate.js` | 校验 agents / skills / hooks / runtime 定义一致性 |
+| `scripts/doctor.js` | 检查安装完整性、hooks 接线和项目运行时准备情况 |
 
 ## Contexts
 
@@ -56,23 +65,26 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 
 | Component | 内容 |
 |-----------|------|
-| `core` | skills、agents、hooks、guides、脚本、多宿主分发元数据 |
+| `core` | skills、agents、hooks、核心脚本、多宿主分发元数据 |
+| `docs-runtime` | runtime guides 与初始化说明 |
 | `rules-common` | 通用实现与审查规则 |
 | `rules-java` | Java / Spring Boot 规则 |
 | `rules-mysql` | MySQL DBA 规则 |
 | `templates` | `CLAUDE.md`、PRD、技术方案等模板 |
 | `contexts` | dev / research / review 模式定义 |
 | `tests` | 仓库脚本与 hooks 的最小回归测试 |
+| `repo-maintenance` | 优化方案、执行计划等仓库维护文档（默认不安装） |
 
 ## 运维入口
 
 | 命令 | 用途 |
 |------|------|
 | `npm run validate` | 检查仓库内容定义是否一致 |
-| `npm run doctor` | 检查安装是否完整、hooks 是否接线 |
+| `npm run doctor` | 检查安装是否完整、hooks 是否接线、项目运行时是否就绪 |
 | `npm run repair` | 强制重装并重新跑 doctor |
 | `npm run scaffold:feature -- --id CSS-1234 --name 用户登录` | 创建 feature change set 骨架 |
 | `npm run spec-state:update -- --feature features/CSS-1234-用户登录 --to EXEC --note "plan ready"` | 推进 `SPEC-STATE.md` 阶段 |
+| `node scripts/update-verification.js --root . --feature features/CSS-1234-用户登录 --compliance-report <path> --code-review-report <path>` | 合并审查结果到 `VERIFICATION.md` |
 | `npm test` | 跑最小脚本与 hook 回归测试 |
 
 ## 维护建议

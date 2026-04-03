@@ -24,6 +24,24 @@ test('install-manifest resolve profile expands dependencies', () => {
   const output = runNode('scripts/install-manifest.js', ['resolve', '--profile', 'java-fullstack']).trim();
   assert.equal(
     output,
-    'core,rules-common,rules-java,rules-mysql,templates,contexts'
+    'core,docs-runtime,rules-common,rules-java,rules-mysql,templates,contexts'
   );
+});
+
+test('install-manifest resolve default target uses slim runtime component set', () => {
+  const output = runNode('scripts/install-manifest.js', ['resolve', '--target', ROOT]).trim();
+  assert.equal(
+    output,
+    'core,docs-runtime,rules-common,templates,contexts'
+  );
+  assert.doesNotMatch(output, /repo-maintenance|docs-archive|tests/);
+});
+
+test('install-manifest keeps repo-maintenance opt-in', () => {
+  const output = runNode('scripts/install-manifest.js', ['resolve', '--components', 'rules-java']).trim();
+  assert.equal(
+    output,
+    'core,rules-common,rules-java'
+  );
+  assert.doesNotMatch(output, /docs-runtime|repo-maintenance|tests/);
 });

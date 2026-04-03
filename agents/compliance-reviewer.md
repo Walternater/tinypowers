@@ -36,6 +36,7 @@ triggers: [tech-code]
 - **方案基准**：「技术方案 §2.3 明确定义了此接口返回 `orderNo` 字段，当前实现中缺少」
 - **攻击视角**：「这个接口如果没有鉴权，攻击者只需知道路径就能访问所有用户数据」
 - **区分严重程度**：BLOCK 问题必须修复才能继续，WARNING 需要确认是否保留
+- **结构稳定**：输出必须遵守统一报告契约，避免自由发挥导致后续无法写回 `VERIFICATION.md`
 
 ## 第一阶段：方案符合性
 
@@ -92,44 +93,128 @@ triggers: [tech-code]
 
 ### 统一合规报告格式
 
+输出必须严格遵守以下结构。标题、章节名、Verdict 关键字必须保持一致，便于脚本稳定合并：
+
 ```markdown
 # Compliance Review
 
-**Feature:** {需求ID}
-**审查时间:** {时间}
+## Review Metadata
 
-## 方案符合性
+- Review Type: compliance
+- Feature: {需求ID}
+- Reviewed At: {时间}
 
-### 缺失实现（BLOCK）
+## Decision Compliance
+
+### BLOCK
 | # | 技术方案要求 | 代码实现情况 | 方案位置 |
 |---|------------|------------|---------|
+| 1 | ... | ... | ... |
 
-### 实现偏差（BLOCK）
-| # | 方案定义 | 实际实现 | 文件位置 |
-|---|---------|---------|---------|
-
-### 过度实现（WARNING）
+### WARNING
 | # | 描述 | 文件位置 | 建议 |
 |---|------|---------|------|
+| 1 | ... | ... | ... |
 
-### 符合项
+### SUGGESTION
+| # | 描述 | 文件位置 | 建议 |
+|---|------|---------|------|
+| 1 | ... | ... | ... |
+
+### PASS NOTES
 - ✅ ...
 
-**Spec Verdict: [COMPLIANT ✅ / NON-COMPLIANT ❌]**
+**Decision Verdict: PASS / CONDITIONAL / FAIL**
 
-## 安全审查
+## Security Findings
 
-| 风险等级 | 数量 | 状态 |
-|---------|------|------|
-| CRITICAL | X | 🚨 必须修复 |
-| HIGH     | X | ⚠️ 强烈建议修复 |
-| MEDIUM   | X | ℹ️ 建议修复 |
+### BLOCK
+| # | 风险描述 | 攻击路径 / 业务影响 | 文件位置 | 修复建议 |
+|---|---------|--------------------|---------|---------|
+| 1 | ... | ... | ... | ... |
 
-**Security Verdict: [APPROVE / WARNING / BLOCK]**
+### WARNING
+| # | 风险描述 | 文件位置 | 修复建议 |
+|---|---------|---------|---------|
+| 1 | ... | ... | ... |
 
-## 总结
+### SUGGESTION
+| # | 风险描述 | 文件位置 | 修复建议 |
+|---|---------|---------|---------|
+| 1 | ... | ... | ... |
 
-**Overall Verdict: [PASS ✅ / CONDITIONAL ⚠️ / FAIL ❌]**
+### PASS NOTES
+- ✅ ...
+
+**Security Verdict: PASS / CONDITIONAL / FAIL**
+
+## Overall Verdict
+
+- Overall Verdict: PASS / CONDITIONAL / FAIL
+- Residual Risk: 无 / 说明剩余风险
+```
+
+输出要求：
+- 如果某个严重度没有问题，保留该小节并填写 `- None`
+- 不得新增自定义 verdict 词汇，只允许 `PASS / CONDITIONAL / FAIL`
+- 不得新增自定义 severity 词汇，只允许 `BLOCK / WARNING / SUGGESTION`
+- 每个问题必须能落到“决策合规性”或“安全审查”其中之一
+- `Overall Verdict` 的判定规则：
+  - 有任意 `BLOCK` -> `FAIL`
+  - 无 `BLOCK` 但有 `WARNING` -> `CONDITIONAL`
+  - 仅有 `SUGGESTION` 或 `PASS NOTES` -> `PASS`
+
+### 输出示例
+
+```markdown
+# Compliance Review
+
+## Review Metadata
+
+- Review Type: compliance
+- Feature: CSS-1234
+- Reviewed At: 2026-04-03 16:00
+
+## Decision Compliance
+
+### BLOCK
+| # | 方案定义 | 实际实现 | 文件位置 |
+|---|---------|---------|---------|
+| 1 | 技术方案要求只读查询 | 当前实现增加了写接口 | src/api/order.js:22 | /
+
+### WARNING
+| # | 描述 | 文件位置 | 建议 |
+|---|------|---------|------|
+| 1 | 返回字段比方案多 `debug` | src/api/order.js:35 | 删除或确认方案 |
+
+### SUGGESTION
+- None
+
+### PASS NOTES
+- ✅ ...
+
+**Decision Verdict: FAIL**
+
+## Security Findings
+
+### BLOCK
+- None
+
+### WARNING
+- None
+
+### SUGGESTION
+- None
+
+### PASS NOTES
+- ✅ 未发现新增安全漏洞
+
+**Security Verdict: PASS**
+
+## Overall Verdict
+
+- Overall Verdict: FAIL
+- Residual Risk: 实现偏离已确认设计，必须修复后再继续
 ```
 
 ## 成功指标
@@ -140,5 +225,5 @@ triggers: [tech-code]
 
 ## When to Use
 
-- `/tech:code` Review 阶段（在 superpowers:requesting-code-review 之前）
+- `/tech:code` Review 阶段（先于本地 `code-reviewer`，并在写回 `VERIFICATION.md` 之前）
 - Wave 完成后的合规核查

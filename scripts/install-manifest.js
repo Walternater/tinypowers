@@ -47,21 +47,27 @@ function expandComponents(names, manifest) {
     .filter(([, value]) => value.required)
     .map(([name]) => name);
 
-  const result = new Set(required);
-  const queue = [...names];
+  const ordered = [];
+  const visiting = new Set();
+  const visited = new Set();
 
-  while (queue.length > 0) {
-    const name = queue.shift();
-    if (!name) continue;
+  function visit(name) {
+    if (!name) {
+      return;
+    }
     const component = manifest.components?.[name];
     if (!component) {
       fail(`未知组件: ${name}`);
     }
 
-    if (!result.has(name)) {
-      result.add(name);
+    if (visited.has(name)) {
+      return;
+    }
+    if (visiting.has(name)) {
+      fail(`组件依赖存在循环: ${name}`);
     }
 
+    visiting.add(name);
     const requires = component.requires
       ? Array.isArray(component.requires)
         ? component.requires
@@ -69,13 +75,22 @@ function expandComponents(names, manifest) {
       : [];
 
     for (const dep of requires) {
-      if (!result.has(dep)) {
-        queue.push(dep);
-      }
+      visit(dep);
     }
+
+    visiting.delete(name);
+    visited.add(name);
+    ordered.push(name);
   }
 
-  return [...result];
+  for (const name of required) {
+    visit(name);
+  }
+  for (const name of names) {
+    visit(name);
+  }
+
+  return ordered;
 }
 
 function existsFile(dir, candidate) {

@@ -2,10 +2,15 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const MANIFEST_PATH = path.join(ROOT, 'manifests', 'components.json');
 const SETTINGS_FILE = path.join('.claude', 'settings.json');
+
+function detectGlobalInstallRoot() {
+  return path.join(process.env.HOME || '', '.claude', 'skills', 'tinypowers');
+}
 
 function parseArgs(argv) {
   const result = { _: [] };
@@ -39,13 +44,21 @@ function readFile(p) {
   return fs.readFileSync(p, 'utf8');
 }
 
+function runCommand(command, args, options = {}) {
+  return spawnSync(command, args, {
+    encoding: 'utf8',
+    stdio: 'pipe',
+    ...options
+  });
+}
+
 function detectInstallRoot(args) {
   if (args['install-root']) {
     return path.resolve(args['install-root']);
   }
 
   if (args.global) {
-    return path.join(process.env.HOME || '', '.claude', 'skills', 'tinypowers');
+    return detectGlobalInstallRoot();
   }
 
   const projectRoot = path.resolve(args.project || process.cwd());
@@ -66,8 +79,38 @@ function detectProjectRoot(args, installRoot) {
     return ROOT;
   }
 
-  const candidate = path.resolve(installRoot, '..', '..', '..');
-  return candidate;
+  return path.resolve(process.cwd());
+}
+
+function classifyInstallContext(args, installRoot, projectRoot) {
+  const projectInstallRoot = path.join(projectRoot, '.claude', 'skills', 'tinypowers');
+  const globalInstallRoot = detectGlobalInstallRoot();
+
+  if (installRoot === ROOT && projectRoot === ROOT) {
+    return {
+      mode: 'repository',
+      type: 'repository-root'
+    };
+  }
+
+  if (args.global || installRoot === globalInstallRoot) {
+    return {
+      mode: 'global',
+      type: 'global-install'
+    };
+  }
+
+  if (installRoot === projectInstallRoot) {
+    return {
+      mode: 'project-local',
+      type: 'project-local-install'
+    };
+  }
+
+  return {
+    mode: 'explicit-install-root',
+    type: 'external-install'
+  };
 }
 
 function checkFile(relPath, baseDir, findings, label, required = true) {
@@ -211,6 +254,131 @@ function checkProjectArtifacts(projectRoot, findings, installRoot) {
   }
 }
 
+function detectJavaRequirement(projectRoot) {
+  const pomPath = path.join(projectRoot, 'pom.xml');
+  if (exists(pomPath)) {
+    const content = readFile(pomPath);
+    const releaseMatch = content.match(/<maven\.compiler\.release>\s*([0-9]+)\s*<\/maven\.compiler\.release>/);
+    const targetMatch = content.match(/<maven\.compiler\.target>\s*([0-9]+)\s*<\/maven\.compiler\.target>/);
+    const sourceMatch = content.match(/<maven\.compiler\.source>\s*([0-9]+)\s*<\/maven\.compiler\.source>/);
+    const version = releaseMatch?.[1] || targetMatch?.[1] || sourceMatch?.[1] || null;
+    return {
+      runtime: 'maven-java',
+      source: 'pom.xml',
+      version
+    };
+  }
+
+  for (const gradleFile of ['build.gradle.kts', 'build.gradle']) {
+    const gradlePath = path.join(projectRoot, gradleFile);
+    if (!exists(gradlePath)) {
+      continue;
+    }
+
+    const content = readFile(gradlePath);
+    const toolchainMatch = content.match(/JavaLanguageVersion\.of\(\s*([0-9]+)\s*\)/);
+    const javaVersionMatch = content.match(/sourceCompatibility\s*=\s*JavaVersion\.VERSION_([0-9_]+)/);
+    const stringVersionMatch = content.match(/sourceCompatibility\s*=\s*["']([0-9.]+)["']/);
+    const rawVersion = toolchainMatch?.[1] || javaVersionMatch?.[1]?.replace(/_/g, '.') || stringVersionMatch?.[1] || null;
+    const version = rawVersion ? String(rawVersion).split('.')[0] : null;
+    return {
+      runtime: 'gradle-java',
+      source: gradleFile,
+      version
+    };
+  }
+
+  return null;
+}
+
+function probeRuntimeCommand(projectRoot, name, args, envKey) {
+  const fakeOutput = process.env[envKey];
+  if (fakeOutput === 'missing') {
+    return { available: false, output: '' };
+  }
+  if (fakeOutput) {
+    return { available: true, output: fakeOutput };
+  }
+
+  const result = runCommand(name, args, { cwd: projectRoot });
+  return {
+    available: result.status === 0,
+    output: `${result.stdout || ''}${result.stderr || ''}`.trim()
+  };
+}
+
+function parseJavaVersion(output) {
+  if (!output) {
+    return null;
+  }
+
+  const quoted = output.match(/version\s+"([0-9]+)(?:\.[^"]*)?"/i);
+  if (quoted) {
+    return Number(quoted[1]);
+  }
+
+  const plain = output.match(/\b([0-9]{1,2})(?:\.[0-9._-]+)?\b/);
+  return plain ? Number(plain[1]) : null;
+}
+
+function pushRuntimeFinding(findings, level, message) {
+  findings.runtime.push(`[${level}] ${message}`);
+}
+
+function checkProjectRuntime(projectRoot, findings) {
+  const requirement = detectJavaRequirement(projectRoot);
+
+  if (!requirement) {
+    pushRuntimeFinding(findings, 'INFO', '未检测到 Java / Maven / Gradle 项目标记');
+    return;
+  }
+
+  pushRuntimeFinding(findings, 'INFO', `项目运行时: ${requirement.runtime}（来源: ${requirement.source}）`);
+  if (requirement.version) {
+    pushRuntimeFinding(findings, 'INFO', `Java 要求: ${requirement.version}+`);
+  }
+
+  const javaProbe = probeRuntimeCommand(projectRoot, 'java', ['-version'], 'TINYPOWERS_DOCTOR_FAKE_JAVA_VERSION');
+  if (!javaProbe.available) {
+    pushRuntimeFinding(findings, 'WARN', '未检测到可用的 java；项目可能无法本地构建或运行');
+  } else {
+    const currentVersion = parseJavaVersion(javaProbe.output);
+    if (requirement.version && currentVersion && currentVersion < Number(requirement.version)) {
+      pushRuntimeFinding(findings, 'WARN', `当前 Java 版本 ${currentVersion} 低于项目要求 ${requirement.version}`);
+    } else if (currentVersion) {
+      pushRuntimeFinding(findings, 'PASS', `Java 运行时可用（当前版本 ${currentVersion}）`);
+    } else {
+      pushRuntimeFinding(findings, 'PASS', 'Java 运行时可用');
+    }
+  }
+
+  if (requirement.runtime === 'maven-java') {
+    if (exists(path.join(projectRoot, 'mvnw'))) {
+      pushRuntimeFinding(findings, 'PASS', '检测到 Maven Wrapper，可优先使用 ./mvnw');
+    } else {
+      const mavenProbe = probeRuntimeCommand(projectRoot, 'mvn', ['-v'], 'TINYPOWERS_DOCTOR_FAKE_MVN_VERSION');
+      if (mavenProbe.available) {
+        pushRuntimeFinding(findings, 'PASS', 'Maven 命令可用');
+      } else {
+        pushRuntimeFinding(findings, 'WARN', 'pom.xml 已存在，但未检测到 mvn / mvnw');
+      }
+    }
+  }
+
+  if (requirement.runtime === 'gradle-java') {
+    if (exists(path.join(projectRoot, 'gradlew'))) {
+      pushRuntimeFinding(findings, 'PASS', '检测到 Gradle Wrapper，可优先使用 ./gradlew');
+    } else {
+      const gradleProbe = probeRuntimeCommand(projectRoot, 'gradle', ['-v'], 'TINYPOWERS_DOCTOR_FAKE_GRADLE_VERSION');
+      if (gradleProbe.available) {
+        pushRuntimeFinding(findings, 'PASS', 'Gradle 命令可用');
+      } else {
+        pushRuntimeFinding(findings, 'WARN', 'Gradle 构建文件已存在，但未检测到 gradle / gradlew');
+      }
+    }
+  }
+}
+
 function printSection(title, items) {
   if (items.length === 0) {
     return;
@@ -227,7 +395,8 @@ function main() {
   const args = parseArgs(process.argv);
   const installRoot = detectInstallRoot(args);
   const projectRoot = detectProjectRoot(args, installRoot);
-  const findings = { pass: [], warn: [], fail: [], info: [] };
+  const installContext = classifyInstallContext(args, installRoot, projectRoot);
+  const findings = { pass: [], warn: [], fail: [], info: [], runtime: [] };
 
   if (!exists(MANIFEST_PATH)) {
     console.error('doctor 无法启动：缺少 manifests/components.json');
@@ -245,7 +414,11 @@ function main() {
   checkFile('skills', installRoot, findings, '核心目录');
   checkFile('agents', installRoot, findings, '核心目录');
   checkFile('hooks', installRoot, findings, '核心目录');
-  checkFile('docs', installRoot, findings, '核心目录');
+  if (installedComponents.includes('docs-runtime')) {
+    checkFile('docs/guides', installRoot, findings, '运行时文档目录');
+  } else {
+    findings.info.push('当前安装未包含 docs-runtime 组件');
+  }
   if (installedComponents.includes('contexts')) {
     checkFile('contexts', installRoot, findings, '工作模式目录');
   } else {
@@ -259,15 +432,19 @@ function main() {
 
   checkHooks(projectRoot, installRoot, findings, installedComponents);
   checkProjectArtifacts(projectRoot, findings, installRoot);
+  checkProjectRuntime(projectRoot, findings);
 
   console.log('tinypowers doctor');
   console.log('=================');
   console.log(`安装目录: ${installRoot}`);
   console.log(`项目目录: ${projectRoot}`);
+  console.log(`安装模式: ${installContext.mode}`);
+  console.log(`安装目录类型: ${installContext.type}`);
 
   printSection('PASS', findings.pass);
   printSection('WARN', findings.warn);
   printSection('FAIL', findings.fail);
+  printSection('RUNTIME', findings.runtime);
   printSection('INFO', findings.info);
 
   if (findings.fail.length > 0) {

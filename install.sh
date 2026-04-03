@@ -2,14 +2,15 @@
 # install.sh — tinypowers 安装脚本
 #
 # 用法:
-#   ./install.sh                    # 自动检测技术栈
+#   ./install.sh --global           # 推荐：安装到全局 skills 目录
+#   ./install.sh                    # 项目级安装（当前项目）
 #   ./install.sh java-fullstack     # 使用预置 profile
 #   ./install.sh --components rules-java,templates  # 指定组件
 #   ./install.sh --list             # 列出可用组件和 profile
 #
 # 安装位置:
-#   项目级:  {target}/.claude/skills/tinypowers/  (默认)
-#   全局:    ~/.claude/skills/tinypowers/  (--global)
+#   全局:    ~/.claude/skills/tinypowers/  (--global, 推荐)
+#   项目级:  {target}/.claude/skills/tinypowers/  (适合隔离试用或项目内定制)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -47,14 +48,24 @@ while [[ $# -gt 0 ]]; do
     --help|-h)
       echo "用法: $0 [profile|--components X,Y] [--global] [--force]"
       echo ""
+      echo "推荐用法:"
+      echo "  $0 --global"
+      echo "    把 tinypowers 安装到全局 skills 目录，适合作为默认长期使用方式"
+      echo ""
+      echo "  $0"
+      echo "    安装到当前项目的 .claude/skills/tinypowers，适合隔离试用或项目内定制"
+      echo ""
       echo "参数:"
       echo "  profile              预置 profile (java-fullstack, java-light, minimal)"
       echo "  --components X,Y     指定安装组件，逗号分隔"
-      echo "  --global             安装到 ~/.claude/skills/tinypowers/"
+      echo "  --global             安装到 ~/.claude/skills/tinypowers/（推荐）"
       echo "  --target DIR         指定安装目标目录"
       echo "  --force              覆盖已存在的安装"
       echo "  --list               列出可用组件和 profile"
       echo "  --help               显示帮助"
+      echo ""
+      echo "说明:"
+      echo "  默认安装面会复制运行时必需内容；仓库维护材料不会默认进入目标项目。"
       exit 0
       ;;
     *)
@@ -73,10 +84,13 @@ fi
 # --- 确定安装目标 ---
 if [[ -n "$TARGET_DIR" ]]; then
   INSTALL_DIR="$TARGET_DIR"
+  INSTALL_MODE="custom-target"
 elif [[ "$GLOBAL" == true ]]; then
   INSTALL_DIR="$HOME/.claude/skills/tinypowers"
+  INSTALL_MODE="global"
 else
   INSTALL_DIR="$(pwd)/.claude/skills/tinypowers"
+  INSTALL_MODE="project-local"
 fi
 
 PROJECT_HINT="$(pwd)"
@@ -88,6 +102,7 @@ esac
 
 echo "tinypowers 安装器"
 echo "=================="
+echo "安装模式: $INSTALL_MODE"
 echo "安装目标: $INSTALL_DIR"
 echo ""
 
@@ -258,6 +273,15 @@ echo ""
 echo "=================="
 echo "安装完成"
 echo "=================="
+echo "安装模式: $INSTALL_MODE"
+if [[ "$INSTALL_MODE" == "global" ]]; then
+  echo "说明: 当前为推荐的全局安装路径。"
+elif [[ "$INSTALL_MODE" == "project-local" ]]; then
+  echo "说明: 当前为项目级安装，仅影响当前项目目录。"
+else
+  echo "说明: 当前为自定义目标目录安装。"
+fi
+echo "默认安装面: 运行时必需内容（不含仓库维护材料）"
 echo "位置: $INSTALL_DIR"
 echo "组件: $INSTALL_COMPONENTS"
 echo ""
