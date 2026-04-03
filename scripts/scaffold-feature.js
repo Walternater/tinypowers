@@ -2,28 +2,17 @@
 
 const fs = require('fs');
 const path = require('path');
+const { rewriteArtifactTable } = require('./lib/artifact-state');
 
 const ROOT = path.resolve(__dirname, '..');
 const TEMPLATE_DIR = path.join(ROOT, 'configs', 'templates');
-const ARTIFACTS = [
-  { label: 'PRD', file: 'PRD.md' },
-  { label: '技术方案', file: '技术方案.md' },
-  { label: '任务拆解表', file: '任务拆解表.md' },
-  { label: '测试计划', file: '测试计划.md' },
-  { label: '测试报告', file: '测试报告.md' },
-  { label: '生命周期状态', file: 'SPEC-STATE.md', status: 'active' },
-  { label: 'STATE（复杂执行可选）', file: 'STATE.md', status: 'optional' },
-  { label: '验证报告', file: 'VERIFICATION.md' }
-];
 const TRACKS = {
   standard: {
     templates: [
       ['SPEC-STATE.md', 'spec-state.md'],
       ['PRD.md', 'prd-template.md'],
       ['技术方案.md', 'tech-design.md'],
-      ['任务拆解表.md', 'task-breakdown.md'],
-      ['测试计划.md', 'test-plan.md'],
-      ['测试报告.md', 'test-report.md']
+      ['任务拆解表.md', 'task-breakdown.md']
     ]
   },
   medium: {
@@ -31,9 +20,7 @@ const TRACKS = {
       ['SPEC-STATE.md', 'spec-state.md'],
       ['PRD.md', 'prd-template.md'],
       ['技术方案.md', 'tech-design-medium.md'],
-      ['任务拆解表.md', 'task-breakdown-medium.md'],
-      ['测试计划.md', 'test-plan.md'],
-      ['测试报告.md', 'test-report.md']
+      ['任务拆解表.md', 'task-breakdown-medium.md']
     ]
   },
   fast: {
@@ -41,9 +28,7 @@ const TRACKS = {
       ['SPEC-STATE.md', 'spec-state.md'],
       ['PRD.md', 'prd-template.md'],
       ['技术方案.md', 'tech-design-fast.md'],
-      ['任务拆解表.md', 'task-breakdown-fast.md'],
-      ['测试计划.md', 'test-plan.md'],
-      ['测试报告.md', 'test-report.md']
+      ['任务拆解表.md', 'task-breakdown-fast.md']
     ]
   }
 };
@@ -83,38 +68,13 @@ function render(content, ctx) {
     .replaceAll('{phase}', 'PLAN');
 }
 
-function artifactStatus(featureDir, artifact, track) {
-  if (artifact.status) {
-    return artifact.status;
-  }
-  return fs.existsSync(path.join(featureDir, artifact.file)) ? 'done' : 'pending';
-}
-
 function syncSpecStateArtifacts(specStatePath, featureDir, track) {
   if (!fs.existsSync(specStatePath)) {
     return;
   }
 
-  const header = '| 产物 | 路径 | 状态 |';
-  const lines = fs.readFileSync(specStatePath, 'utf8').split('\n');
-  const startIndex = lines.findIndex(line => line.trim() === header);
-  if (startIndex === -1) {
-    return;
-  }
-
-  let endIndex = startIndex + 2;
-  while (endIndex < lines.length && lines[endIndex].startsWith('|')) {
-    endIndex += 1;
-  }
-
-  const table = [
-    header,
-    '|------|------|------|',
-    ...ARTIFACTS.map(artifact => `| ${artifact.label} | ${artifact.file} | ${artifactStatus(featureDir, artifact, track)} |`)
-  ];
-
-  lines.splice(startIndex, endIndex - startIndex, ...table);
-  fs.writeFileSync(specStatePath, lines.join('\n'));
+  const next = rewriteArtifactTable(fs.readFileSync(specStatePath, 'utf8'), featureDir);
+  fs.writeFileSync(specStatePath, next);
 }
 
 function main() {
@@ -133,7 +93,6 @@ function main() {
   const featureDir = path.join(args.root, 'features', `${featureId}-${featureName}`);
 
   fs.mkdirSync(featureDir, { recursive: true });
-  fs.mkdirSync(path.join(featureDir, 'notepads'), { recursive: true });
 
   const trackConfig = TRACKS[args.track];
   const ctx = {
@@ -143,23 +102,6 @@ function main() {
     track: args.track,
     trackLabel: { standard: 'Standard', medium: 'Medium', fast: 'Fast' }[args.track] || 'Standard'
   };
-
-  const learningsPath = path.join(featureDir, 'notepads', 'learnings.md');
-  fs.writeFileSync(learningsPath, [
-    '# 【' + featureId + '】Learnings',
-    '',
-    '> 自动生成 | 最后更新: ' + date,
-    '',
-    '## Wave 总结',
-    '',
-    '## 关键决策',
-    '',
-    '| ID | 决策 | 原因 |',
-    '|----|------|------|',
-    '',
-    '## 陷阱',
-    '- '
-  ].join('\n'));
 
   for (const [outputName, templateName] of trackConfig.templates) {
     const dest = path.join(featureDir, outputName);

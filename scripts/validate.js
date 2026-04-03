@@ -715,6 +715,16 @@ function validateFeatureScaffold() {
     error('scripts/init-project.js', 0, '缺少 init 自动化脚本');
   }
 
+  const verificationScript = path.join(ROOT, 'scripts', 'update-verification.js');
+  if (fs.existsSync(verificationScript)) {
+    try {
+      execFileSync('node', ['--check', verificationScript], { stdio: 'pipe', timeout: 5000 });
+      ok('scripts/update-verification.js', 'verification 合并脚本语法检查通过');
+    } catch (e) {
+      error('scripts/update-verification.js', 0, 'verification 合并脚本语法错误: ' + (e.stderr ? e.stderr.toString().trim() : e.message));
+    }
+  }
+
   if (fs.existsSync(path.join(ROOT, 'docs', 'guides', 'change-set-model.md'))) {
     ok('docs/guides/change-set-model.md', 'change set 模型说明存在');
   } else {

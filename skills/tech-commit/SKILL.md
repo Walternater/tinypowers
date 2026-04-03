@@ -20,8 +20,16 @@ metadata:
 
 按路径分级检查：
 
-- **Fast 路径**：工作区无无关改动，`SPEC-STATE` 当前为 `REVIEW`；如果存在 `STATE.md`，则其中 Task 验收记录须完整填写
-- **Medium / Standard 路径**：`VERIFICATION.md` 已存在且结论为 PASS/通过，`测试计划.md` 与 `测试报告.md` 已更新到最新，工作区无无关改动，`SPEC-STATE` 当前为 `REVIEW`
+- **Fast 路径**：
+  - 工作区无无关改动
+  - `SPEC-STATE` 当前为 `REVIEW`
+  - `VERIFICATION.md` 已存在且结论为 PASS/通过
+  - 如果存在 `STATE.md`，其中 Task 验收记录须完整填写
+- **Medium / Standard 路径**：
+  - 工作区无无关改动
+  - `SPEC-STATE` 当前为 `REVIEW`
+  - `VERIFICATION.md` 已存在且结论为 PASS/通过
+  - `测试计划.md` 与 `测试报告.md` 已更新到最新
 
 ## 对外流程
 
@@ -36,8 +44,9 @@ metadata:
 
 优先同步真正受影响的文档：
 - `技术方案.md`
-- `测试计划.md`
-- `测试报告.md`
+- `VERIFICATION.md`
+- `测试计划.md`（仅 `medium / standard` 路径）
+- `测试报告.md`（仅 `medium / standard` 路径）
 - README / 部署说明
 - API 或数据库文档
 
@@ -45,6 +54,7 @@ metadata:
 - 实现与文档一致
 - 不把未完成项写成已完成
 - reviewer 只看 PR 也能理解改动
+- Fast 路径不为凑齐模板而补写 `测试计划.md` / `测试报告.md`
 
 ### 2. Git Commit
 
@@ -52,6 +62,10 @@ metadata:
 - 验证证据齐备
 - 文档已同步
 - 未解决项已标注
+
+验证证据口径：
+- `fast`：至少核对 `VERIFICATION.md`
+- `medium / standard`：核对 `VERIFICATION.md`、`测试计划.md`、`测试报告.md`
 
 推荐提交格式：
 

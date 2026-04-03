@@ -26,22 +26,27 @@ test('scaffold-feature creates a planning skeleton', () => {
     'SPEC-STATE.md',
     'PRD.md',
     '技术方案.md',
-    '任务拆解表.md',
-    '测试计划.md',
-    '测试报告.md'
+    '任务拆解表.md'
   ];
 
   for (const file of expectedFiles) {
     assert.equal(fs.existsSync(path.join(featureDir, file)), true, file);
   }
 
-  assert.equal(fs.existsSync(path.join(featureDir, 'notepads')), true, 'notepads');
-  assert.equal(fs.existsSync(path.join(featureDir, 'notepads', 'learnings.md')), true, 'notepads/learnings.md');
+  for (const file of ['测试计划.md', '测试报告.md']) {
+    assert.equal(fs.existsSync(path.join(featureDir, file)), false, file);
+  }
+  assert.equal(fs.existsSync(path.join(featureDir, 'notepads')), false, 'notepads');
+  assert.equal(fs.existsSync(path.join(featureDir, 'notepads', 'learnings.md')), false, 'notepads/learnings.md');
 
   const specState = fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
   assert.match(specState, /phase: PLAN/);
   assert.match(specState, /track: standard/);
   assert.doesNotMatch(specState, /mode:/);
+  assert.match(specState, /\| 生命周期状态 \| SPEC-STATE\.md \| active \|/);
+  assert.match(specState, /\| 验证报告 \| VERIFICATION\.md \| pending \|/);
+  assert.doesNotMatch(specState, /\| 测试计划 \|/);
+  assert.doesNotMatch(specState, /\| 测试报告 \|/);
 });
 
 test('scaffold-feature supports fast track with lightweight artifacts', () => {
@@ -64,14 +69,18 @@ test('scaffold-feature supports fast track with lightweight artifacts', () => {
     'SPEC-STATE.md',
     'PRD.md',
     '技术方案.md',
-    '任务拆解表.md',
-    '测试计划.md',
-    '测试报告.md'
+    '任务拆解表.md'
   ];
 
   for (const file of expectedFiles) {
     assert.equal(fs.existsSync(path.join(featureDir, file)), true, file);
   }
+
+  for (const file of ['测试计划.md', '测试报告.md']) {
+    assert.equal(fs.existsSync(path.join(featureDir, file)), false, file);
+  }
+  assert.equal(fs.existsSync(path.join(featureDir, 'notepads')), false, 'notepads');
+  assert.equal(fs.existsSync(path.join(featureDir, 'notepads', 'learnings.md')), false, 'notepads/learnings.md');
 
   for (const file of ['CHANGESET.md', '需求理解确认.md', '评审记录.md']) {
     assert.equal(fs.existsSync(path.join(featureDir, file)), false, file);
@@ -81,6 +90,10 @@ test('scaffold-feature supports fast track with lightweight artifacts', () => {
   assert.match(specState, /phase: PLAN/);
   assert.match(specState, /track: fast/);
   assert.doesNotMatch(specState, /mode:/);
+  assert.match(specState, /\| 生命周期状态 \| SPEC-STATE\.md \| active \|/);
+  assert.match(specState, /\| 验证报告 \| VERIFICATION\.md \| pending \|/);
+  assert.doesNotMatch(specState, /\| 测试计划 \|/);
+  assert.doesNotMatch(specState, /\| 测试报告 \|/);
 
   const techDesign = fs.readFileSync(path.join(featureDir, '技术方案.md'), 'utf8');
   assert.match(techDesign, /Fast Route 适用性/);

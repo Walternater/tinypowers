@@ -35,21 +35,34 @@ features/{需求编号}-{需求名称}/
 ├── PRD.md
 ├── 技术方案.md
 ├── 任务拆解表.md
-├── 测试计划.md
-├── 测试报告.md
-├── VERIFICATION.md
+├── VERIFICATION.md           # 可选，进入验证阶段后创建
+├── 测试计划.md                # 可选，medium / standard 路径需要
+├── 测试报告.md                # 可选，medium / standard 路径需要
 ├── STATE.md                  # 可选，仅复杂执行时
 └── notepads/
-    └── learnings.md          # 可选，用于知识沉淀
+    └── learnings.md          # 可选，仅需要沉淀经验时创建
 ```
 
 说明：
 - `SPEC-STATE.md` 负责粗粒度生命周期状态
 - `技术方案.md` 是方案与关键决策的主文档
 - `任务拆解表.md` 是执行入口
-- `测试计划.md` 与 `测试报告.md` 是测试阶段的显式交付物
+- `VERIFICATION.md` 是最终验证主载体，Fast 路径只要求这一份
+- `测试计划.md` 与 `测试报告.md` 只在 `medium / standard` 路径作为显式交付物
 - `STATE.md` 仅在多任务、多 Wave、跨会话或 worktree 协作时维护
-- `notepads/learnings.md` 与 `docs/knowledge.md` 组成知识沉淀链路，但不阻塞主流程
+- `notepads/learnings.md` 与 `docs/knowledge.md` 组成知识沉淀链路，但不再默认预创建
+
+默认 scaffold 只会创建：
+- `SPEC-STATE.md`
+- `PRD.md`
+- `技术方案.md`
+- `任务拆解表.md`
+
+按阶段或按路径补充创建：
+- `VERIFICATION.md`：进入测试与验证阶段后创建
+- `测试计划.md` / `测试报告.md`：仅 `medium / standard` 路径创建
+- `STATE.md`：复杂执行时创建
+- `notepads/learnings.md`：确实有可沉淀经验时创建
 
 ## 全流程总览
 
@@ -66,8 +79,11 @@ PRD
 /tech:code
   -> 开发执行
   -> 审查修复（可迭代）
-  -> 测试计划 / 测试执行 / 测试报告
-  -> 最终验证
+     -> compliance-reviewer
+     -> code-reviewer
+     -> update-verification.js
+     -> 必要时修复并复审
+  -> 测试与验证
   ↓
 /tech:commit
   -> 文档同步
@@ -102,9 +118,18 @@ PRD
 1. Gate Check
 2. 开发执行
 3. 审查修复
-4. 编写测试计划
-5. 执行测试并填写测试报告
-6. 测试与验证
+   审查链固定为 `compliance-reviewer -> code-reviewer -> update-verification.js`
+4. 测试与验证
+
+按路径区分验证交付物：
+
+- `fast`
+  - 最小交付物是 `VERIFICATION.md`
+  - 不要求 `测试计划.md` / `测试报告.md`
+- `medium / standard`
+  - 需要 `测试计划.md`
+  - 需要 `测试报告.md`
+  - 需要 `VERIFICATION.md`
 
 复杂需求时可以额外展开：
 - worktree 隔离
@@ -126,17 +151,33 @@ PRD
 tinypowers 默认采用下面的顺序：
 
 ```text
-compliance-reviewer（方案符合性 + 安全） -> 代码质量
+compliance-reviewer（方案符合性 + 安全）
+  -> code-reviewer（代码质量与工程风险）
+  -> update-verification.js（把结论写回 VERIFICATION.md）
 ```
 
 原因：
 - 如果实现本身偏离方案，后续代码质量审查会失焦
 - 如果存在安全问题，越早发现越能减少返工
+- 如果审查结论不稳定写回 `VERIFICATION.md`，提交阶段就无法可靠判断能否收口
+
+审查结论与推进规则：
+- 任一审查出现 `BLOCK` 或 `FAIL`，不能推进到 `REVIEW`
+- `WARNING` / `CONDITIONAL` 默认进入修复循环；若保留，必须写成残留风险
+- 只有审查结果和验证结果都进入 `VERIFICATION.md` 后，才算完成 review 收口
 
 ## 状态文件怎么理解
 
 - `SPEC-STATE.md`：回答“现在处于 PLAN / EXEC / REVIEW / DONE 的哪一阶段”
 - `STATE.md`：回答“复杂执行时当前做到哪了”，不是每个需求都必须维护
+
+`SPEC-STATE.md` 中的产物状态不再使用笼统的 `done`，而是：
+- `pending`：文件不存在
+- `scaffolded`：文件存在，但仍是模板态
+- `filled`：内容已达到执行门禁所需粒度
+- `verified`：验证产物已有明确结论
+- `active`：当前生命周期状态文件
+- `optional`：按需创建，不作为默认缺失
 
 换句话说：
 - `SPEC-STATE.md` 是门禁
@@ -173,13 +214,16 @@ compliance-reviewer（方案符合性 + 安全） -> 代码质量
 
 一个完整需求通常至少应包含：
 - `features/{id}-{name}/SPEC-STATE.md`
+- `features/{id}-{name}/PRD.md`
 - `features/{id}-{name}/技术方案.md`
 - `features/{id}-{name}/任务拆解表.md`
-- `features/{id}-{name}/测试计划.md`
-- `features/{id}-{name}/测试报告.md`
 - `features/{id}-{name}/VERIFICATION.md`
 - 代码实现
 - 提交记录 / PR
+
+`medium / standard` 路径通常还应包含：
+- `features/{id}-{name}/测试计划.md`
+- `features/{id}-{name}/测试报告.md`
 
 复杂需求可额外包含：
 - `features/{id}-{name}/STATE.md`

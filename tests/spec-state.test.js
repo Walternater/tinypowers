@@ -41,6 +41,9 @@ function writeStandardPlanArtifacts(featureDir) {
     '|------|----------|----------|----------|',
     '| 1 | T-001, T-002 | — | 两个任务完成 |'
   ].join('\n'));
+}
+
+function writeStandardReviewArtifacts(featureDir) {
   fs.writeFileSync(path.join(featureDir, '测试计划.md'), [
     '# 测试计划',
     '',
@@ -86,28 +89,20 @@ function writeFastPlanArtifacts(featureDir) {
     '| T-001 | 增加 completed 过滤 | 实现 | 返回已完成任务 | TaskService.java | |',
     '| T-002 | 增加回归测试 | 测试 | 测试通过 | TaskServiceTest.java | |'
   ].join('\n'));
-  fs.writeFileSync(path.join(featureDir, '测试计划.md'), [
-    '# 测试计划',
-    '',
-    '## 测试项',
-    '',
-    '| 编号 | 场景 | 类型 | 预期结果 |',
-    '|------|------|------|----------|',
-    '| TP-01 | completed 过滤 | 快速回归 | 返回已完成任务 |'
-  ].join('\n'));
-  fs.writeFileSync(path.join(featureDir, '测试报告.md'), [
-    '# 测试报告',
-    '',
-    '## 执行结果',
-    '',
-    '| 编号 | 场景 | 结果 |',
-    '|------|------|------|',
-    '| TP-01 | completed 过滤 | 通过 |',
+}
+
+function writeVerification(featureDir, result = 'PASS') {
+  fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), [
+    '# VERIFICATION',
     '',
     '## 结论',
     '',
-    '- 结论：通过'
+    `- Result: ${result}`
   ].join('\n'));
+}
+
+function readSpecState(featureDir) {
+  return fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
 }
 
 test('update-spec-state advances one phase and appends history', () => {
@@ -133,9 +128,32 @@ test('update-spec-state advances one phase and appends history', () => {
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const specState = fs.readFileSync(path.join(featureDir, 'SPEC-STATE.md'), 'utf8');
+  const specState = readSpecState(featureDir);
   assert.match(specState, /phase: EXEC/);
   assert.match(specState, /\| PLAN \| EXEC \| plan ready \|/);
+  assert.match(specState, /\| PRD \| PRD\.md \| filled \|/);
+  assert.match(specState, /\| 技术方案 \| 技术方案\.md \| filled \|/);
+  assert.match(specState, /\| 任务拆解表 \| 任务拆解表\.md \| filled \|/);
+});
+
+test('scaffolded artifacts are not treated as filled or done', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-scaffolded-'));
+
+  runNode([
+    path.join(ROOT, 'scripts/scaffold-feature.js'),
+    '--id', 'CSS-1000',
+    '--name', '模板态检查',
+    '--root', projectRoot
+  ]);
+
+  const featureDir = path.join(projectRoot, 'features', 'CSS-1000-模板态检查');
+  const specState = readSpecState(featureDir);
+
+  assert.match(specState, /\| PRD \| PRD\.md \| scaffolded \|/);
+  assert.match(specState, /\| 技术方案 \| 技术方案\.md \| scaffolded \|/);
+  assert.match(specState, /\| 任务拆解表 \| 任务拆解表\.md \| scaffolded \|/);
+  assert.match(specState, /\| 验证报告 \| VERIFICATION\.md \| pending \|/);
+  assert.doesNotMatch(specState, /\|\s(?:PRD|技术方案|任务拆解表)\s\|\s.*\|\s(?:done|filled)\s\|/);
 });
 
 test('update-spec-state prevents skipping phases without force', () => {
@@ -151,7 +169,8 @@ test('update-spec-state prevents skipping phases without force', () => {
   const featureName = 'CSS-1234-用户登录';
   const featureDir = path.join(projectRoot, 'features', featureName);
   writeStandardPlanArtifacts(featureDir);
-  fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), 'PASS\n');
+  writeStandardReviewArtifacts(featureDir);
+  writeVerification(featureDir);
 
   const result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
@@ -178,7 +197,8 @@ test('update-spec-state --force allows skipping phases', () => {
   const featureName = 'CSS-5678-快速任务';
   const featureDir = path.join(projectRoot, 'features', featureName);
   writeStandardPlanArtifacts(featureDir);
-  fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), 'PASS\n');
+  writeStandardReviewArtifacts(featureDir);
+  writeVerification(featureDir);
 
   const result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
@@ -207,7 +227,6 @@ test('update-spec-state requires verification evidence before REVIEW and DONE', 
   const featureName = 'CSS-7777-验证阶段';
   const featureDir = path.join(projectRoot, 'features', featureName);
   writeStandardPlanArtifacts(featureDir);
-  fs.unlinkSync(path.join(featureDir, '测试计划.md'));
 
   let result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
@@ -228,8 +247,69 @@ test('update-spec-state requires verification evidence before REVIEW and DONE', 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /测试计划|测试报告|VERIFICATION\.md/);
 
-  writeStandardPlanArtifacts(featureDir);
-  fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), 'PASS\n');
+  writeStandardReviewArtifacts(featureDir);
+  writeVerification(featureDir);
+  result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'REVIEW',
+    '--note', 'review done'
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(readSpecState(featureDir), /\| 验证报告 \| VERIFICATION\.md \| verified \|/);
+
+  result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'DONE',
+    '--note', 'commit done'
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
+test('update-spec-state blocks DONE when VERIFICATION result is FAIL', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-done-fail-'));
+
+  runNode([
+    path.join(ROOT, 'scripts/scaffold-feature.js'),
+    '--id', 'CSS-8888',
+    '--name', '失败验证',
+    '--track', 'fast',
+    '--root', projectRoot
+  ]);
+
+  const featureName = 'CSS-8888-失败验证';
+  const featureDir = path.join(projectRoot, 'features', featureName);
+  writeFastPlanArtifacts(featureDir);
+  fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), [
+    '# VERIFICATION',
+    '',
+    '## 决策合规性',
+    '',
+    '- Verdict: PASS',
+    '- Highest Severity: NONE',
+    '- Residual Risk: 无',
+    '',
+    '## 已知问题 / 残留风险',
+    '',
+    '- [compliance] must fix',
+    '',
+    '## 结论',
+    '',
+    '- Result: FAIL'
+  ].join('\n'));
+
+  let result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'EXEC',
+    '--note', 'prepare state'
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
   result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
     '--feature', featureName,
@@ -245,6 +325,52 @@ test('update-spec-state requires verification evidence before REVIEW and DONE', 
     '--root', projectRoot,
     '--to', 'DONE',
     '--note', 'commit done'
+  ]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /PASS\/通过/);
+});
+
+test('fast-track REVIEW only requires VERIFICATION.md', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-fast-review-'));
+
+  runNode([
+    path.join(ROOT, 'scripts/scaffold-feature.js'),
+    '--id', 'CSS-3333',
+    '--name', '快速验证',
+    '--track', 'fast',
+    '--root', projectRoot
+  ]);
+
+  const featureName = 'CSS-3333-快速验证';
+  const featureDir = path.join(projectRoot, 'features', featureName);
+  writeFastPlanArtifacts(featureDir);
+
+  let result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'EXEC',
+    '--note', 'fast route execute'
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'REVIEW',
+    '--note', 'missing verification'
+  ]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /VERIFICATION\.md/);
+
+  writeVerification(featureDir);
+  result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', featureName,
+    '--root', projectRoot,
+    '--to', 'REVIEW',
+    '--note', 'fast route verified'
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
@@ -294,7 +420,7 @@ test('fast-track still requires sequential progression without force', () => {
   const featureName = 'CSS-2222-执行后顺序';
   const featureDir = path.join(projectRoot, 'features', featureName);
   writeFastPlanArtifacts(featureDir);
-  fs.writeFileSync(path.join(featureDir, 'VERIFICATION.md'), 'PASS\n');
+  writeVerification(featureDir);
 
   let result = runNode([
     path.join(ROOT, 'scripts/update-spec-state.js'),
