@@ -20,7 +20,7 @@ metadata:
 
 按路径分级检查：
 
-- **Fast 路径**：`STATE.md` 中所有 Task 验收记录已完整填写，工作区无无关改动，`SPEC-STATE` 当前为 `REVIEW`
+- **Fast 路径**：工作区无无关改动，`SPEC-STATE` 当前为 `REVIEW`；如果存在 `STATE.md`，则其中 Task 验收记录须完整填写
 - **Medium / Standard 路径**：`VERIFICATION.md` 已存在且结论为 PASS/通过，`测试计划.md` 与 `测试报告.md` 已更新到最新，工作区无无关改动，`SPEC-STATE` 当前为 `REVIEW`
 
 ## 对外流程

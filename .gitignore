@@ -10,3 +10,4 @@ hooks-settings-template.json
 .tinypowers/
 
 .worktrees/
+.claude/worktrees/
