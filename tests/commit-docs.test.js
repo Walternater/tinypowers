@@ -207,3 +207,19 @@ test('check-commit-docs asks for --feature when multiple candidates are ambiguou
   assert.match(result.stderr || result.stdout, /无法自动识别当前 feature/);
   assert.match(result.stderr || result.stdout, /--feature/);
 });
+
+test('prepare-commit-docs rejects feature paths outside features root', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-commit-path-guard-'));
+  fs.mkdirSync(path.join(projectRoot, 'docs'), { recursive: true });
+  fs.writeFileSync(path.join(projectRoot, 'README.md'), '# README\n');
+  fs.writeFileSync(path.join(projectRoot, 'docs', 'knowledge.md'), '# 领域知识库\n');
+  fs.mkdirSync(path.join(projectRoot, 'outside'), { recursive: true });
+
+  const result = runNode('scripts/prepare-commit-docs.js', [
+    '--root', projectRoot,
+    '--feature', '../outside'
+  ]);
+
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stderr || result.stdout, /非法 --feature/);
+});

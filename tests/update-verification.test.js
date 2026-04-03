@@ -254,3 +254,51 @@ test('update-verification preserves existing non-review verification sections', 
   assert.match(verification, /## 手工验证/);
   assert.match(verification, /checked: list page/);
 });
+
+test('update-verification keeps last report section when it is at end of file', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-verification-last-section-'));
+  const featureName = 'CSS-1234-验证合并';
+  createFeatureDir(projectRoot, featureName);
+  const codeReviewReport = path.join(projectRoot, 'code-review.md');
+
+  fs.writeFileSync(codeReviewReport, [
+    '# Code Review',
+    '',
+    '## Review Metadata',
+    '',
+    '- Review Type: code',
+    '- Feature: CSS-1234',
+    '- Reviewed At: 2026-04-03 17:10',
+    '',
+    '## Findings',
+    '',
+    '### BLOCK',
+    '- None',
+    '',
+    '### WARNING',
+    '- None',
+    '',
+    '### SUGGESTION',
+    '| 1 | 最后一节建议 | src/task/service.js:42 | 可后续优化 |',
+    '',
+    '### PASS NOTES',
+    '- ✅ 未发现新的资源风险',
+    '',
+    '## Overall Verdict',
+    '',
+    '- Overall Verdict: PASS',
+    '- Residual Risk: 无'
+  ].join('\n'));
+
+  const result = runNode([
+    path.join(ROOT, 'scripts/update-verification.js'),
+    '--root', projectRoot,
+    '--feature', featureName,
+    '--code-review-report', codeReviewReport
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const verification = fs.readFileSync(path.join(projectRoot, 'features', featureName, 'VERIFICATION.md'), 'utf8');
+  assert.match(verification, /最后一节建议/);
+  assert.match(verification, /- Verdict: PASS/);
+});

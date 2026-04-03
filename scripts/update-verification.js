@@ -59,18 +59,42 @@ function read(filePath) {
 }
 
 function extractNamedSection(content, heading) {
-  const pattern = new RegExp(`^## ${escapeRegExp(heading)}\\n([\\s\\S]*?)(?=^## |\\Z)`, 'm');
-  const match = content.match(pattern);
-  return match ? match[1].trim() : '';
+  const headingLine = `## ${heading}`;
+  const lines = content.split('\n');
+  const start = lines.findIndex(line => line.trim() === headingLine);
+
+  if (start === -1) {
+    return '';
+  }
+
+  const body = [];
+  for (let i = start + 1; i < lines.length; i += 1) {
+    if (lines[i].startsWith('## ')) {
+      break;
+    }
+    body.push(lines[i]);
+  }
+
+  return body.join('\n').trim();
 }
 
 function extractReportSection(content, heading, nextHeading) {
-  const pattern = new RegExp(
-    `${escapeRegExp(heading)}\\n([\\s\\S]*?)(?=${escapeRegExp(nextHeading)}|\\Z)`,
-    'm'
-  );
-  const match = content.match(pattern);
-  return match ? match[1].trim() : '';
+  const lines = content.split('\n');
+  const start = lines.findIndex(line => line.trim() === heading.trim());
+
+  if (start === -1) {
+    return '';
+  }
+
+  const body = [];
+  for (let i = start + 1; i < lines.length; i += 1) {
+    if (lines[i].trim() === nextHeading.trim()) {
+      break;
+    }
+    body.push(lines[i]);
+  }
+
+  return body.join('\n').trim();
 }
 
 function extractTopLevelSections(content) {
@@ -105,8 +129,45 @@ function extractTopLevelSections(content) {
 }
 
 function extractSeverityBlocks(content, severity) {
-  const regex = new RegExp(`^### ${severity}\\n([\\s\\S]*?)(?=^### |^## |\\Z)`, 'gm');
-  return [...content.matchAll(regex)].map(match => match[1].trim());
+  const lines = content.split('\n');
+  const blocks = [];
+  let current = null;
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      if (current) {
+        blocks.push(current.join('\n').trim());
+        current = null;
+      }
+      continue;
+    }
+
+    if (line.trim() === `### ${severity}`) {
+      if (current) {
+        blocks.push(current.join('\n').trim());
+      }
+      current = [];
+      continue;
+    }
+
+    if (line.startsWith('### ')) {
+      if (current) {
+        blocks.push(current.join('\n').trim());
+        current = null;
+      }
+      continue;
+    }
+
+    if (current) {
+      current.push(line);
+    }
+  }
+
+  if (current) {
+    blocks.push(current.join('\n').trim());
+  }
+
+  return blocks;
 }
 
 function blockHasFindings(block) {

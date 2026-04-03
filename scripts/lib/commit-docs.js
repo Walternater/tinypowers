@@ -29,14 +29,29 @@ function parseArgs(argv) {
 }
 
 function featureDirFromArg(root, feature) {
+  if (!feature) {
+    fail('缺少 --feature');
+  }
+
   const normalized = feature.replace(/\\/g, '/');
-  if (normalized.startsWith('features/')) {
-    return path.resolve(root, normalized);
+  const featuresRoot = path.resolve(root, 'features');
+  const candidate = normalized.startsWith('features/')
+    ? path.resolve(root, normalized)
+    : normalized.includes('/')
+      ? path.resolve(root, normalized)
+      : path.resolve(featuresRoot, normalized);
+  const relative = path.relative(featuresRoot, candidate);
+
+  if (
+    relative === '' ||
+    relative === '.' ||
+    relative.startsWith('..') ||
+    path.isAbsolute(relative)
+  ) {
+    fail(`非法 --feature，必须指向 features/ 下的需求目录: ${feature}`);
   }
-  if (normalized.includes('/')) {
-    return path.resolve(root, normalized);
-  }
-  return path.resolve(root, 'features', normalized);
+
+  return candidate;
 }
 
 function listFeatureDirs(root) {

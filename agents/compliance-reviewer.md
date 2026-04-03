@@ -225,5 +225,5 @@ triggers: [tech-code]
 
 ## When to Use
 
-- `/tech:code` Review 阶段（在 superpowers:requesting-code-review 之前）
+- `/tech:code` Review 阶段（先于本地 `code-reviewer`，并在写回 `VERIFICATION.md` 之前）
 - Wave 完成后的合规核查
