@@ -341,8 +341,8 @@ test('fast-track entering EXEC still requires design, tasks, and acceptance crit
   assert.match(result.stderr, /PRD\.md 存在且非空|任务拆解表\.md 存在|锁定决策|验收标准|已确认/);
 });
 
-test('entering EXEC generates STATE from standard task breakdown', () => {
-  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-state-standard-'));
+test('entering EXEC no longer auto-generates STATE.md', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-state-no-auto-'));
 
   runNode([
     path.join(ROOT, 'scripts/scaffold-feature.js'),
@@ -364,11 +364,8 @@ test('entering EXEC generates STATE from standard task breakdown', () => {
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
-  const state = fs.readFileSync(path.join(featureDir, 'STATE.md'), 'utf8');
-  assert.match(state, /执行路由 \| `standard`/);
-  assert.match(state, /### Wave 1 PENDING/);
-  assert.match(state, /T-001 补 service 过滤/);
-  assert.match(state, /T-002 补测试/);
+  // STATE.md is no longer auto-generated; it's optional for complex execution
+  assert.equal(fs.existsSync(path.join(featureDir, 'STATE.md')), false, 'STATE.md should not be auto-generated');
 });
 
 test('entering EXEC skips STATE for lightweight fast task breakdown', () => {

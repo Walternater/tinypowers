@@ -18,11 +18,10 @@ metadata:
 
 ## 前置条件
 
-- `VERIFICATION.md` 已存在且结论为 PASS/通过
-- `测试计划.md` 与 `测试报告.md` 已更新到最新状态
-- 测试结果是最新的
-- 工作区无无关改动
-- `SPEC-STATE` 当前为 `REVIEW`
+按路径分级检查：
+
+- **Fast 路径**：`STATE.md` 中所有 Task 验收记录已完整填写，工作区无无关改动，`SPEC-STATE` 当前为 `REVIEW`
+- **Medium / Standard 路径**：`VERIFICATION.md` 已存在且结论为 PASS/通过，`测试计划.md` 与 `测试报告.md` 已更新到最新，工作区无无关改动，`SPEC-STATE` 当前为 `REVIEW`
 
 ## 对外流程
 
@@ -30,6 +29,7 @@ metadata:
 1. Document Sync
 2. Git Commit
 3. Push / PR
+4. SPEC-STATE → DONE（提交成功后推进）
 ```
 
 ### 1. Document Sync
@@ -69,18 +69,29 @@ Standard 路径可继续委托 `superpowers:finishing-a-development-branch`。
 - GitHub：`/compare/{base}...{head}?expand=1`
 - GitLab：`/-/merge_requests/new?merge_request[source_branch]={head}&merge_request[target_branch]={base}`
 
+### 4. SPEC-STATE → DONE
+
+**关键：SPEC-STATE 推进到 DONE 必须在 Git Commit 成功之后**，避免 commit 失败但状态已变成 DONE 的不一致。
+
+提交顺序：
+1. 完成 Document Sync
+2. 执行 Git Commit + PR
+3. **确认提交成功后**，推进 `SPEC-STATE` → `DONE`（`update-spec-state.js --to DONE`）
+4. 将 SPEC-STATE 变更作为独立 commit 提交（`[AI-Gen] chore: update spec state to DONE`）
+
 ## 交付后可选动作
 
-如果 `notepads/learnings.md` 中有明确、非通用的沉淀价值，可以在交付后同步到 `docs/knowledge.md`。
+如果 `notepads/learnings.md` 中有明确的沉淀价值，可以在提交后同步到 `docs/knowledge.md`。
 
 原则：
-- 这是可选收尾动作，不阻塞提交
-- 不为沉淀而沉淀
-- 只有真正对后续 feature 有帮助的内容才写入知识库
+- 不为沉淀而沉淀——只有真正对后续 feature 有帮助的内容才写入知识库
+- 空 `learnings.md` 不触发，不创建/不修改 `knowledge.md`
+- Fast 路径通常没有 learnings，可直接跳过
+- 这是可选收尾动作，**不阻塞提交**
 
 ## 生命周期说明
 
-`SPEC-STATE -> DONE` 仍然需要在提交时收口，但这是脚本一致性动作，不应喧宾夺主。
+`SPEC-STATE → DONE` 仍然需要在提交成功后收口，但这是脚本一致性动作，不应喧宾夺主。
 
 **委托 superpowers**:
 - Standard 提交收口 → `superpowers:finishing-a-development-branch`
