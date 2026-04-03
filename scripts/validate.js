@@ -725,6 +725,20 @@ function validateFeatureScaffold() {
     }
   }
 
+  for (const relPath of ['scripts/prepare-commit-docs.js', 'scripts/check-commit-docs.js']) {
+    const scriptPath = path.join(ROOT, relPath);
+    if (!fs.existsSync(scriptPath)) {
+      continue;
+    }
+
+    try {
+      execFileSync('node', ['--check', scriptPath], { stdio: 'pipe', timeout: 5000 });
+      ok(relPath, 'commit 文档脚本语法检查通过');
+    } catch (e) {
+      error(relPath, 0, 'commit 文档脚本语法错误: ' + (e.stderr ? e.stderr.toString().trim() : e.message));
+    }
+  }
+
   if (fs.existsSync(path.join(ROOT, 'docs', 'guides', 'change-set-model.md'))) {
     ok('docs/guides/change-set-model.md', 'change set 模型说明存在');
   } else {

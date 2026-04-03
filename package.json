@@ -9,6 +9,8 @@
     "repair": "node scripts/repair.js",
     "scaffold:feature": "node scripts/scaffold-feature.js",
     "spec-state:update": "node scripts/update-spec-state.js",
+    "commit:prepare-docs": "node scripts/prepare-commit-docs.js",
+    "commit:check-docs": "node scripts/check-commit-docs.js",
     "test": "node --test tests/*.test.js"
   },
   "engines": {

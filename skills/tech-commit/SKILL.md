@@ -43,6 +43,13 @@ metadata:
 
 ### 1. Document Sync
 
+建议先执行：
+
+```bash
+npm run commit:prepare-docs -- --feature features/{id}-{name}
+npm run commit:check-docs -- --feature features/{id}-{name}
+```
+
 优先同步真正受影响的文档：
 - `技术方案.md`
 - `VERIFICATION.md`
@@ -57,6 +64,8 @@ metadata:
 - 不把未完成项写成已完成
 - reviewer 只看 PR 也能理解改动
 - Fast 路径不为凑齐模板而补写 `测试计划.md` / `测试报告.md`
+- `prepare-commit-docs` 负责对当前 feature 文档、`README.md`、`docs/knowledge.md` 做增量更新
+- `check-commit-docs` 负责拦截“代码准备提交了，但文档同步还没跟上”的情况
 
 ### 2. SPEC-STATE → DONE
 
