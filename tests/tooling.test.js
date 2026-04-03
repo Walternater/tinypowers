@@ -177,12 +177,41 @@ test('init-project creates core runtime files', () => {
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.equal(fs.existsSync(path.join(projectRoot, 'CLAUDE.md')), true);
+  assert.equal(fs.existsSync(path.join(projectRoot, 'README.md')), true);
   assert.equal(fs.existsSync(path.join(projectRoot, '.claude', 'settings.json')), true);
   assert.equal(fs.existsSync(path.join(projectRoot, '.claude', 'hooks', 'spec-state-guard.js')), true);
   assert.equal(fs.existsSync(path.join(projectRoot, 'docs', 'guides', 'workflow-guide.md')), true);
   assert.equal(fs.existsSync(path.join(projectRoot, 'configs', 'rules', 'java', 'java-coding-style.md')), true);
   assert.equal(fs.existsSync(path.join(projectRoot, 'configs', 'rules', 'mysql')), true);
+  const readme = fs.readFileSync(path.join(projectRoot, 'README.md'), 'utf8');
+  const knowledge = fs.readFileSync(path.join(projectRoot, 'docs', 'knowledge.md'), 'utf8');
+  assert.match(readme, /AI Workflow Bootstrap/);
+  assert.match(readme, /mvn test/);
+  assert.match(knowledge, /初始化提炼摘要/);
+  assert.match(knowledge, /技术栈：Java \(Maven\)/);
+  assert.match(knowledge, /MySQL/);
   assert.match(result.stdout, /初始化验证通过/);
+});
+
+test('init-project updates existing README and knowledge bootstrap without clobbering content', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-init-readme-'));
+  fs.writeFileSync(path.join(projectRoot, 'README.md'), '# Existing Project\n\nLegacy details.\n');
+  fs.mkdirSync(path.join(projectRoot, 'docs'), { recursive: true });
+  fs.writeFileSync(path.join(projectRoot, 'docs', 'knowledge.md'), '# 领域知识库\n\n已有内容。\n');
+
+  const result = run('scripts/init-project.js', [
+    '--root', projectRoot,
+    '--project-name', 'existing-service'
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const readme = fs.readFileSync(path.join(projectRoot, 'README.md'), 'utf8');
+  const knowledge = fs.readFileSync(path.join(projectRoot, 'docs', 'knowledge.md'), 'utf8');
+  assert.match(readme, /Legacy details\./);
+  assert.match(readme, /tinypowers:init-readme:start/);
+  assert.match(knowledge, /已有内容。/);
+  assert.match(knowledge, /tinypowers:init-knowledge:start/);
+  assert.match(knowledge, /项目名称：existing-service/);
 });
 
 test('init-project merges existing settings.json', () => {
