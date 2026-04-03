@@ -12,6 +12,10 @@ function detectGlobalInstallRoot() {
   return path.join(process.env.HOME || '', '.claude', 'skills', 'tinypowers');
 }
 
+function isRepositoryRoot(dirPath) {
+  return exists(path.join(dirPath, '.git'));
+}
+
 function parseArgs(argv) {
   const result = { _: [] };
   for (let i = 2; i < argv.length; i += 1) {
@@ -75,7 +79,7 @@ function detectProjectRoot(args, installRoot) {
     return path.resolve(args.project);
   }
 
-  if (installRoot === ROOT) {
+  if (installRoot === ROOT && isRepositoryRoot(ROOT)) {
     return ROOT;
   }
 
@@ -86,7 +90,7 @@ function classifyInstallContext(args, installRoot, projectRoot) {
   const projectInstallRoot = path.join(projectRoot, '.claude', 'skills', 'tinypowers');
   const globalInstallRoot = detectGlobalInstallRoot();
 
-  if (installRoot === ROOT && projectRoot === ROOT) {
+  if (installRoot === ROOT && projectRoot === ROOT && isRepositoryRoot(ROOT)) {
     return {
       mode: 'repository',
       type: 'repository-root'
