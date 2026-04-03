@@ -48,7 +48,7 @@ features/{需求编号}-{需求名称}/
 | `测试计划.md` | 记录测试范围、测试项和执行安排，仅 `medium / standard` 路径默认需要 |
 | `测试报告.md` | 记录测试执行结果和结论，仅 `medium / standard` 路径默认需要 |
 | `STATE.md` | 复杂执行的辅助状态文件，按需创建 |
-| `notepads/learnings.md` | feature 级经验暂存，可择优回写 `docs/knowledge.md`，不再默认创建 |
+| `notepads/learnings.md` | feature 级经验暂存，仅在值得回写 `docs/knowledge.md` 时按需创建 |
 
 ## 双状态模型
 
@@ -134,6 +134,7 @@ node .claude/skills/tinypowers/scripts/update-spec-state.js \
   - `medium / standard`：要求 `测试计划.md` + `测试报告.md` + `VERIFICATION.md`
 - `REVIEW -> DONE`
   - 需要 `VERIFICATION.md` 明确给出 `PASS / 通过`
+  - `DONE` 应作为最终交付 commit 的一部分，不再单独补一个状态 commit
 
 ## 当前边界
 
@@ -142,3 +143,4 @@ node .claude/skills/tinypowers/scripts/update-spec-state.js \
 - 执行期复杂度按需展开
 - 保留知识沉淀和 worktree 协作能力，但不让它们成为默认负担
 - Fast 路径减少验证文档负担，复杂路径保留可审计性
+- `learnings -> knowledge` 只在内容有复用价值时才启动 promotion

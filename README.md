@@ -36,7 +36,7 @@
 | Decision Guardian | 决策锁定防漂移，编码阶段不能擅自修改已锁定决策 |
 | Anti-Rationalization | 防止自我合理化绕过门禁 |
 | Worktree Isolation | 复杂需求可使用独立 worktree 隔离执行 |
-| Knowledge Base | `docs/knowledge.md` + `notepads/learnings.md` 的知识沉淀链路 |
+| Knowledge Base | `docs/knowledge.md` + 可选的 `notepads/learnings.md` 提升链路 |
 
 ## 能力地图
 
@@ -197,6 +197,7 @@ node ~/.claude/skills/tinypowers/scripts/doctor.js --project .
 ```
 
 如果你用的是项目级安装，对应脚本路径会是 `.claude/skills/tinypowers/scripts/doctor.js`。
+`doctor` 现在除了检查安装完整性，也会提示 hooks 接线和项目运行时准备情况。
 
 ## 快速开始
 
@@ -218,7 +219,7 @@ node ~/.claude/skills/tinypowers/scripts/doctor.js --project .
 
 ```bash
 npm run validate   # 校验 Agent/Skill 定义完整性
-npm run doctor     # 诊断安装状态
+npm run doctor     # 诊断安装状态、hooks 接线和运行时准备情况
 npm test           # 跑回归测试
 ```
 

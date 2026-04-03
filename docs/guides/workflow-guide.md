@@ -40,7 +40,7 @@ features/{需求编号}-{需求名称}/
 ├── 测试报告.md                # 可选，medium / standard 路径需要
 ├── STATE.md                  # 可选，仅复杂执行时
 └── notepads/
-    └── learnings.md          # 可选，仅需要沉淀经验时创建
+    └── learnings.md          # 可选，仅有明确复用价值时创建
 ```
 
 说明：
@@ -73,8 +73,7 @@ PRD
   -> 需求理解
   -> 技术方案
   -> 任务拆解
-  -> 方案与任务确认
-  -> 确认后进入 /tech:code
+  -> CHECK-1（feature -> code）
   ↓
 /tech:code
   -> 开发执行
@@ -84,9 +83,11 @@ PRD
      -> update-verification.js
      -> 必要时修复并复审
   -> 测试与验证
+  -> CHECK-2（code -> commit）
   ↓
 /tech:commit
   -> 文档同步
+  -> SPEC-STATE -> DONE
   -> 提交 / 推送 / PR
 ```
 
@@ -102,12 +103,20 @@ PRD
 - 产出技术方案
 - 锁定关键决策
 - 生成任务拆解表
-- 在方案与任务拆解完成后暂停确认
+- 输出 `CHECK-1` 摘要，作为进入开发前的显式边界
 
 硬门禁：
-- 技术方案未经确认，不能进入编码
+- 技术方案未达到可执行粒度，不能进入编码
 - 任务拆解不清晰，不能进入 `/tech:code`
-- 方案与任务拆解未确认，不能进入 `/tech:code`
+- 规划包未形成可执行摘要，不能进入 `/tech:code`
+
+`CHECK-1` 至少应说明：
+- 需求摘要
+- 关键决策
+- 任务数量 / 执行粒度
+- 主要风险
+
+人工确认仍然优先；如果需要 AI 自驱继续，语义上应明确记为 `soft gate bypassed`，而不是“已审批”。
 
 ### 2. `/tech:code`
 
@@ -120,6 +129,7 @@ PRD
 3. 审查修复
    审查链固定为 `compliance-reviewer -> code-reviewer -> update-verification.js`
 4. 测试与验证
+5. CHECK-2（code -> commit）
 
 按路径区分验证交付物：
 
@@ -136,15 +146,27 @@ PRD
 - `STATE.md` 状态恢复
 - 多 Wave 执行
 
+`CHECK-2` 至少应说明：
+- 变更摘要
+- 测试结果
+- 审查结论
+- 决策合规性摘要
+- 残留风险
+
+如果无人确认但要继续进入 `/tech:commit`，同样记为 `soft gate bypassed`。
+
 ### 3. `/tech:commit`
 
 这个阶段产出“可审阅的提交和 PR”。
 
 主要步骤：
 - 根据代码改动同步必要文档
+- 推进 `SPEC-STATE -> DONE`
 - 生成规范化 commit message
-- 执行提交和推送
+- 一次性提交最终交付快照并推送
 - 生成 PR 内容
+
+正常情况下，不再为 `DONE` 单独补一个 meta commit。
 
 ## 审查顺序为什么固定
 
@@ -187,7 +209,8 @@ compliance-reviewer（方案符合性 + 安全）
 
 - worktree 能力保留在 `/tech:code`，用于隔离高风险或多任务需求
 - `docs/knowledge.md` 是项目级知识库
-- `notepads/learnings.md` 是 feature 级暂存区，只有有价值的经验才回写知识库
+- `notepads/learnings.md` 是 feature 级暂存区
+- 只有出现 `[PERSIST]` 或满足明确复用条件时，才建议回写 `docs/knowledge.md`
 
 ## 日常使用建议
 
@@ -220,6 +243,7 @@ compliance-reviewer（方案符合性 + 安全）
 - `features/{id}-{name}/VERIFICATION.md`
 - 代码实现
 - 提交记录 / PR
+- 最终交付 commit 中包含 `DONE` 状态的 `SPEC-STATE.md`
 
 `medium / standard` 路径通常还应包含：
 - `features/{id}-{name}/测试计划.md`

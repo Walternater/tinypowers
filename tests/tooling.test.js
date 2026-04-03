@@ -89,6 +89,38 @@ test('doctor reports global mode when using --global', () => {
   assert.match(result.stdout, /安装目录类型: global-install/);
 });
 
+test('doctor surfaces runtime diagnostics for maven projects', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-doctor-runtime-'));
+  fs.writeFileSync(path.join(projectRoot, 'pom.xml'), `
+    <project>
+      <properties>
+        <maven.compiler.release>17</maven.compiler.release>
+      </properties>
+    </project>
+  `.trim());
+
+  const result = spawnSync('node', [
+    path.join(ROOT, 'scripts', 'doctor.js'),
+    '--project', projectRoot,
+    '--install-root', ROOT
+  ], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      TINYPOWERS_DOCTOR_FAKE_JAVA_VERSION: 'openjdk version "21.0.2" 2024-01-16',
+      TINYPOWERS_DOCTOR_FAKE_MVN_VERSION: 'Apache Maven 3.9.6'
+    }
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /RUNTIME/);
+  assert.match(result.stdout, /项目运行时: maven-java/);
+  assert.match(result.stdout, /Java 要求: 17\+/);
+  assert.match(result.stdout, /Java 运行时可用（当前版本 21）/);
+  assert.match(result.stdout, /Maven 命令可用/);
+});
+
 test('validate succeeds on repository workspace', () => {
   const result = run('scripts/validate.js');
   assert.equal(result.status, 0, result.stderr || result.stdout);

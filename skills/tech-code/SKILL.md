@@ -43,6 +43,7 @@ metadata:
 2. 开发执行
 3. 审查修复（可迭代）
 4. 测试与验证
+5. CHECK-2（code -> commit）
 ```
 
 ### 1. Gate Check
@@ -125,6 +126,21 @@ compliance-reviewer（方案符合性 + 安全）
 - `测试计划.md` 与 `测试报告.md` 在 `medium / standard` 路径可以轻量，但不应省略
 - Fast 路径可以更简洁，但不能跳过验证证据
 
+### 5. CHECK-2（code -> commit）
+
+进入 `/tech:commit` 前，输出一个显式 checkpoint 摘要：
+
+- 变更摘要
+- 测试结果
+- 审查结论
+- 决策合规性摘要
+- 残留风险
+
+语义：
+- 有人工确认：按确认结果进入 `/tech:commit`
+- 无人工确认但需要继续：记录 `soft gate bypassed`
+- `soft gate bypassed` 只是边界说明，不等于审批通过
+
 ## 内部执行说明
 
 以下能力保留，但作为内部实现细节，不应成为默认公开流程：
@@ -153,6 +169,7 @@ features/{id}-{name}/
 - `VERIFICATION.md` 是进入 `/tech:commit` 的前置证据
 - `测试计划.md` 和 `测试报告.md` 是 `medium / standard` 路径的显式交付物
 - `docs/knowledge.md` 是项目级知识库；如 `notepads/learnings.md` 有沉淀价值，可在交付后回写
+- `CHECK-2` 摘要是 `/tech:commit` 的直接输入之一
 - 同一问题连续失败 3 次，应停止并上升到架构讨论
 
 **委托 superpowers**:

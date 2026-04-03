@@ -41,7 +41,7 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 | `scripts/update-spec-state.js` | 推进 `PLAN -> EXEC -> REVIEW -> DONE` 并重写产物状态 |
 | `scripts/update-verification.js` | 将合规审查与代码审查结果稳定写回 `VERIFICATION.md` |
 | `scripts/validate.js` | 校验 agents / skills / hooks / runtime 定义一致性 |
-| `scripts/doctor.js` | 检查安装完整性与运行时接线 |
+| `scripts/doctor.js` | 检查安装完整性、hooks 接线和项目运行时准备情况 |
 
 ## Contexts
 
@@ -65,20 +65,22 @@ Scripts     -> 提供 validate / doctor / repair / install-support
 
 | Component | 内容 |
 |-----------|------|
-| `core` | skills、agents、hooks、guides、脚本、多宿主分发元数据 |
+| `core` | skills、agents、hooks、核心脚本、多宿主分发元数据 |
+| `docs-runtime` | runtime guides 与初始化说明 |
 | `rules-common` | 通用实现与审查规则 |
 | `rules-java` | Java / Spring Boot 规则 |
 | `rules-mysql` | MySQL DBA 规则 |
 | `templates` | `CLAUDE.md`、PRD、技术方案等模板 |
 | `contexts` | dev / research / review 模式定义 |
 | `tests` | 仓库脚本与 hooks 的最小回归测试 |
+| `repo-maintenance` | 优化方案、执行计划等仓库维护文档（默认不安装） |
 
 ## 运维入口
 
 | 命令 | 用途 |
 |------|------|
 | `npm run validate` | 检查仓库内容定义是否一致 |
-| `npm run doctor` | 检查安装是否完整、hooks 是否接线 |
+| `npm run doctor` | 检查安装是否完整、hooks 是否接线、项目运行时是否就绪 |
 | `npm run repair` | 强制重装并重新跑 doctor |
 | `npm run scaffold:feature -- --id CSS-1234 --name 用户登录` | 创建 feature change set 骨架 |
 | `npm run spec-state:update -- --feature features/CSS-1234-用户登录 --to EXEC --note "plan ready"` | 推进 `SPEC-STATE.md` 阶段 |
