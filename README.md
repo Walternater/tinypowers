@@ -135,6 +135,19 @@ git clone https://github.com/Walternater/tinypowers.git ~/.tinypowers && ~/.tiny
 
 一行命令，将 tinypowers 安装到 `~/.claude/skills/tinypowers/`，所有项目共享。
 
+默认安装面只包含运行时必需内容：
+
+- workflow skills / agents / hooks
+- 初始化与诊断脚本
+- 运行时指南与模板
+
+默认不会把这些仓库维护材料复制进目标项目：
+
+- `docs/plans/`
+- `docs/workflow-optimization-*.md`
+- `tests/`
+- 其他仅供框架仓库维护使用的文档
+
 ### 安装到指定项目
 
 ```bash
@@ -142,6 +155,12 @@ cd /path/to/project
 /path/to/tinypowers/install.sh              # 自动检测技术栈
 /path/to/tinypowers/install.sh java-fullstack  # 指定 profile
 ```
+
+项目级安装仍然支持，但更适合：
+
+- 只想在单个项目里试用
+- 需要对项目内副本做隔离定制
+- 不希望所有项目共用一套 tinypowers
 
 ### 全部参数
 
@@ -154,9 +173,18 @@ cd /path/to/project
 | `--components a,b` | 指定组件列表 |
 
 可用 profile：
-- `java-fullstack`：Java + Spring Boot + MySQL 全套
+- `java-fullstack`：Java + Spring Boot + MySQL 全套 runtime
 - `java-light`：Java + Spring Boot（无 MySQL）
-- `minimal`：仅核心 skill
+- `minimal`：最小 runtime（`core + docs-runtime`）
+
+常见组件：
+
+- `core`：skills / agents / hooks / 安装与诊断脚本
+- `docs-runtime`：运行时指南
+- `rules-*`：语言或数据库规则
+- `templates`：初始化模板
+- `contexts`：工作模式定义
+- `repo-maintenance`：优化方案、执行计划等仓库维护文档（默认不安装）
 
 ### 安装后
 
@@ -167,6 +195,8 @@ cd /path/to/project
 # 验证安装
 node ~/.claude/skills/tinypowers/scripts/doctor.js --project .
 ```
+
+如果你用的是项目级安装，对应脚本路径会是 `.claude/skills/tinypowers/scripts/doctor.js`。
 
 ## 快速开始
 

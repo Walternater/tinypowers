@@ -7,6 +7,10 @@ const ROOT = path.resolve(__dirname, '..');
 const MANIFEST_PATH = path.join(ROOT, 'manifests', 'components.json');
 const SETTINGS_FILE = path.join('.claude', 'settings.json');
 
+function detectGlobalInstallRoot() {
+  return path.join(process.env.HOME || '', '.claude', 'skills', 'tinypowers');
+}
+
 function parseArgs(argv) {
   const result = { _: [] };
   for (let i = 2; i < argv.length; i += 1) {
@@ -45,7 +49,7 @@ function detectInstallRoot(args) {
   }
 
   if (args.global) {
-    return path.join(process.env.HOME || '', '.claude', 'skills', 'tinypowers');
+    return detectGlobalInstallRoot();
   }
 
   const projectRoot = path.resolve(args.project || process.cwd());
@@ -68,6 +72,37 @@ function detectProjectRoot(args, installRoot) {
 
   const candidate = path.resolve(installRoot, '..', '..', '..');
   return candidate;
+}
+
+function classifyInstallContext(args, installRoot, projectRoot) {
+  const projectInstallRoot = path.join(projectRoot, '.claude', 'skills', 'tinypowers');
+  const globalInstallRoot = detectGlobalInstallRoot();
+
+  if (installRoot === ROOT && projectRoot === ROOT) {
+    return {
+      mode: 'repository',
+      type: 'repository-root'
+    };
+  }
+
+  if (args.global || installRoot === globalInstallRoot) {
+    return {
+      mode: 'global',
+      type: 'global-install'
+    };
+  }
+
+  if (installRoot === projectInstallRoot) {
+    return {
+      mode: 'project-local',
+      type: 'project-local-install'
+    };
+  }
+
+  return {
+    mode: 'explicit-install-root',
+    type: 'external-install'
+  };
 }
 
 function checkFile(relPath, baseDir, findings, label, required = true) {
@@ -227,6 +262,7 @@ function main() {
   const args = parseArgs(process.argv);
   const installRoot = detectInstallRoot(args);
   const projectRoot = detectProjectRoot(args, installRoot);
+  const installContext = classifyInstallContext(args, installRoot, projectRoot);
   const findings = { pass: [], warn: [], fail: [], info: [] };
 
   if (!exists(MANIFEST_PATH)) {
@@ -245,7 +281,11 @@ function main() {
   checkFile('skills', installRoot, findings, '核心目录');
   checkFile('agents', installRoot, findings, '核心目录');
   checkFile('hooks', installRoot, findings, '核心目录');
-  checkFile('docs', installRoot, findings, '核心目录');
+  if (installedComponents.includes('docs-runtime')) {
+    checkFile('docs/guides', installRoot, findings, '运行时文档目录');
+  } else {
+    findings.info.push('当前安装未包含 docs-runtime 组件');
+  }
   if (installedComponents.includes('contexts')) {
     checkFile('contexts', installRoot, findings, '工作模式目录');
   } else {
@@ -264,6 +304,8 @@ function main() {
   console.log('=================');
   console.log(`安装目录: ${installRoot}`);
   console.log(`项目目录: ${projectRoot}`);
+  console.log(`安装模式: ${installContext.mode}`);
+  console.log(`安装目录类型: ${installContext.type}`);
 
   printSection('PASS', findings.pass);
   printSection('WARN', findings.warn);

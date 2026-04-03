@@ -18,6 +18,75 @@ test('doctor succeeds on repository workspace', () => {
   const result = run('scripts/doctor.js', ['--project', ROOT, '--install-root', ROOT]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /tinypowers doctor/);
+  assert.match(result.stdout, /安装模式: repository/);
+});
+
+test('doctor reports explicit install-root mode without project-local false alarm', () => {
+  const installRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-doctor-install-root-'));
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-doctor-project-'));
+
+  fs.cpSync(path.join(ROOT, 'skills'), path.join(installRoot, 'skills'), { recursive: true });
+  fs.cpSync(path.join(ROOT, 'agents'), path.join(installRoot, 'agents'), { recursive: true });
+  fs.cpSync(path.join(ROOT, 'hooks'), path.join(installRoot, 'hooks'), { recursive: true });
+  fs.cpSync(path.join(ROOT, 'contexts'), path.join(installRoot, 'contexts'), { recursive: true });
+  fs.cpSync(path.join(ROOT, 'configs'), path.join(installRoot, 'configs'), { recursive: true });
+  fs.cpSync(path.join(ROOT, 'docs'), path.join(installRoot, 'docs'), { recursive: true });
+  fs.cpSync(path.join(ROOT, 'manifests'), path.join(installRoot, 'manifests'), { recursive: true });
+  fs.cpSync(path.join(ROOT, '.claude-plugin'), path.join(installRoot, '.claude-plugin'), { recursive: true });
+  fs.cpSync(path.join(ROOT, '.codex'), path.join(installRoot, '.codex'), { recursive: true });
+
+  for (const file of ['package.json', 'install.sh', 'README.md']) {
+    fs.copyFileSync(path.join(ROOT, file), path.join(installRoot, file));
+  }
+  fs.mkdirSync(path.join(installRoot, 'scripts'), { recursive: true });
+  for (const file of ['doctor.js', 'init-project.js', 'install-manifest.js', 'repair.js', 'scaffold-feature.js', 'update-spec-state.js', 'update-verification.js', 'validate.js']) {
+    fs.copyFileSync(path.join(ROOT, 'scripts', file), path.join(installRoot, 'scripts', file));
+  }
+  fs.mkdirSync(path.join(installRoot, 'scripts', 'lib'), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, 'scripts', 'lib', 'artifact-state.js'), path.join(installRoot, 'scripts', 'lib', 'artifact-state.js'));
+
+  const result = spawnSync('node', [
+    path.join(installRoot, 'scripts', 'doctor.js'),
+    '--project', projectRoot,
+    '--install-root', installRoot
+  ], {
+    cwd: ROOT,
+    encoding: 'utf8'
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /安装模式: explicit-install-root/);
+  assert.match(result.stdout, /安装目录类型: external-install/);
+  assert.doesNotMatch(result.stdout, /安装目录不存在/);
+});
+
+test('doctor reports global mode when using --global', () => {
+  const homeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-doctor-home-'));
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-doctor-global-project-'));
+  const installRoot = path.join(homeRoot, '.claude', 'skills', 'tinypowers');
+
+  fs.mkdirSync(path.dirname(installRoot), { recursive: true });
+  fs.cpSync(ROOT, installRoot, {
+    recursive: true,
+    filter: (source) => {
+      const rel = path.relative(ROOT, source);
+      return !rel.startsWith('.git');
+    }
+  });
+
+  const result = spawnSync('node', [
+    path.join(installRoot, 'scripts', 'doctor.js'),
+    '--project', projectRoot,
+    '--global'
+  ], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, HOME: homeRoot }
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /安装模式: global/);
+  assert.match(result.stdout, /安装目录类型: global-install/);
 });
 
 test('validate succeeds on repository workspace', () => {
