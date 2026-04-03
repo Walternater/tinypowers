@@ -4,10 +4,6 @@ const { parseArgs, checkCommitDocs, fail } = require('./lib/commit-docs');
 
 function main() {
   const args = parseArgs(process.argv);
-  if (!args.feature) {
-    fail('缺少 --feature');
-  }
-
   const result = checkCommitDocs(args.root, args.feature);
   if (result.failures.length > 0) {
     console.error('commit 文档校验失败:');

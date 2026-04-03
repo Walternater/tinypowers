@@ -29,10 +29,6 @@ function parseArgs(argv) {
 }
 
 function featureDirFromArg(root, feature) {
-  if (!feature) {
-    fail('缺少 --feature');
-  }
-
   const normalized = feature.replace(/\\/g, '/');
   if (normalized.startsWith('features/')) {
     return path.resolve(root, normalized);
@@ -41,6 +37,112 @@ function featureDirFromArg(root, feature) {
     return path.resolve(root, normalized);
   }
   return path.resolve(root, 'features', normalized);
+}
+
+function listFeatureDirs(root) {
+  const featuresDir = path.join(root, 'features');
+  if (!exists(featuresDir)) {
+    return [];
+  }
+
+  return fs.readdirSync(featuresDir, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name);
+}
+
+function readCurrentBranch(root) {
+  try {
+    const { execSync } = require('child_process');
+    return execSync('git branch --show-current', {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 5000
+    }).trim();
+  } catch {
+    return '';
+  }
+}
+
+function matchFeatureFromBranch(branch, featureDirs) {
+  if (!branch || !branch.startsWith('feature/')) {
+    return null;
+  }
+
+  const raw = branch.replace('feature/', '');
+  const normalized = raw.replace(/\//g, '-');
+  const idPrefix = raw.split('/')[0];
+
+  if (featureDirs.includes(raw)) {
+    return raw;
+  }
+  if (featureDirs.includes(normalized)) {
+    return normalized;
+  }
+
+  const prefixMatches = featureDirs.filter(name => name === idPrefix || name.startsWith(`${idPrefix}-`));
+  if (prefixMatches.length === 1) {
+    return prefixMatches[0];
+  }
+
+  return null;
+}
+
+function extractPhase(content) {
+  const match = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|PLAN|EXEC|REVIEW|VERIFY|CLOSED|DONE)/);
+  if (!match) {
+    return null;
+  }
+
+  const aliases = {
+    INIT: 'PLAN',
+    REQ: 'PLAN',
+    DESIGN: 'PLAN',
+    TASKS: 'PLAN',
+    PLAN: 'PLAN',
+    EXEC: 'EXEC',
+    REVIEW: 'REVIEW',
+    VERIFY: 'REVIEW',
+    CLOSED: 'DONE',
+    DONE: 'DONE'
+  };
+  return aliases[match[1]] || null;
+}
+
+function resolveFeatureDir(root, feature) {
+  if (feature) {
+    return featureDirFromArg(root, feature);
+  }
+
+  const featureDirs = listFeatureDirs(root);
+  if (featureDirs.length === 0) {
+    fail('未找到 features/ 目录下的 feature，无法自动识别当前提交目标');
+  }
+
+  const branch = readCurrentBranch(root);
+  const branchFeature = matchFeatureFromBranch(branch, featureDirs);
+  if (branchFeature) {
+    return path.resolve(root, 'features', branchFeature);
+  }
+
+  const activeFeatures = featureDirs.filter(name => {
+    const specStatePath = path.join(root, 'features', name, 'SPEC-STATE.md');
+    if (!exists(specStatePath)) {
+      return false;
+    }
+    const phase = extractPhase(read(specStatePath));
+    return phase && phase !== 'DONE';
+  });
+
+  if (activeFeatures.length === 1) {
+    return path.resolve(root, 'features', activeFeatures[0]);
+  }
+
+  if (featureDirs.length === 1) {
+    return path.resolve(root, 'features', featureDirs[0]);
+  }
+
+  const candidates = activeFeatures.length > 1 ? activeFeatures : featureDirs;
+  fail(`无法自动识别当前 feature，请显式传入 --feature。候选项: ${candidates.join(', ')}`);
 }
 
 function read(filePath) {
@@ -264,7 +366,7 @@ function refreshFeatureDocs(ctx, date) {
 }
 
 function prepareCommitDocs(root, feature, date) {
-  const featureDir = featureDirFromArg(root, feature);
+  const featureDir = resolveFeatureDir(root, feature);
   if (!exists(featureDir)) {
     fail(`feature 不存在: ${featureDir}`);
   }
@@ -293,7 +395,7 @@ function prepareCommitDocs(root, feature, date) {
 }
 
 function checkCommitDocs(root, feature) {
-  const featureDir = featureDirFromArg(root, feature);
+  const featureDir = resolveFeatureDir(root, feature);
   if (!exists(featureDir)) {
     fail(`feature 不存在: ${featureDir}`);
   }
@@ -343,6 +445,7 @@ module.exports = {
   KNOWLEDGE_END,
   parseArgs,
   featureDirFromArg,
+  resolveFeatureDir,
   prepareCommitDocs,
   checkCommitDocs,
   fail

@@ -4,10 +4,6 @@ const { parseArgs, prepareCommitDocs, fail } = require('./lib/commit-docs');
 
 function main() {
   const args = parseArgs(process.argv);
-  if (!args.feature) {
-    fail('缺少 --feature');
-  }
-
   const date = new Date().toISOString().slice(0, 10);
   const result = prepareCommitDocs(args.root, args.feature, date);
 

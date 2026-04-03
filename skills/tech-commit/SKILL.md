@@ -46,9 +46,14 @@ metadata:
 建议先执行：
 
 ```bash
-npm run commit:prepare-docs -- --feature features/{id}-{name}
-npm run commit:check-docs -- --feature features/{id}-{name}
+npm run commit:prepare-docs
+npm run commit:check-docs
 ```
+
+默认会自动识别当前 feature：
+- 优先取当前 `git branch` 对应的 `features/{id}-{name}`
+- 如果分支无法识别，再回退到唯一活跃 feature
+- 只有存在歧义时，才需要手动补 `--feature`
 
 优先同步真正受影响的文档：
 - `技术方案.md`

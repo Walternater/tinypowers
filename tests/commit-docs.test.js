@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -98,6 +98,33 @@ test('prepare-commit-docs incrementally updates README and knowledge for current
   assert.match(design, /\| 最后更新 \| `20\d{2}-\d{2}-\d{2}` \|/);
 });
 
+test('prepare-commit-docs auto-detects current feature from git branch', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-prepare-commit-branch-'));
+  const featureName = 'CSS-1234-提交文档同步';
+
+  execFileSync('git', ['init'], { cwd: projectRoot, stdio: 'ignore' });
+  fs.writeFileSync(path.join(projectRoot, 'README.md'), '# Existing README\n');
+  execFileSync('git', ['add', 'README.md'], { cwd: projectRoot, stdio: 'ignore' });
+  execFileSync(
+    'git',
+    ['-c', 'user.name=Tinypowers', '-c', 'user.email=tinypowers@example.com', 'commit', '-m', 'init'],
+    { cwd: projectRoot, stdio: 'ignore' }
+  );
+  execFileSync('git', ['checkout', '-b', 'feature/CSS-1234/commit-doc-sync'], { cwd: projectRoot, stdio: 'ignore' });
+
+  fs.mkdirSync(path.join(projectRoot, 'docs'), { recursive: true });
+  fs.writeFileSync(path.join(projectRoot, 'docs', 'knowledge.md'), '# 领域知识库\n');
+  writeFeature(projectRoot, featureName);
+  writeFeature(projectRoot, 'CSS-9999-其它需求');
+
+  const result = runNode('scripts/prepare-commit-docs.js', ['--root', projectRoot]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /feature: CSS-1234-提交文档同步/);
+
+  const readme = fs.readFileSync(path.join(projectRoot, 'README.md'), 'utf8');
+  assert.match(readme, /CSS-1234-提交文档同步/);
+});
+
 test('check-commit-docs fails before prepare and passes after prepare', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-check-commit-'));
   const featureName = 'CSS-9999-提交校验';
@@ -113,7 +140,21 @@ test('check-commit-docs fails before prepare and passes after prepare', () => {
   const prepare = runNode('scripts/prepare-commit-docs.js', ['--root', projectRoot, '--feature', featureName]);
   assert.equal(prepare.status, 0, prepare.stderr || prepare.stdout);
 
-  const after = runNode('scripts/check-commit-docs.js', ['--root', projectRoot, '--feature', featureName]);
+  const after = runNode('scripts/check-commit-docs.js', ['--root', projectRoot]);
   assert.equal(after.status, 0, after.stderr || after.stdout);
   assert.match(after.stdout, /commit 文档校验通过/);
+});
+
+test('check-commit-docs asks for --feature when multiple candidates are ambiguous', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-check-commit-ambiguous-'));
+  fs.mkdirSync(path.join(projectRoot, 'docs'), { recursive: true });
+  fs.writeFileSync(path.join(projectRoot, 'README.md'), '# README\n');
+  fs.writeFileSync(path.join(projectRoot, 'docs', 'knowledge.md'), '# 领域知识库\n');
+  writeFeature(projectRoot, 'CSS-1000-a');
+  writeFeature(projectRoot, 'CSS-2000-b');
+
+  const result = runNode('scripts/check-commit-docs.js', ['--root', projectRoot]);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stderr || result.stdout, /无法自动识别当前 feature/);
+  assert.match(result.stderr || result.stdout, /--feature/);
 });
