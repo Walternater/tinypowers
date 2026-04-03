@@ -62,7 +62,7 @@ function handleSessionStart(snapshotPath, cwd) {
     message += '阻塞: ' + s.blockers.join(', ') + '\n';
   }
 
-  message += '\n恢复方法：读取 features/' + (snapshot.feature_id || '?') + '/STATE.md 从断点继续。';
+  message += '\n恢复方法：读取 features/' + (snapshot.feature_id || '?') + '/SPEC-STATE.md 从断点继续。';
 
   const notepadPath = path.join(cwd, '.tinypowers', 'notepad.md');
   if (fs.existsSync(notepadPath)) {
@@ -79,20 +79,20 @@ function handleStop(data, snapshotPath, cwd) {
   if (!fs.existsSync(featuresDir)) process.exit(0);
 
   const featureId = detectCurrentFeature(cwd, featuresDir);
-  const stateMdPath = path.join(cwd, 'features', featureId, 'STATE.md');
+  const specStatePath = path.join(cwd, 'features', featureId, 'SPEC-STATE.md');
 
-  if (!fs.existsSync(stateMdPath)) {
+  if (!fs.existsSync(specStatePath)) {
     ensureFeatureDir(cwd, featureId);
     process.exit(0);
   }
 
-  const summary = extractSummaryFromState(fs.readFileSync(stateMdPath, 'utf8'));
+  const summary = extractSummaryFromSpecState(fs.readFileSync(specStatePath, 'utf8'), cwd, featureId);
 
   const state = {
     session_id: data.session_id,
     feature_id: featureId,
     feature_path: 'features/' + featureId,
-    current_wave: detectCurrentWave(cwd, featureId),
+    current_wave: summary.wave || 1,
     timestamp: Math.floor(Date.now() / 1000),
     summary: {
       phase: summary.phase || 'unknown',
@@ -138,9 +138,9 @@ function writeNotepad(cwd, featureId, summary) {
 function handlePreCompact(data, snapshotPath, cwd) {
   const featuresDir = path.join(cwd, 'features');
   const featureId = detectCurrentFeature(cwd, featuresDir);
-  const stateMdPath = path.join(cwd, 'features', featureId, 'STATE.md');
-  const summary = fs.existsSync(stateMdPath)
-    ? extractSummaryFromState(fs.readFileSync(stateMdPath, 'utf8'))
+  const specStatePath = path.join(cwd, 'features', featureId, 'SPEC-STATE.md');
+  const summary = fs.existsSync(specStatePath)
+    ? extractSummaryFromSpecState(fs.readFileSync(specStatePath, 'utf8'), cwd, featureId)
     : {};
 
   try {
@@ -148,7 +148,7 @@ function handlePreCompact(data, snapshotPath, cwd) {
       session_id: data.session_id,
       feature_id: featureId,
       feature_path: 'features/' + featureId,
-      current_wave: detectCurrentWave(cwd, featureId),
+      current_wave: summary.wave || 1,
       timestamp: Math.floor(Date.now() / 1000),
       hook: 'PreCompact'
     }, null, 2));
@@ -159,7 +159,7 @@ function handlePreCompact(data, snapshotPath, cwd) {
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: "PreCompact",
-      additionalContext: '压缩前已快照：Feature ' + featureId + ', Wave ' + detectCurrentWave(cwd, featureId) +
+      additionalContext: '压缩前已快照：Feature ' + featureId + ', Wave ' + (summary.wave || '?') +
         '\n.tinypowers/notepad.md 已更新。'
     }
   }));
@@ -185,9 +185,13 @@ function detectCurrentFeature(cwd, featuresDir) {
     let latestMtime = 0;
     for (const entry of fs.readdirSync(featuresDir, { withFileTypes: true })) {
       if (entry.isDirectory()) {
-        const stateFile = path.join(featuresDir, entry.name, 'STATE.md');
-        if (fs.existsSync(stateFile)) {
-          const stat = fs.statSync(stateFile);
+        const specState = path.join(featuresDir, entry.name, 'SPEC-STATE.md');
+        if (fs.existsSync(specState)) {
+          const content = fs.readFileSync(specState, 'utf8');
+          const phase = extractPhase(content);
+          if (phase === 'DONE') continue;
+
+          const stat = fs.statSync(specState);
           if (stat.mtimeMs > latestMtime) {
             latestMtime = stat.mtimeMs;
             latestFeature = entry.name;
@@ -217,52 +221,37 @@ function matchFeatureFromBranch(branch, featureDirs) {
   return null;
 }
 
-function detectCurrentWave(cwd, featureId) {
-  try {
-    const stateFile = path.join(cwd, 'features', featureId || detectCurrentFeature(cwd), 'STATE.md');
-    if (fs.existsSync(stateFile)) {
-      const content = fs.readFileSync(stateFile, 'utf8');
-      const match = content.match(/当前 Wave:\s*(\d+)/);
-      if (match) return parseInt(match[1]);
-    }
-  } catch (e) {}
-  return 1;
+function extractPhase(content) {
+  const match = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|PLAN|EXEC|REVIEW|VERIFY|CLOSED|DONE)/);
+  if (!match) return null;
+  const aliases = {
+    INIT: 'PLAN', REQ: 'PLAN', DESIGN: 'PLAN', TASKS: 'PLAN', PLAN: 'PLAN',
+    EXEC: 'EXEC', REVIEW: 'REVIEW', VERIFY: 'REVIEW', CLOSED: 'DONE', DONE: 'DONE'
+  };
+  return aliases[match[1]] || null;
 }
 
-function extractSummaryFromState(content) {
+function extractSummaryFromSpecState(content, cwd, featureId) {
   const result = { blockers: [], decisions: [] };
 
-  const phaseMatch = content.match(/-\s*当前阶段:\s*(.+)/);
-  if (phaseMatch) result.phase = phaseMatch[1].trim();
+  const phase = extractPhase(content);
+  if (phase) result.phase = phase;
 
-  const waveMatch = content.match(/-\s*当前 Wave:\s*(\d+)\s*\/\s*(\d+)/);
+  const waveMatch = content.match(/current_wave:\s*(\d+)\s*\/\s*(\d+)/);
   if (waveMatch) { result.wave = waveMatch[1]; result.total_waves = waveMatch[2]; }
 
-  const completed = (content.match(/\[x\]/g) || []).length;
-  const pending = (content.match(/\[ \]/g) || []).length;
-  result.completed_tasks = completed;
-  result.total_tasks = completed + pending;
-
-  const blockerSection = content.match(/## 阻塞\s*\n([\s\S]*?)(?=\n##|\n$|$)/);
-  if (blockerSection) {
-    result.blockers = blockerSection[1].split('\n')
-      .filter(l => l.trim() && l.trim() !== '无')
-      .map(l => l.replace(/^-\s*/, '').trim()).filter(Boolean);
+  const taskBreakdownPath = path.join(cwd, 'features', featureId, '任务拆解表.md');
+  if (fs.existsSync(taskBreakdownPath)) {
+    const taskContent = fs.readFileSync(taskBreakdownPath, 'utf8');
+    const completed = (taskContent.match(/\[x\]/g) || []).length;
+    const pending = (taskContent.match(/\[ \]/g) || []).length;
+    result.completed_tasks = completed;
+    result.total_tasks = completed + pending;
   }
 
-  const lastActionMatch = content.match(/## 上次操作\s*\n([\s\S]*?)(?=\n##|\n$|$)/);
-  if (lastActionMatch) {
-    const lines = lastActionMatch[1].split('\n').filter(l => l.trim().startsWith('-'));
-    if (lines.length > 0) result.last_action = lines[0].replace(/^-\s*/, '').trim();
-  }
-
-  const waveAltMatch = content.match(/Wave:\s*(\d+)\s*\/\s*(\d+)/);
-  if (!waveMatch && waveAltMatch) { result.wave = waveAltMatch[1]; result.total_waves = waveAltMatch[2]; }
-
-  const taskAltMatch = content.match(/任务[：:]\s*(\d+)\s*\/\s*(\d+)/);
-  if (result.total_tasks === 0 && taskAltMatch) {
-    result.completed_tasks = parseInt(taskAltMatch[1]);
-    result.total_tasks = parseInt(taskAltMatch[2]);
+  const blockersMatch = content.match(/blockers:\s*(.+)/);
+  if (blockersMatch && blockersMatch[1].trim() !== '无') {
+    result.blockers = blockersMatch[1].split(',').map(s => s.trim()).filter(Boolean);
   }
 
   return result;

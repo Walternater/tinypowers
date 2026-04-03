@@ -1,239 +1,306 @@
-# tinypowers 全流程审查 — 三份报告整合
+# tinypowers 全流程审查整合报告
 
-> 整合日期：2026-04-02
-> 三份来源：
-> - **E2E 试跑**（真实执行 `init → feature → code → commit`，测试功能 `TaskService#listCompletedTasks`）
-> - **Pipeline Audit**（管道级结构审查，逐 Skill/Phase 拆解）
-> - **Optimization Plan**（量化指标 + 需求分级方案）
+日期：2026-04-02
 
----
+## 一句话结论
 
-## 一、三份报告概览
+tinypowers 当前主线已经从“所有需求都走同样重的流程”进化到“有分级、有脚手架、有脚本化 init”的版本，但真实 dogfood 结果说明它仍然没有达到“顺滑可用”。
 
-| 报告 | 方法 | 测试场景 | 视角 |
-|------|------|---------|------|
-| E2E 试跑 | 真实执行完整流程 | 最小 Java 项目 + 2 文件改动 | **实操摩擦**：发现了具体 bug 和边界问题 |
-| Pipeline Audit | 逐 Skill/Phase 结构分析 | 模拟 "用户注册 CRUD" | **管道结构**：交互成本、文档碎片化、冗余检查 |
-| Optimization Plan | 量化审计 + 方案设计 | Spring Boot + 用户管理 CRUD | **数据驱动**：步骤数、委托数、模板利用率 |
-
-**三份报告结论高度一致**：流程骨架完整、理念正确，但对小需求过度流程化。
-
----
-
-## 二、共识问题清单（三份报告均提及）
-
-### 🔴 问题 1：没有需求分级
-
-| 报告 | 原文 |
-|------|------|
-| E2E | "对小需求明显过度流程化" |
-| Pipeline | "所有需求走同一流程，'用户注册'和'支付系统重构'走同样多的步骤" |
-| Optimization | "CRUD 和系统重构走同一套流程，文档/代码比 = 9.7:1" |
-
-**三份报告一致建议**：引入 Fast/Standard 两级（或 Fast/Standard/Complex 三级）路由。
-
-### 🔴 问题 2：superpowers 委托链太长
-
-| 报告 | 原文 |
-|------|------|
-| E2E | 未直接提及（但实测中依赖外部方法论） |
-| Pipeline | "6 Phase + 4 个 superpowers 委托 = 至少 10 次上下文切换" |
-| Optimization | "7 个外部委托，每个委托增加一层理解成本和失败点" |
-
-委托清单：`brainstorming`、`writing-plans`、`using-git-worktrees`、`subagent-driven-development`、`requesting-code-review`、`verification-before-completion`、`finishing-a-development-branch`
-
-### 🔴 问题 3：模板过重 + 利用率低
-
-| 报告 | 原文 |
-|------|------|
-| E2E | "大多数模板都只是表格骨架，没有足够强的引导或默认值" |
-| Pipeline | "feature 目录过度预设：10 个文件骨架中，4 个大概率空着" |
-| Optimization | "PRD 21%、技术方案 27%、任务拆解 37%，平均利用率 32%" |
-
-### 🔴 问题 4：SPEC-STATE 状态机过细
-
-| 报告 | 原文 |
-|------|------|
-| E2E | "历史表插入有格式问题"、"门禁偏弱，只验证文件存在" |
-| Pipeline | "8 个状态，4 次状态推进 = 4 次文件更新 + 4 次门禁检查" |
-| Optimization | "实际只用了 3 个状态，REQ/DESIGN/REVIEW/VERIFY 都是自动通过的" |
-
----
-
-## 三、各报告独有发现
-
-### E2E 试跑独有发现（实操 bug）
-
-| # | 问题 | 严重度 | 描述 |
-|---|------|--------|------|
-| E1 | Maven 默认命令错误 | P0 | `stack-detection.md` 给 Maven 配了 `mvn checkstyleMain testClasses`，像 Gradle 目标 |
-| E2 | SPEC-STATE 历史表插入 bug | P0 | `update-spec-state.js` 把历史行插到标题和表头之间，破坏表格结构 |
-| E3 | CLAUDE.md 模板变量误报 | P0 | 模板变量说明表中保留了 `{{ProjectName}}` 等原文，导致"禁止遗留未替换变量"检查误报 |
-| E4 | Worktree 时机冲突 | P1 | feature 不建 worktree，code 才建；但前两步已产生大量未提交文档，切隔离环境别扭 |
-| E5 | 首次 commit 范围过大 | P1 | init + feature + code 全部产物一起提交（28 文件、3000+ 行），reviewer 不友好 |
-| E6 | CLOSED 状态语义倒置 | P1 | 必须在 git commit 前先把 SPEC-STATE 推到 CLOSED，"状态先于事实" |
-| E7 | workflow-guide.md 隐式断链 | P1 | CLAUDE.md 引用了它，但 init 主流程未显式纳入产物要求 |
-
-### Pipeline Audit 独有发现（结构问题）
-
-| # | 问题 | 严重度 | 描述 |
-|---|------|--------|------|
-| P1 | 交互轮次过多 | P0 | 简单需求最短路径 16-25 轮交互 |
-| P2 | 文档碎片化 | P1 | 29 个文件、~2221 行，AI 频繁切换读取 |
-| P3 | tech-plan-checker 重复调用 | P1 | feature Phase 5 调一次，code Phase 0 又调一次 |
-| P4 | knowledge-scanning.md 偏向前端 | P2 | Java 项目仅依赖扫描有用，4 种策略全部落空 |
-| P5 | init Step 4 无脚本化 | P1 | 10 个变量替换 + 6 个规则文件 + 5 个 hooks 全靠 AI 手动执行 |
-| P6 | Commit Trailer 过于定制化 | P2 | Constraint/Rejected/Evidence/Confidence 四个字段不实用 |
-| P7 | 覆盖率目标不现实 | P2 | 80/70/90% 对项目初始阶段可能过高 |
-
-### Optimization Plan 独有发现（量化数据）
-
-| 指标 | 当前值 | 优化后(Fast) | 改善 |
-|------|--------|-------------|------|
-| 总步骤数 | 24 | 13 | -46% |
-| 文档/代码比 | 9.7:1 | 3:1 | -69% |
-| 外部委托数 | 7 | 1 | -86% |
-| 模板利用率 | 32% | 70%+ | +119% |
-| SPEC-STATE 状态 | 8 | 4 | -50% |
-| 编码时间占比 | ~15% | ~45% | +200% |
-
----
-
-## 四、合并后的优化方案
-
-### 方案 A：需求分级（三份报告一致推荐，P0）
-
-引入三级路由，在 `/tech:feature` Phase 0 自动判定：
-
-| 级别 | 判定条件 | 流程 |
-|------|---------|------|
-| **Fast** | 单模块、≤2 人天、无 DB 变更、无安全敏感 | 跳过歧义检测/独立验证，技术方案 ≤30 行，不建 worktree |
-| **Standard** | 多模块、有 DB 变更、≤2 周 | 当前完整流程 |
-| **Complex** | 跨系统、架构变更、>2 周 | 完整流程 + 额外评审 |
-
-**Fast-track 流程对比**：
-
-| Skill | 当前 | Fast-track |
-|-------|------|-----------|
-| init | 7 步 | 4 步（跳过知识扫描、策略选择、空知识库） |
-| feature | 6 phases, 11-15 轮交互 | 2 phases, 2-3 轮交互 |
-| code | 7 phases, 4 委托 | 4 phases, 1 委托 |
-| commit | 4 步 | 2 步（合并文档同步+知识沉淀） |
-| **合计** | **24 步, 16-25 轮** | **12 步, 5-8 轮** |
-
-### 方案 B：SPEC-STATE 状态机简化（P1）
-
-| 当前 | 优化后 |
-|------|--------|
-| 8 状态：INIT → REQ → DESIGN → TASKS → EXEC → REVIEW → VERIFY → CLOSED | 4 状态：PLAN → EXEC → REVIEW → DONE |
-| 4 次独立门禁 | 合并为阶段门禁 |
-| 禁止跳步 | Fast-track 允许 PLAN → EXEC 直达 |
-
-同时修复 E2E 发现的 bug：
-- 修复 `update-spec-state.js` 历史表插入位置
-- 强化门禁：不再只检查"文件存在"，至少识别空模板
-
-### 方案 C：子文档内联 + 文档整合（P1）
-
-| 子文档 | 行数 | 动作 |
-|--------|------|------|
-| stack-detection.md | 53 | **内联**到 SKILL.md（仅 4 行检测规则） |
-| knowledge-scanning.md | 99 | **内联**到 SKILL.md |
-| claude-init.md | 79 | **保留**（merge 策略需要独立空间） |
-| requirements-guide.md | 91 | **保留**（需求理解方法论有价值） |
-| ambiguity-check.md | 83 | **保留**（歧义检测维度有价值） |
-| tech-design-guide.md | 75 | **内联**到 SKILL.md |
-| verification.md | 92 | **删除**（与 SKILL.md 完成标准重复） |
-| context-preload.md | 95 | **内联**到 SKILL.md |
-| pattern-scan.md | 61 | **内联**到 SKILL.md |
-
-**效果**：9 → 4 个子文档，减少 5 次文件切换。
-
-### 方案 D：feature 目录骨架精简（P2）
-
-| 当前（10 个） | 优化后（6 个） |
-|--------------|--------------|
-| CHANGESET.md ← 大部分空着 | SPEC-STATE.md |
-| SPEC-STATE.md | PRD.md（含需求理解确认） |
-| PRD.md | 技术方案.md（含决策锁定） |
-| 需求理解确认.md ← 可合并到 PRD | 任务拆解表.md |
-| 技术方案.md | notepads/learnings.md |
-| 任务拆解表.md | |
-| 评审记录.md ← 大部分空着 | |
-| notepads/learnings.md | |
-| seeds/ ← 大部分空着 | |
-| archive/ ← 大部分空着 | |
-
-### 方案 E：init 落地脚本化（P2）
-
-当前 Step 4 的 5 个子步骤（规则复制、模板替换、guide 复制、hooks 安装、目录创建）全部靠 AI 手动执行。
-
-建议新增 `scripts/init-project.js`：
-- 规则文件复制
-- 模板变量替换
-- hooks 安装
-- settings.json 生成/merge
-- 目录创建
-
-AI 只负责 Step 1-3（检测 + 扫描 + 确认）和 Step 6（验证）。
-
-### 方案 F：减少 superpowers 委托（P1）
-
-| 当前委托 | 优化方案 |
-|---------|---------|
-| brainstorming | 内化为 feature Phase 2 的简单歧义检测 |
-| writing-plans | 内化为 feature Phase 4，AI 直接拆解 |
-| using-git-worktrees | 改为可选，Fast-track 默认不开 |
-| subagent-driven-development | Fast-track 直接编码 |
-| requesting-code-review | Fast-track 3 轮合并为 1 轮 |
-| verification-before-completion | 保留，简化为证据检查 |
-| finishing-a-development-branch | 直接用 git 命令 |
-
-**效果**：7 → 1 个外部委托（只保留 verification）。
-
----
-
-## 五、P0 修复清单（不分级也能修的 bug）
-
-这些是 E2E 试跑发现的具体 bug，不需要等分级方案落地即可修复：
-
-| # | 问题 | 修复动作 |
-|---|------|---------|
-| E1 | Maven 默认命令错误 | `stack-detection.md` 中改为 `mvn test` |
-| E2 | SPEC-STATE 历史表插入 bug | `update-spec-state.js` 改为插入表头之后 |
-| E3 | CLAUDE.md 模板变量误报 | 模板变量说明表用代码块包裹或改用其他格式 |
-| E7 | workflow-guide.md 隐式断链 | 纳入 init 正式产物要求和验证项 |
-
----
-
-## 六、推荐实施路径
+三份报告的共同结论是：
 
 ```text
-Phase 1（立刻做）: P0 Bug 修复
-  → 修正 Maven 默认命令
-  → 修复 SPEC-STATE 历史表插入
-  → 修复 CLAUDE.md 模板变量误报
-  → 补上 workflow-guide.md 产物要求
-
-Phase 2（核心优化）: 需求分级 + 状态机简化
-  → 对所有 4 个 SKILL.md 加入 Fast/Standard 路由
-  → 状态机从 8 状态精简到 4 状态
-  → feature 从 6 phases 精简到 Fast 模式 2 phases
-
-Phase 3（文档整合）: 子文档内联 + 骨架精简
-  → 内联 5 个子文档到 SKILL.md
-  → 删除 verification.md
-  → feature 骨架从 10 文件降到 6 文件
-
-Phase 4（自动化）: init 脚本化 + 委托精简
-  → 新增 init-project.js 脚本
-  → 减少 superpowers 委托从 7 到 1
-  → 简化 commit Trailer
+最大问题已经不再是“完全没有分级”，
+而是“流程对中小需求仍然偏重，且状态/验证/收口还有几处真实缺口”。
 ```
 
----
+更具体地说：
 
-## 七、一句话总结
+- `tech:init` 已经明显进步，但仍然产物偏多、验证入口不统一，且 `doctor`/路径处理还有正确性问题
+- `tech:feature` 仍然是全流程最重的一段，尤其对中等复杂需求不成比例
+- `tech:code` 的主要负担已经不在编码，而在执行期文档与状态维护
+- `tech:commit` 的最大问题仍是 `DONE` 状态与真实提交时序不自然
 
-> **理念正确，落地偏重，小需求成本过高。**
-> 核心优化方向不是加更多规则，而是**为小需求减负**——让 CRUD 不需要 147 行的技术方案。
+## 报告来源
+
+本整合稿基于以下三份独立试跑/审查报告：
+
+1. `Claude`：
+   [pipeline-audit.md](/Users/wcf/personal/tinypowers/docs/workflow-review/pipeline-audit.md)
+2. `OpenCode`：
+   [dogfood-optimization-plan.md](/Users/wcf/personal/tinypowers/docs/workflow-review/dogfood-optimization-plan.md)
+3. `Codex`：
+   [2026-04-02-e2e-workflow-review-complex.md](/Users/wcf/personal/tinypowers/docs/workflow-review/2026-04-02-e2e-workflow-review-complex.md)
+
+三份报告分别覆盖了：
+
+- Java / Spring Boot 标准路径复杂需求
+- Node.js / JWT Auth 中小项目 dogfood
+- 当前主线下 Java 中等复杂需求再验证
+
+因此，这三份报告互补性很强，既覆盖了“主流程设计”，也覆盖了“跨技术栈适配”和“已合并优化后的真实效果”。
+
+## 三方共识
+
+### 1. `tech:feature` 仍然是最重的阶段
+
+三份报告都认为，当前流程最明显的瓶颈不在编码，而在 feature planning。
+
+共识点：
+
+- 需求理解与方案准备的交互仍然偏多
+- 文档体量对中小需求不成比例
+- 很多模板仍是“空骨架”，需要人工大量补写
+- 对简单或中等复杂需求，planning 的边际收益开始下降
+
+这点在三个场景里都出现了：
+
+- `pipeline-audit.md` 里，Phase 1 的 “one question at a time” 被认为是最核心痛点
+- `dogfood-optimization-plan.md` 里，feature 阶段 4 个文档对应一个 6 小时需求，被认为明显过载
+- `2026-04-02-e2e-workflow-review-complex.md` 里，中等复杂需求的 planning 仍写了 374 行文档
+
+结论：
+
+```text
+当前最大拖沓点，仍然是 feature 阶段对中小需求的规划成本过高。
+```
+
+### 2. `tech:init` 已进步，但还没到“足够轻”
+
+三份报告都认可 init 已经比早期版本好很多，尤其是：
+
+- Java-only 边界更清晰
+- `.claude/`、rules、guides 已脚本化落地
+- 不再依赖 AI 手工复制几十个文件
+
+但共识问题仍然存在：
+
+- 初始化产物数量仍偏多
+- 首次接入时“复制很多文档”带来的心理负担仍大
+- 验证入口不够统一
+- 非 Java 或轻量项目仍容易感知“这套东西太重”
+
+结论：
+
+```text
+init 已经不是最严重的问题，但它仍然没有收敛到“默认足够小、默认足够清晰”。
+```
+
+### 3. 状态管理仍然过度依赖 Markdown 人工维护
+
+三份报告的表述不同，但都指向同一根因：
+
+- `SPEC-STATE.md`、`STATE.md`、`VERIFICATION.md` 等文件仍然需要频繁人工维护
+- 部分状态推进虽然已有脚本，但在真实执行中仍有“补文档”“改表格”“补说明”的手工成本
+- 状态机已经简化，但执行期状态维护并未等比例简化
+
+尤其需要注意的是，最新复杂试跑明确证明：
+
+- `SPEC-STATE` 历史表插入 bug 在真实项目输出里仍然复现
+- `DONE` 仍然和 commit 时序不自然，最终容易额外产生一个 meta commit
+
+结论：
+
+```text
+当前状态机已经变轻，但状态文件维护成本还没有真正变轻。
+```
+
+### 4. 复杂度分级方向是对的，但分级还不够细
+
+三份报告虽然具体提法不同，但都认为：
+
+- “所有需求走一套流程”是不对的
+- 需要让小需求和复杂需求走不同路径
+- 当前已有分级仍然不够
+
+其中：
+
+- `dogfood-optimization-plan.md` 强调需要 `fast / standard`
+- `2026-04-02-e2e-workflow-review-complex.md` 进一步证明 `fast / standard` 两档之间仍然缺一档
+- `pipeline-audit.md` 从交互和 planning 成本角度，也支持继续细分路径
+
+结论：
+
+```text
+复杂度分级不是“要不要做”的问题，而是“还要继续做细”的问题。
+```
+
+## 各报告独有的重要发现
+
+### Claude 报告的独有价值
+
+[pipeline-audit.md](/Users/wcf/personal/tinypowers/docs/workflow-review/pipeline-audit.md) 最大的价值，是把流程拖沓具体定位到“交互模式”和“规划仪式”上。
+
+它补充了两个关键视角：
+
+- Phase 1 “一次只问一个问题”会把原本可以 1 轮澄清的内容拉成 5 轮 round-trip
+- 歧义检测与 brainstorming 对很多常见后端需求来说过度形式化，产生了人为制造决策点的问题
+
+这份报告最有价值的提醒是：
+
+```text
+有些拖沓不是因为文档太多，而是因为对话和决策流程被切得太碎。
+```
+
+### OpenCode 报告的独有价值
+
+[dogfood-optimization-plan.md](/Users/wcf/personal/tinypowers/docs/workflow-review/dogfood-optimization-plan.md) 最大的价值，是把“流程开销 > 编码时间”这件事量化了，而且是在 Node.js 项目里验证的。
+
+它补充了三个关键视角：
+
+- 文档模板/guide 缺少技术栈感知时，体验会直接劣化
+- `init` 需要 profile，不应该默认把所有文档、规则和 agent 定义全量下发
+- 审查、状态和文档产物都应该继续分级，而不是只在 feature 入口分级
+
+这份报告最重要的提醒是：
+
+```text
+如果流程开销比写代码还贵，用户就会天然绕开流程。
+```
+
+### Codex 报告的独有价值
+
+[2026-04-02-e2e-workflow-review-complex.md](/Users/wcf/personal/tinypowers/docs/workflow-review/2026-04-02-e2e-workflow-review-complex.md) 最大的价值，是它是在“当前已合并主线”上做的再验证，因此能把“哪些问题已解决、哪些问题仍然真实存在”分出来。
+
+它新增确认了三件很重要的事：
+
+1. `Fast / Standard` 两档之间确实还有空档  
+2. `SPEC-STATE` 历史表 bug 不是纸面问题，而是在真实项目里仍会复现  
+3. `doctor` 对 `/tmp` 和 `/private/tmp` 的路径判断不一致，是一个真实正确性问题
+
+这份报告最有价值的地方，是把优化重点从“继续抽象讨论”拉回到了“修真实剩余缺口”。
+
+## 统一判断：哪些问题已经解决，哪些还没解决
+
+### 已明显改善的部分
+
+- `tech:init` 已脚本化，不再需要 AI 手工落地 20+ 个文件
+- 状态机已经从旧版更重的形态简化为更轻的主流程
+- `Fast / Standard` 分流已经存在，不再是单一路径
+- feature 骨架已经比早期更小
+- `STATE.md` 已经开始支持自动生成初稿
+- commit trailer 已经明显精简
+
+这些改动说明主线方向是对的，而且已经产生了真实收益。
+
+### 仍未解决的核心问题
+
+1. `tech:feature` 对中小需求仍偏重  
+2. `Fast / Standard` 两档之间缺中间层  
+3. `SPEC-STATE` / `STATE` / `VERIFICATION` 仍然需要较多人工维护  
+4. `DONE` 与提交时序仍然不自然  
+5. `doctor` 和 init 验证入口仍不够统一  
+6. 模板自动生成能力还不够强，很多内容仍需要人工从零写
+
+## 统一优化路线
+
+下面的路线综合了三份报告的优先级，并结合当前主线状态做了收束。
+
+### P0：先修正确性和明显体验缺口
+
+1. 修复 `update-spec-state.js` 的历史表插入逻辑  
+目标：真实输出中的历史表必须结构正确。
+
+2. 修复 `doctor.js` 的项目路径规范化  
+目标：`/tmp/...` 与 `/private/tmp/...` 给出一致结果。
+
+3. 统一 init 的推荐验证入口为 `doctor --project`  
+目标：目标项目初始化后，有一个单一、明确、稳定的验证方式。
+
+4. 梳理 `tech:init` 的默认最小产物  
+目标：让首次接入默认更轻，减少“初始化产物太多”的感知负担。
+
+### P1：继续把“中等复杂需求”从 Standard 里解放出来
+
+5. 在 `Fast / Standard` 之间增加 `Medium` 或 `Standard-lite` 路由  
+建议判定条件：
+- 单服务或单模块
+- 3-5 个任务
+- 无数据库迁移
+- 无跨系统依赖
+
+建议目标：
+- planning 文档控制在 120-180 行
+- 保留任务拆解与关键决策
+- 默认跳过歧义探索、brainstorming 和外部委托
+
+6. 让 `tech:feature` 支持“从需求描述自动生成半成品文档”  
+至少自动草拟：
+- 目标与范围
+- 接口草案
+- 任务清单初稿
+- 风险/边界初稿
+
+7. 让 `tech:code` 支持 `VERIFICATION.md` 初稿生成  
+至少能自动填入：
+- 最近一次测试命令
+- 测试结果
+- 已覆盖场景骨架
+
+### P2：继续降低执行期和收口期的人肉维护成本
+
+8. 给 `STATE.md` 增加轻量更新命令  
+例如：
+- 标记 task 完成
+- 标记 wave 完成
+- 记录 blocker / deviation
+
+9. 调整 `DONE` 收口机制  
+目标：不再为了关闭 feature 状态额外补一个 meta commit。
+
+10. 对无 GitHub/GitLab 平台的仓库提供明确降级说明  
+目标：在本地 remote、bare remote 等场景下，commit 阶段体验更一致。
+
+11. 继续收缩模板和 guide 的默认体积  
+目标：只有在真正需要时，才显式展开更多规划/协作能力。
+
+## 推荐实施顺序
+
+### Phase 1：修剩余正确性问题
+
+- 修 `update-spec-state.js` 历史表 bug
+- 修 `doctor.js` 路径规范化
+- 统一 init 验证入口
+
+### Phase 2：补中间档位
+
+- 新增 `Medium / Standard-lite`
+- 收缩中等复杂需求的 planning 负担
+- 默认关闭对中等需求不必要的 brainstorming / delegation
+
+### Phase 3：把执行期文档从“手写”改成“半自动”
+
+- `VERIFICATION.md` 初稿生成
+- `STATE.md` 轻量更新命令
+- `feature` 半成品文档自动草拟
+
+### Phase 4：重做 commit 收口体验
+
+- 解决 `DONE` 和 commit 时序问题
+- 让收尾更接近“一次提交完成”
+- 对无平台 remote 明确降级路径
+
+## 最终结论
+
+三份报告合起来，已经足够说明 tinypowers 当前的真实阶段：
+
+```text
+第一阶段的问题是：没有分级，所有需求都太重。
+现在的问题是：虽然已经有分级，但中等复杂需求仍然找不到合适路径，
+而且状态与验证层还有少数关键缺口没有补齐。
+```
+
+因此，下一轮优化不应该再做大而泛的重构，而应该非常聚焦：
+
+1. 先修两处真实正确性问题：
+   - `SPEC-STATE` 历史表
+   - `doctor` 路径规范化
+2. 再新增 `Medium / Standard-lite`
+3. 然后把执行期和收口期的文档维护继续脚本化
+
+如果只允许优先做一件产品层面的事，最值得做的是：
+
+**新增 `Medium / Standard-lite` 路由。**
+
+如果只允许优先做一件工程层面的事，最值得做的是：
+
+**修复 `update-spec-state.js` 的历史表插入逻辑。**

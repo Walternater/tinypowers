@@ -39,7 +39,8 @@ const VIRTUAL_OUTPUT_REFERENCES = new Set([
   '评审记录.md',
   '任务拆解表.md',
   '技术方案.md',
-  'learnings.md'
+  'learnings.md',
+  'knowledge.md'
 ]);
 
 let errors = 0;

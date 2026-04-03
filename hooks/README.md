@@ -60,9 +60,9 @@ export TINYPOWERS_HOOK_LEVEL=standard
 - `PreCompact`
 
 当前约定：
-- `features/{id}-{name}/STATE.md` 是恢复主数据源
+- `features/{id}-{name}/SPEC-STATE.md` 是恢复主数据源
 - `/tmp/tinypowers-session-{session_id}.json` 是恢复入口快照
-- `STATE.md` 在进入 `EXEC` 时会优先根据 `任务拆解表.md` 自动生成初稿
+- `SPEC-STATE.md` 在 `EXEC` 阶段用 `current_wave` / `exec_progress` 追踪执行状态
 
 恢复流程：
 
@@ -70,13 +70,13 @@ export TINYPOWERS_HOOK_LEVEL=standard
 SessionStart
   -> 检测 /tmp 快照
   -> 提示是否恢复
-  -> 用户确认后读取 features/{id}-{name}/STATE.md
+  -> 用户确认后读取 features/{id}-{name}/SPEC-STATE.md
   -> 从断点继续
 ```
 
 这意味着：
 - Snapshot 只负责"提醒有未完成工作"
-- `STATE.md` 才负责"告诉你具体做到哪了"
+- `SPEC-STATE.md` 才负责"告诉你具体做到哪了"
 
 ### 3. 配置保护
 
@@ -214,7 +214,7 @@ echo 'export TINYPOWERS_HOOK_LEVEL=strict' >> ~/.zshrc
 
 修改 hooks 时，优先遵守这些原则：
 - 文档和实现必须同步
-- 不要让 Snapshot 替代 `STATE.md`
+- 不要让 Snapshot 替代 `SPEC-STATE.md`
 - 不要把"提醒型 hook"改成高频误报
 - 不要把"配置保护"做成无法维护框架自身
 
