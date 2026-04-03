@@ -145,6 +145,55 @@ test('check-commit-docs fails before prepare and passes after prepare', () => {
   assert.match(after.stdout, /commit 文档校验通过/);
 });
 
+test('check-commit-docs blocks failed verification results', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-check-commit-fail-'));
+  const featureName = 'CSS-2000-验证失败';
+  fs.mkdirSync(path.join(projectRoot, 'docs'), { recursive: true });
+  fs.writeFileSync(path.join(projectRoot, 'README.md'), '# README\n');
+  fs.writeFileSync(path.join(projectRoot, 'docs', 'knowledge.md'), '# 领域知识库\n');
+  writeFeature(projectRoot, featureName, { track: 'fast' });
+
+  const verificationPath = path.join(projectRoot, 'features', featureName, 'VERIFICATION.md');
+  fs.writeFileSync(verificationPath, [
+    '# VERIFICATION',
+    '',
+    '## 结论',
+    '',
+    '- Result: FAIL'
+  ].join('\n'));
+
+  const prepare = runNode('scripts/prepare-commit-docs.js', ['--root', projectRoot, '--feature', featureName]);
+  assert.equal(prepare.status, 0, prepare.stderr || prepare.stdout);
+
+  const check = runNode('scripts/check-commit-docs.js', ['--root', projectRoot, '--feature', featureName]);
+  assert.equal(check.status, 1, check.stdout);
+  assert.match(check.stderr || check.stdout, /VERIFICATION\.md 结论不是 PASS\/通过/);
+  assert.match(check.stderr || check.stdout, /FAIL/);
+});
+
+test('check-commit-docs detects stale README and knowledge sync after feature docs change', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-check-commit-stale-'));
+  const featureName = 'CSS-3000-文档过期';
+  fs.mkdirSync(path.join(projectRoot, 'docs'), { recursive: true });
+  fs.writeFileSync(path.join(projectRoot, 'README.md'), '# README\n');
+  fs.writeFileSync(path.join(projectRoot, 'docs', 'knowledge.md'), '# 领域知识库\n');
+  writeFeature(projectRoot, featureName);
+
+  const prepare = runNode('scripts/prepare-commit-docs.js', ['--root', projectRoot, '--feature', featureName]);
+  assert.equal(prepare.status, 0, prepare.stderr || prepare.stdout);
+
+  const designPath = path.join(projectRoot, 'features', featureName, '技术方案.md');
+  fs.writeFileSync(
+    designPath,
+    fs.readFileSync(designPath, 'utf8').replace('同步接口文档', '更新 ReDoc 与 OpenAPI')
+  );
+
+  const check = runNode('scripts/check-commit-docs.js', ['--root', projectRoot, '--feature', featureName]);
+  assert.equal(check.status, 1, check.stdout);
+  assert.match(check.stderr || check.stdout, /README\.md 的 commit sync 区块已过期/);
+  assert.match(check.stderr || check.stdout, /docs\/knowledge\.md 的增量沉淀区块已过期/);
+});
+
 test('check-commit-docs asks for --feature when multiple candidates are ambiguous', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-check-commit-ambiguous-'));
   fs.mkdirSync(path.join(projectRoot, 'docs'), { recursive: true });

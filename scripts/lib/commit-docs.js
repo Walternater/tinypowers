@@ -175,6 +175,19 @@ function upsertManagedBlock(content, startMarker, endMarker, block) {
   return base ? `${base}\n\n${wrapped}\n` : `${wrapped}\n`;
 }
 
+function extractManagedBlock(content, startMarker, endMarker) {
+  const start = content.indexOf(startMarker);
+  const end = content.indexOf(endMarker);
+
+  if (start === -1 || end === -1 || end <= start) {
+    return '';
+  }
+
+  return content
+    .slice(start + startMarker.length, end)
+    .trim();
+}
+
 function extractSection(content, heading) {
   const lines = content.split('\n');
   const target = `## ${heading}`.trim();
@@ -230,6 +243,10 @@ function extractTableRows(section) {
 function parseVerificationResult(content) {
   const match = content.match(/- Result:\s*([A-Z]+|通过|失败)/);
   return match ? match[1] : 'UNKNOWN';
+}
+
+function isPassingVerification(result) {
+  return result === 'PASS' || result === '通过';
 }
 
 function parseTrack(content) {
@@ -408,21 +425,31 @@ function checkCommitDocs(root, feature) {
   }
   if (!exists(ctx.paths.verificationPath)) {
     failures.push('缺少 VERIFICATION.md');
+  } else if (!isPassingVerification(ctx.verificationResult)) {
+    failures.push(`VERIFICATION.md 结论不是 PASS/通过，当前为 ${ctx.verificationResult}`);
   }
   if (!exists(ctx.paths.readmePath)) {
     failures.push('缺少 README.md');
   } else {
     const readme = read(ctx.paths.readmePath);
-    if (!readme.includes(README_START) || !readme.includes(ctx.meta.featureDirName)) {
+    const actualBlock = extractManagedBlock(readme, README_START, README_END);
+    const expectedBlock = buildReadmeBlock(ctx).trim();
+    if (!actualBlock || !readme.includes(ctx.meta.featureDirName)) {
       failures.push('README.md 未包含当前 feature 的 commit sync 区块');
+    } else if (actualBlock !== expectedBlock) {
+      failures.push('README.md 的 commit sync 区块已过期，请重新执行 commit:prepare-docs');
     }
   }
   if (!exists(ctx.paths.knowledgePath)) {
     failures.push('缺少 docs/knowledge.md');
   } else {
     const knowledge = read(ctx.paths.knowledgePath);
-    if (!knowledge.includes(KNOWLEDGE_START) || !knowledge.includes(ctx.meta.featureDirName)) {
+    const actualBlock = extractManagedBlock(knowledge, KNOWLEDGE_START, KNOWLEDGE_END);
+    const expectedBlock = buildKnowledgeBlock(ctx).trim();
+    if (!actualBlock || !knowledge.includes(ctx.meta.featureDirName)) {
       failures.push('docs/knowledge.md 未包含当前 feature 的增量沉淀区块');
+    } else if (actualBlock !== expectedBlock) {
+      failures.push('docs/knowledge.md 的增量沉淀区块已过期，请重新执行 commit:prepare-docs');
     }
   }
 
@@ -446,6 +473,7 @@ module.exports = {
   parseArgs,
   featureDirFromArg,
   resolveFeatureDir,
+  extractManagedBlock,
   prepareCommitDocs,
   checkCommitDocs,
   fail
