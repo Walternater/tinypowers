@@ -1,6 +1,6 @@
 # WP-E 实施清单
 
-> 对应主方案: `docs/workflow-optimization-plan.md`  
+> 对应主方案: `docs/workflow-optimization-plan.md`
 > 范围: `WP-E 体验增强`
 
 配套执行计划：

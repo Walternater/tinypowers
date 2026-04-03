@@ -1,6 +1,6 @@
 # WP-A 实施清单
 
-> 对应主方案: `docs/workflow-optimization-plan.md`  
+> 对应主方案: `docs/workflow-optimization-plan.md`
 > 范围: `WP-A 产物模型重构`
 
 配套执行计划：

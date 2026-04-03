@@ -1,6 +1,6 @@
 # WP-B 实施清单
 
-> 对应主方案: `docs/workflow-optimization-plan.md`  
+> 对应主方案: `docs/workflow-optimization-plan.md`
 > 范围: `WP-B 审查闭环自动化`
 
 配套执行计划：

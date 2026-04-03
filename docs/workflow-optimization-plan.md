@@ -1,8 +1,8 @@
 # tinypowers Workflow 优化方案
 
-> 版本: 可执行版  
-> 更新日期: 2026-04-03  
-> 基线分支: `main`  
+> 版本: 可执行版
+> 更新日期: 2026-04-03
+> 基线分支: `main`
 > 基于: `tech-init 5.0 / tech-feature 8.0 / tech-code 9.0 / tech-commit 5.0`
 
 配套清单：

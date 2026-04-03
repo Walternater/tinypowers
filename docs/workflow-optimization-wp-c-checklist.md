@@ -1,6 +1,6 @@
 # WP-C 实施清单
 
-> 对应主方案: `docs/workflow-optimization-plan.md`  
+> 对应主方案: `docs/workflow-optimization-plan.md`
 > 范围: `WP-C 安装与分发收口`
 
 配套执行计划：

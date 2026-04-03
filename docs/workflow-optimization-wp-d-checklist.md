@@ -1,6 +1,6 @@
 # WP-D 实施清单
 
-> 对应主方案: `docs/workflow-optimization-plan.md`  
+> 对应主方案: `docs/workflow-optimization-plan.md`
 > 范围: `WP-D commit 与知识沉淀收口`
 
 配套执行计划：
