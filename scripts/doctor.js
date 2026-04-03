@@ -79,8 +79,7 @@ function detectProjectRoot(args, installRoot) {
     return ROOT;
   }
 
-  const candidate = path.resolve(installRoot, '..', '..', '..');
-  return candidate;
+  return path.resolve(process.cwd());
 }
 
 function classifyInstallContext(args, installRoot, projectRoot) {

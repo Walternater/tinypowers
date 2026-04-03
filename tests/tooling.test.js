@@ -89,6 +89,48 @@ test('doctor reports global mode when using --global', () => {
   assert.match(result.stdout, /安装目录类型: global-install/);
 });
 
+test('doctor defaults to current project directory for global installs without --project', () => {
+  const homeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-doctor-home-cwd-'));
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-doctor-cwd-project-'));
+  const installRoot = path.join(homeRoot, '.claude', 'skills', 'tinypowers');
+
+  fs.mkdirSync(path.dirname(installRoot), { recursive: true });
+  fs.cpSync(ROOT, installRoot, {
+    recursive: true,
+    filter: (source) => {
+      const rel = path.relative(ROOT, source);
+      return !rel.startsWith('.git');
+    }
+  });
+  fs.writeFileSync(path.join(projectRoot, 'pom.xml'), `
+    <project>
+      <properties>
+        <maven.compiler.release>17</maven.compiler.release>
+      </properties>
+    </project>
+  `.trim());
+
+  const result = spawnSync('node', [
+    path.join(installRoot, 'scripts', 'doctor.js'),
+    '--global'
+  ], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HOME: homeRoot,
+      TINYPOWERS_DOCTOR_FAKE_JAVA_VERSION: 'openjdk version "21.0.2" 2024-01-16',
+      TINYPOWERS_DOCTOR_FAKE_MVN_VERSION: 'Apache Maven 3.9.6'
+    }
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const resolvedProjectRoot = fs.realpathSync(projectRoot);
+  assert.match(result.stdout, new RegExp(`项目目录: ${resolvedProjectRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+  assert.match(result.stdout, /项目运行时: maven-java/);
+  assert.match(result.stdout, /Java 要求: 17\+/);
+});
+
 test('doctor surfaces runtime diagnostics for maven projects', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-doctor-runtime-'));
   fs.writeFileSync(path.join(projectRoot, 'pom.xml'), `

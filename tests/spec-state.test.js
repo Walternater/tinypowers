@@ -375,6 +375,24 @@ test('fast-track REVIEW only requires VERIFICATION.md', () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
+test('update-spec-state rejects feature paths outside features root', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-path-guard-'));
+  const outsideDir = path.join(projectRoot, 'outside');
+
+  fs.mkdirSync(outsideDir, { recursive: true });
+  fs.writeFileSync(path.join(outsideDir, 'SPEC-STATE.md'), 'phase: PLAN\ntrack: standard\n');
+
+  const result = runNode([
+    path.join(ROOT, 'scripts/update-spec-state.js'),
+    '--feature', '../outside',
+    '--root', projectRoot,
+    '--to', 'EXEC'
+  ]);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /非法 --feature/);
+});
+
 test('fast-track scaffold keeps relaxed mode and track after phase update', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-spec-fast-track-'));
 

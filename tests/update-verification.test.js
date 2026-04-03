@@ -302,3 +302,23 @@ test('update-verification keeps last report section when it is at end of file', 
   assert.match(verification, /最后一节建议/);
   assert.match(verification, /- Verdict: PASS/);
 });
+
+test('update-verification rejects feature paths outside features root', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tinypowers-verification-path-guard-'));
+  const outsideDir = path.join(projectRoot, 'outside');
+  const complianceReport = path.join(projectRoot, 'compliance.md');
+
+  fs.mkdirSync(outsideDir, { recursive: true });
+  fs.writeFileSync(path.join(outsideDir, 'VERIFICATION.md'), '# VERIFICATION\n');
+  writeComplianceReport(complianceReport);
+
+  const result = runNode([
+    path.join(ROOT, 'scripts/update-verification.js'),
+    '--root', projectRoot,
+    '--feature', '../outside',
+    '--compliance-report', complianceReport
+  ]);
+
+  assert.equal(result.status, 1, result.stderr || result.stdout);
+  assert.match(result.stderr || result.stdout, /非法 --feature/);
+});
