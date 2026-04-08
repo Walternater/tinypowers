@@ -45,7 +45,11 @@ function handleSessionStart(snapshotPath, cwd) {
     process.exit(0);
   }
   if (snapshot.feature_path && !fs.existsSync(path.join(cwd, snapshot.feature_path))) {
-    fs.unlinkSync(snapshotPath);
+    try {
+      fs.unlinkSync(snapshotPath);
+    } catch (e) {
+      // Ignore deletion failure
+    }
     process.exit(0);
   }
 

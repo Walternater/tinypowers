@@ -11,8 +11,7 @@ const HOOK_LEVEL = process.env.TINYPOWERS_HOOK_LEVEL || 'standard';
 const HOOK_TYPE = process.argv[2] || 'PostToolUse';
 
 const JAVA_DEBUG_PATTERNS = [
-  { pattern: /System\.out\.print/, label: 'System.out.print', level: 'BLOCK' },
-  { pattern: /System\.err\.print/, label: 'System.err.print', level: 'BLOCK' },
+  { pattern: /System\.(out|err)\.(print|println)\s*\(/, label: 'System.out.print', level: 'BLOCK' },
   { pattern: /@SuppressWarnings\("all"\)/, label: '@SuppressWarnings("all")', level: 'WARNING' },
 ];
 
@@ -141,7 +140,7 @@ function handleStop(cwd) {
 
 if (HOOK_TYPE === 'Stop') {
   let input = '';
-  const stdinTimeout = setTimeout(() => process.exit(0), 5000);
+  const stdinTimeout = setTimeout(() => process.exit(0), 10000);
   process.stdin.setEncoding('utf8');
   process.stdin.on('data', chunk => input += chunk);
   process.stdin.on('end', () => {
