@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 /**
  * AI Knowledge Consolidator
- * 将 AI 提取的增量知识自动合并到主知识库
+ * 生成知识合并提示词，交由宿主 AI 工具（Claude Code / Codex / Cursor）执行合并
+ * 
+ * 使用方式：
+ *   1. 运行此脚本生成合并提示词
+ *   2. 将提示词发送给 AI（Claude/Codex/Cursor）
+ *   3. AI 返回合并后的完整知识库内容
+ *   4. 将结果保存到 docs/knowledge.md
  */
 
 const fs = require('fs');
@@ -9,7 +15,7 @@ const path = require('path');
 
 const CONFIG = {
   mainKnowledge: 'docs/knowledge.md',
-  autoDir: 'docs/ai-extracted',
+  extractedDir: 'docs/ai-extracted',
   backupDir: '.tmp/knowledge-backup'
 };
 
@@ -24,17 +30,17 @@ function ensureDir(dir) {
   }
 }
 
-function getLatestKnowledgeFile() {
-  if (!fs.existsSync(CONFIG.autoDir)) {
+function getLatestExtractedFile() {
+  if (!fs.existsSync(CONFIG.extractedDir)) {
     return null;
   }
   
-  const files = fs.readdirSync(CONFIG.autoDir)
+  const files = fs.readdirSync(CONFIG.extractedDir)
     .filter(f => f.startsWith('knowledge-') && f.endsWith('.md'))
     .sort()
     .reverse();
   
-  return files.length > 0 ? path.join(CONFIG.autoDir, files[0]) : null;
+  return files.length > 0 ? path.join(CONFIG.extractedDir, files[0]) : null;
 }
 
 function backupKnowledge() {
@@ -50,15 +56,32 @@ function backupKnowledge() {
   log(`已备份原知识库: ${backupPath}`, 'info');
 }
 
-function generateConsolidationPrompt(mainContent, newContent) {
-  return `你是一位知识管理专家，请将新提取的代码知识智能合并到主知识库中。
+function generateConsolidationPrompt(mainContent, extractedContent) {
+  return `# 知识库合并任务
+
+你是一位知识管理专家，请将新提取的代码知识智能合并到主知识库中。
 
 ## 任务要求
 
-1. **去重合并**：如果新知识已存在，跳过；如果是补充，合并；如果是更新，替换
-2. **分类整理**：按设计模式、架构决策、最佳实践、已知问题分类
-3. **保持格式**：使用统一的 Markdown 格式
-4. **添加元数据**：为每个知识点添加来源时间
+1. **去重合并**: 
+   - 如果新知识已存在（相似度 > 80%），跳过
+   - 如果是补充，合并到现有条目
+   - 如果是更新，替换旧内容
+
+2. **分类整理**: 
+   - 设计模式
+   - 架构决策
+   - 最佳实践
+   - 已知问题与风险
+
+3. **保持格式**: 
+   - 使用统一的 Markdown 格式
+   - 为每个知识点添加来源时间和文件
+
+4. **输出完整知识库**: 
+   - 包含主知识库的现有内容
+   - 加上新提取的知识
+   - 按分类组织
 
 ## 主知识库当前内容
 
@@ -66,9 +89,9 @@ ${mainContent || '# 项目知识库\n\n> 本文档记录项目的设计决策、
 
 ## 新提取的知识
 
-${newContent}
+${extractedContent}
 
-## 输出要求
+## 输出格式
 
 请输出合并后的完整知识库内容，格式如下：
 
@@ -121,20 +144,49 @@ ${newContent}
 `;
 }
 
-async function consolidateKnowledge() {
-  log('启动 AI 知识沉淀...', 'ai');
+function savePromptToFile(prompt) {
+  ensureDir('.tmp');
+  const fileName = 'knowledge-consolidation-prompt.md';
+  const filePath = path.join('.tmp', fileName);
   
-  // 1. 获取最新的知识文件
-  const latestFile = getLatestKnowledgeFile();
-  if (!latestFile) {
-    log('没有找到生成的知识文件，跳过沉淀', 'warning');
+  fs.writeFileSync(filePath, prompt);
+  
+  return { filePath, fileName };
+}
+
+function printNextSteps(promptFile, mainKnowledge) {
+  log('\n========== 下一步操作 ==========', 'info');
+  log('', 'info');
+  log('1. 打开合并提示词文件:', 'info');
+  log(`   cat ${promptFile}`, 'info');
+  log('', 'info');
+  log('2. 将文件内容发送给 AI（Claude/Codex/Cursor）:', 'info');
+  log('   - 复制文件全部内容', 'info');
+  log('   - 粘贴到 AI 对话中', 'info');
+  log('   - 让 AI 执行合并并返回完整知识库', 'info');
+  log('', 'info');
+  log(`3. 将 AI 的回复保存到: ${mainKnowledge}`, 'info');
+  log('', 'info');
+  log('4. 如需恢复，备份位置:', 'info');
+  log(`   ls ${CONFIG.backupDir}/`, 'info');
+  log('', 'info');
+}
+
+async function consolidateKnowledge() {
+  log('启动知识库合并...', 'ai');
+  
+  // 1. 获取最新的知识提取文件
+  const extractedFile = getLatestExtractedFile();
+  if (!extractedFile) {
+    log(`没有找到提取的知识文件，跳过合并`, 'warning');
+    log(`请确保已运行 extract-knowledge-brainstorm.js 并保存 AI 分析结果到 ${CONFIG.extractedDir}/`, 'info');
     return;
   }
   
-  log(`发现知识文件: ${path.basename(latestFile)}`);
+  log(`发现知识文件: ${path.basename(extractedFile)}`);
   
   // 2. 读取内容
-  const newContent = fs.readFileSync(latestFile, 'utf8');
+  const extractedContent = fs.readFileSync(extractedFile, 'utf8');
   const mainContent = fs.existsSync(CONFIG.mainKnowledge) 
     ? fs.readFileSync(CONFIG.mainKnowledge, 'utf8')
     : '';
@@ -142,32 +194,24 @@ async function consolidateKnowledge() {
   // 3. 备份原知识库
   backupKnowledge();
   
-  // 4. 生成合并提示
-  const prompt = generateConsolidationPrompt(mainContent, newContent);
+  // 4. 生成合并提示词
+  const prompt = generateConsolidationPrompt(mainContent, extractedContent);
   
-  // 5. 输出提示文件（供 AI 读取）
-  ensureDir('.tmp');
-  fs.writeFileSync('.tmp/knowledge-consolidation-prompt.md', prompt);
+  // 5. 保存提示词到文件
+  const { filePath: promptFile } = savePromptToFile(prompt);
+  log(`合并提示词已生成: ${promptFile}`, 'success');
   
-  log('合并提示已生成: .tmp/knowledge-consolidation-prompt.md', 'success');
-  log('', 'info');
-  log('🤖 请 AI 执行合并:', 'ai');
-  log('   1. 读取 .tmp/knowledge-consolidation-prompt.md', 'info');
-  log('   2. 分析并合并知识', 'info');
-  log('   3. 输出合并后的 docs/knowledge.md', 'info');
-  log('', 'info');
-  log('💡 人工确认点:', 'info');
-  log('   - 检查合并后的知识分类是否正确', 'info');
-  log('   - 确认去重逻辑是否合理', 'info');
-  log('   - 如有问题，可从备份恢复', 'info');
+  // 6. 输出下一步操作
+  printNextSteps(promptFile, CONFIG.mainKnowledge);
 }
 
-// 主函数
+// 运行
 if (require.main === module) {
   consolidateKnowledge().catch(err => {
     log(`错误: ${err.message}`, 'error');
+    console.error(err);
     process.exit(1);
   });
 }
 
-module.exports = { consolidateKnowledge, getLatestKnowledgeFile };
+module.exports = { consolidateKnowledge, getLatestExtractedFile, backupKnowledge };

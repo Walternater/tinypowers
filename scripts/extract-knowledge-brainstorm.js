@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 /**
  * Knowledge Brainstorming Extractor
- * 通过AI分析代码变更，自动提取设计模式、架构决策和最佳实践
+ * 收集代码变更并生成 AI 分析提示词，交由宿主 AI 工具（Claude Code / Codex / Cursor）分析
+ * 
+ * 使用方式：
+ *   1. 运行此脚本生成提示词文件
+ *   2. 将提示词文件内容发送给 AI（Claude/Codex/Cursor）
+ *   3. 将 AI 的回复保存到 docs/ai-extracted/knowledge-{date}.md
+ *   4. 运行 ai-knowledge-consolidator.js 合并到主知识库
  */
 
 const fs = require('fs');
@@ -14,7 +20,6 @@ const CONFIG = {
   maxCodeLengthPerFile: 3000, // 每个文件最多读取的字符数
   outputDir: 'docs/ai-extracted',     // 知识输出目录
   knowledgeMain: 'docs/knowledge.md', // 主知识库文件
-  aiModel: process.env.AI_MODEL || 'default',
 };
 
 // ============ 工具函数 ============
@@ -53,11 +58,9 @@ function getChangedFiles(since = null) {
   // 自动检测合适的范围
   if (!since) {
     const commitCount = parseInt(exec('git rev-list --count HEAD') || '0');
-    // 分析最近 1 个 commit 的变更（已提交的代码）
     since = commitCount > 1 ? 'HEAD~1' : 'HEAD';
   }
   
-  // 如果是 HEAD~1 或 HEAD~N 格式，分析已提交的变更
   let output;
   if (since.startsWith('HEAD')) {
     output = exec(`git diff ${since} HEAD --name-only --diff-filter=ACM`);
@@ -74,108 +77,16 @@ function getChangedFiles(since = null) {
 }
 
 function getDiffStats(since = 'HEAD~1') {
-  const stats = exec(`git diff ${since} --stat`);
-  return stats;
+  return exec(`git diff ${since} --stat`);
 }
 
 function getCommitMessages(since = 'HEAD~1') {
   return exec(`git log ${since}..HEAD --pretty=format:"%s"`);
 }
 
-// ============ AI 调用 ============
+// ============ 提示词生成 ============
 
-async function callAI(prompt) {
-  // 检查可用的 AI 调用方式
-  
-  // 方式 1: 通过环境变量配置的 AI CLI
-  if (process.env.AI_CLI_CMD) {
-    const tempFile = `/tmp/ai-prompt-${Date.now()}.txt`;
-    fs.writeFileSync(tempFile, prompt);
-    const result = exec(`${process.env.AI_CLI_CMD} < ${tempFile}`);
-    fs.unlinkSync(tempFile);
-    return result;
-  }
-  
-  // 方式 2: 通过 OpenAI API
-  if (process.env.OPENAI_API_KEY) {
-    return await callOpenAI(prompt);
-  }
-  
-  // 方式 3: 模拟输出（测试用）
-  log('未配置 AI 调用方式，使用模拟输出', 'warning');
-  return generateMockResponse();
-}
-
-async function callOpenAI(prompt) {
-  const https = require('https');
-  
-  return new Promise((resolve, reject) => {
-    const data = JSON.stringify({
-      model: process.env.AI_MODEL || 'gpt-4',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3,
-    });
-    
-    const options = {
-      hostname: 'api.openai.com',
-      path: '/v1/chat/completions',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-    };
-    
-    const req = https.request(options, (res) => {
-      let result = '';
-      res.on('data', chunk => result += chunk);
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(result);
-          resolve(json.choices[0].message.content);
-        } catch (e) {
-          reject(e);
-        }
-      });
-    });
-    
-    req.on('error', reject);
-    req.write(data);
-    req.end();
-  });
-}
-
-function generateMockResponse() {
-  return `
-patterns:
-  - name: "State Pattern"
-    description: "使用状态机管理订单生命周期，避免状态散落在if-else中"
-    evidence: "OrderStatus, OrderStateMachine"
-    value: "状态流转清晰，易于扩展新状态"
-    
-decisions:
-  - topic: "金额计算精度"
-    choice: "使用Money值对象封装BigDecimal"
-    reason: "避免浮点数精度问题，统一金额计算逻辑"
-    tradeoff: "需要额外的对象创建开销"
-    
-practices:
-  - name: "防御性编程"
-    description: "在方法入口进行参数校验"
-    example: "OrderService.createOrder中进行null和空值检查"
-    benefit: "提前捕获错误，防止脏数据进入系统"
-    
-pitfalls:
-  - scenario: "并发扣减库存"
-    risk: "可能出现超卖"
-    current_solution: "数据库乐观锁(version字段)"
-    recommendation: "考虑引入分布式锁作为补充"
-`;
-}
-
-// ============ Prompt 生成 ============
-
-function generateBrainstormingPrompt(files, codeSamples, commitMsgs, diffStats) {
+function generateExtractionPrompt(files, codeSamples, commitMsgs, diffStats) {
   const fileList = files.slice(0, CONFIG.maxFilesToAnalyze).join('\n');
   
   const codeSections = codeSamples.map(({file, content}) => {
@@ -187,19 +98,19 @@ ${content}
 `;
   }).join('\n\n');
 
-  return `你是一位经验丰富的软件架构师，精通领域驱动设计、设计模式和代码质量。
+  return `# 代码知识提取任务
 
-请分析以下代码变更，提取值得沉淀到知识库的内容。
+你是一位经验丰富的软件架构师，请分析以下代码变更，提取值得沉淀到知识库的内容。
 
 ## 分析维度
 
 ### 1. 设计模式识别 (patterns)
-识别代码中使用的经典设计模式：
-- 创建型：工厂、建造者、单例
-- 结构型：适配器、装饰器、代理、组合
-- 行为型：策略、模板方法、观察者、状态机
+从代码中识别使用的设计模式：
+- GoF 设计模式（工厂、单例、观察者、策略等）
+- 领域驱动设计模式（实体、值对象、聚合、仓库等）
+- 架构模式（MVC、分层、微服务等）
 
-对每一个识别出的模式，说明：
+对每一个识别的模式，说明：
 - 模式名称
 - 具体应用场景
 - 带来的价值（解决了什么问题）
@@ -302,173 +213,76 @@ pitfalls:
 2. 如果某个维度没有内容，可以省略该维度
 3. 描述要具体，避免空泛的陈述
 4. 代码位置要准确到文件名（不需要行号）
+
+## 输出示例
+
+\`\`\`yaml
+patterns:
+  - name: "State Pattern"
+    description: "使用状态机管理订单生命周期，避免状态散落在if-else中"
+    evidence: "OrderStatus枚举和OrderStateMachine类"
+    value: "状态流转清晰，易于扩展新状态"
+    files: ["OrderStateMachine.java"]
+    
+decisions:
+  - topic: "金额计算精度"
+    choice: "使用Money值对象封装BigDecimal"
+    reason: "避免浮点数精度问题，统一金额计算逻辑"
+    tradeoff: "需要额外的对象创建开销"
+    
+practices:
+  - name: "防御性编程"
+    description: "在方法入口进行参数校验"
+    example: "OrderService.createOrder中进行null和空值检查"
+    benefit: "提前捕获错误，防止脏数据进入系统"
+    
+pitfalls:
+  - scenario: "并发扣减库存"
+    risk: "可能出现超卖"
+    current_solution: "数据库乐观锁(version字段)"
+    recommendation: "考虑引入分布式锁作为补充"
+\`\`\`
 `;
 }
 
-// ============ 结果解析 ============
+// ============ 结果处理 ============
 
-function parseYAML(content) {
-  // 简单的 YAML 解析（适用于本脚本的特定格式）
-  const result = { patterns: [], decisions: [], practices: [], pitfalls: [] };
-  
-  // 提取 YAML 块
-  const yamlMatch = content.match(/```yaml\n([\s\S]*?)\n```/);
-  if (!yamlMatch) {
-    // 尝试直接解析
-    return parseYAMLSimple(content);
-  }
-  
-  return parseYAMLSimple(yamlMatch[1]);
-}
-
-function parseYAMLSimple(yaml) {
-  const result = { patterns: [], decisions: [], practices: [], pitfalls: [] };
-  
-  const sections = {
-    patterns: /patterns:\s*([\s\S]*?)(?=\n\w|$)/,
-    decisions: /decisions:\s*([\s\S]*?)(?=\n\w|$)/,
-    practices: /practices:\s*([\s\S]*?)(?=\n\w|$)/,
-    pitfalls: /pitfalls:\s*([\s\S]*?)(?=\n\w|$)/,
-  };
-  
-  Object.entries(sections).forEach(([key, regex]) => {
-    const match = yaml.match(regex);
-    if (match) {
-      result[key] = parseListItems(match[1]);
-    }
-  });
-  
-  return result;
-}
-
-function parseListItems(content) {
-  const items = [];
-  const lines = content.split('\n');
-  let current = null;
-  
-  for (const line of lines) {
-    if (line.match(/^\s+-\s+name:|^\s+-\s+topic:|^\s+-\s+scenario:/)) {
-      if (current) items.push(current);
-      current = {};
-    }
-    
-    if (current) {
-      const match = line.match(/^\s+(\w+):\s*(.*)$/);
-      if (match) {
-        const [, key, value] = match;
-        current[key] = value.trim();
-      }
-    }
-  }
-  
-  if (current) items.push(current);
-  return items;
-}
-
-// ============ 知识保存 ============
-
-function saveKnowledge(knowledge, featureInfo = {}) {
-  ensureDir(CONFIG.outputDir);
+function savePromptToFile(prompt, files) {
+  ensureDir('.tmp');
   
   const date = new Date().toISOString().split('T')[0];
   const timestamp = Date.now();
-  const fileName = `knowledge-${date}-${timestamp}.md`;
-  const filePath = path.join(CONFIG.outputDir, fileName);
+  const fileName = `knowledge-extraction-prompt-${date}.md`;
+  const filePath = path.join('.tmp', fileName);
   
-  let content = `# 代码知识提取报告\n\n`;
-  content += `**生成时间**: ${new Date().toLocaleString()}\n\n`;
+  fs.writeFileSync(filePath, prompt);
   
-  if (featureInfo.name) {
-    content += `**相关 Feature**: ${featureInfo.name}\n\n`;
-  }
-  
-  // Patterns
-  if (knowledge.patterns?.length) {
-    content += `## 🎨 设计模式 (${knowledge.patterns.length})\n\n`;
-    knowledge.patterns.forEach((p, i) => {
-      content += `### ${i + 1}. ${p.name}\n\n`;
-      content += `- **描述**: ${p.description}\n`;
-      if (p.evidence) content += `- **证据**: ${p.evidence}\n`;
-      if (p.value) content += `- **价值**: ${p.value}\n`;
-      if (p.files?.length) content += `- **相关文件**: ${p.files.join(', ')}\n`;
-      content += '\n';
-    });
-  }
-  
-  // Decisions
-  if (knowledge.decisions?.length) {
-    content += `## 🤔 架构决策 (${knowledge.decisions.length})\n\n`;
-    knowledge.decisions.forEach((d, i) => {
-      content += `### ${i + 1}. ${d.topic}\n\n`;
-      content += `- **决策**: ${d.choice}\n`;
-      if (d.reason) content += `- **理由**: ${d.reason}\n`;
-      if (d.tradeoff) content += `- **权衡**: ${d.tradeoff}\n`;
-      content += '\n';
-    });
-  }
-  
-  // Practices
-  if (knowledge.practices?.length) {
-    content += `## ✅ 最佳实践 (${knowledge.practices.length})\n\n`;
-    knowledge.practices.forEach((p, i) => {
-      content += `### ${i + 1}. ${p.name}\n\n`;
-      content += `${p.description}\n\n`;
-      if (p.example) content += `- **示例**: ${p.example}\n`;
-      if (p.benefit) content += `- **好处**: ${p.benefit}\n`;
-      content += '\n';
-    });
-  }
-  
-  // Pitfalls
-  if (knowledge.pitfalls?.length) {
-    content += `## ⚠️ 潜在风险 (${knowledge.pitfalls.length})\n\n`;
-    knowledge.pitfalls.forEach((p, i) => {
-      content += `### ${i + 1}. ${p.scenario}\n\n`;
-      content += `- **风险**: ${p.risk}\n`;
-      if (p.current_solution) content += `- **当前方案**: ${p.current_solution}\n`;
-      if (p.recommendation) content += `- **建议**: ${p.recommendation}\n`;
-      content += '\n';
-    });
-  }
-  
-  // 如果没有提取到任何知识
-  if (!knowledge.patterns?.length && 
-      !knowledge.decisions?.length && 
-      !knowledge.practices?.length && 
-      !knowledge.pitfalls?.length) {
-    content += `*本次代码变更未识别出显著的知识点*\n`;
-  }
-  
-  content += `\n---\n\n`;
-  content += `*本报告由 AI 自动生成，请人工审核后确认沉淀到主知识库*\n`;
-  
-  fs.writeFileSync(filePath, content);
-  
-  return filePath;
+  return { filePath, fileName };
 }
 
-function updateMainKnowledge(knowledge, extractedFile) {
-  if (!fs.existsSync(CONFIG.knowledgeMain)) {
-    return;
-  }
+function printNextSteps(promptFile, outputDir) {
+  const date = new Date().toISOString().split('T')[0];
+  const outputFile = path.join(outputDir, `knowledge-${date}-${Date.now()}.md`);
   
-  let mainContent = fs.readFileSync(CONFIG.knowledgeMain, 'utf8');
-  
-  // 添加引用
-  const today = new Date().toISOString().split('T')[0];
-  const newEntry = `\n- [${today} 自动提取](${extractedFile.replace('docs/', '')})`;
-  
-  // 在 "## 自动提取" 部分添加
-  if (mainContent.includes('## 自动提取')) {
-    mainContent = mainContent.replace(
-      /(## 自动提取\n\n)/,
-      `$1${newEntry}\n`
-    );
-  } else {
-    mainContent += `\n\n## 自动提取\n\n${newEntry}\n`;
-  }
-  
-  fs.writeFileSync(CONFIG.knowledgeMain, mainContent);
+  log('\n========== 下一步操作 ==========', 'info');
+  log('', 'info');
+  log('1. 打开提示词文件:', 'info');
+  log(`   cat ${promptFile}`, 'info');
+  log('', 'info');
+  log('2. 将文件内容发送给 AI（Claude/Codex/Cursor）:', 'info');
+  log('   - 复制文件全部内容', 'info');
+  log('   - 粘贴到 AI 对话中', 'info');
+  log('   - 让 AI 分析并返回 YAML 格式的结果', 'info');
+  log('', 'info');
+  log('3. 将 AI 的回复保存为知识文档:', 'info');
+  log(`   # 创建目录`, 'info');
+  log(`   mkdir -p ${outputDir}`, 'info');
+  log(`   # 将 AI 回复保存到:`, 'info');
+  log(`   # ${outputFile}`, 'info');
+  log('', 'info');
+  log('4. 合并到主知识库:', 'info');
+  log('   node scripts/ai-knowledge-consolidator.js', 'info');
+  log('', 'info');
 }
 
 // ============ 主流程 ============
@@ -483,7 +297,6 @@ async function main() {
   
   // 1. 检查是否在 git 仓库
   if (fs.existsSync('.git')) {
-    // 尝试获取变更文件
     changedFiles = getChangedFiles();
     diffStats = getDiffStats();
     commitMsgs = getCommitMessages();
@@ -493,7 +306,6 @@ async function main() {
   if (changedFiles.length === 0) {
     log('未检测到代码变更，分析项目主要代码文件...', 'info');
     
-    // 递归查找 src 目录下的 Java 文件
     const findJavaFiles = (dir) => {
       const files = [];
       if (!fs.existsSync(dir)) return files;
@@ -537,61 +349,16 @@ async function main() {
   
   log(`读取了 ${codeSamples.length} 个文件的内容`);
   
-  // 5. 生成 Prompt
-  log('生成分析提示...', 'info');
-  const prompt = generateBrainstormingPrompt(changedFiles, codeSamples, commitMsgs, diffStats);
+  // 4. 生成提示词
+  log('生成 AI 分析提示词...', 'info');
+  const prompt = generateExtractionPrompt(changedFiles, codeSamples, commitMsgs, diffStats);
   
-  // 6. 调用 AI
-  log('调用 AI 分析代码（可能需要几秒到几十秒）...', 'brainstorm');
-  const aiResponse = await callAI(prompt);
+  // 5. 保存提示词到文件
+  const { filePath: promptFile } = savePromptToFile(prompt, changedFiles);
+  log(`提示词已保存: ${promptFile}`, 'success');
   
-  // 7. 解析结果
-  log('解析分析结果...', 'info');
-  const knowledge = parseYAML(aiResponse);
-  
-  // 8. 保存知识
-  const featureInfo = {
-    name: process.env.FEATURE_NAME || '',
-  };
-  
-  const savedFile = saveKnowledge(knowledge, featureInfo);
-  log(`知识已保存到: ${savedFile}`, 'success');
-  
-  // 9. 更新主知识库索引
-  if (fs.existsSync(CONFIG.knowledgeMain)) {
-    updateMainKnowledge(knowledge, savedFile);
-  }
-  
-  // 10. 输出摘要
-  log('\n========== 知识提取摘要 ==========', 'info');
-  
-  const counts = {
-    patterns: knowledge.patterns?.length || 0,
-    decisions: knowledge.decisions?.length || 0,
-    practices: knowledge.practices?.length || 0,
-    pitfalls: knowledge.pitfalls?.length || 0,
-  };
-  
-  if (counts.patterns) log(`设计模式: ${counts.patterns} 个`, 'success');
-  if (counts.decisions) log(`架构决策: ${counts.decisions} 个`, 'success');
-  if (counts.practices) log(`最佳实践: ${counts.practices} 个`, 'success');
-  if (counts.pitfalls) log(`潜在风险: ${counts.pitfalls} 个`, 'warning');
-  
-  const total = counts.patterns + counts.decisions + counts.practices + counts.pitfalls;
-  
-  if (total === 0) {
-    log('本次变更未识别出显著的知识点', 'warning');
-  } else {
-    log(`\n总计: ${total} 个知识点`, 'success');
-    log('\n请检查生成的知识文件，确认有价值的知识后，', 'info');
-    log('可以手动合并到 docs/knowledge.md 主知识库', 'info');
-  }
-  
-  // 设置输出变量（供调用方使用）
-  if (process.env.GITHUB_ACTIONS) {
-    console.log(`::set-output name=knowledge_file::${savedFile}`);
-    console.log(`::set-output name=knowledge_count::${total}`);
-  }
+  // 6. 输出下一步操作指引
+  printNextSteps(promptFile, CONFIG.outputDir);
 }
 
 // 运行
@@ -603,4 +370,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, callAI, parseYAML, saveKnowledge };
+module.exports = { main, generateExtractionPrompt, savePromptToFile };
