@@ -60,18 +60,45 @@ metadata:
 **定位 tinypowers 安装目录：**
 
 ```bash
-TINYPOWERS_DIR=""
-for dir in "$HOME/.claude/skills/tinypowers" "$HOME/tinypowers" "$HOME/.npm-global/lib/node_modules/tinypowers" "/usr/local/share/tinypowers"; do
-    if [ -f "$dir/scripts/check-version.js" ]; then
-        TINYPOWERS_DIR="$dir"
-        break
+detect_tinypowers_root() {
+    # 1. 优先读取安装标记文件（最快）
+    if [ -f "$HOME/.config/tinypowers/path" ]; then
+        local dir
+        dir=$(cat "$HOME/.config/tinypowers/path" 2>/dev/null)
+        if [ -n "$dir" ] && [ -f "$dir/scripts/check-version.js" ]; then
+            echo "$dir"
+            return 0
+        fi
     fi
-done
 
-# 兜底：全局搜索
-if [ -z "$TINYPOWERS_DIR" ]; then
-    TINYPOWERS_DIR=$(find ~ -name "check-version.js" -path "*/tinypowers/scripts/*" 2>/dev/null | head -1 | xargs -I {} dirname {} | xargs -I {} dirname {})
-fi
+    # 2. 检查常见候选路径
+    local candidates=(
+        "$HOME/.claude/skills/tinypowers"
+        "$HOME/tinypowers"
+        "$HOME/.npm-global/lib/node_modules/tinypowers"
+        "/usr/local/lib/node_modules/tinypowers"
+        "/usr/local/share/tinypowers"
+        "/opt/tinypowers"
+    )
+    for dir in "${candidates[@]}"; do
+        if [ -f "$dir/scripts/check-version.js" ]; then
+            echo "$dir"
+            return 0
+        fi
+    done
+
+    # 3. 限制深度的 find 作为兜底
+    local found
+    found=$(find ~ -maxdepth 4 -name "check-version.js" -path "*/tinypowers/scripts/*" 2>/dev/null | head -1)
+    if [ -n "$found" ]; then
+        dirname "$(dirname "$found")"
+        return 0
+    fi
+
+    return 1
+}
+
+TINYPOWERS_DIR=$(detect_tinypowers_root)
 ```
 
 **检测失败处理：**
