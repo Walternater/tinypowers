@@ -371,10 +371,6 @@ function verifyProject(projectRoot, installRoot, includeMysql, skipKnowledge) {
       const knowledgePath = path.join(projectRoot, 'docs', 'knowledge.md');
       return fs.existsSync(knowledgePath) && read(knowledgePath).includes(KNOWLEDGE_MARKER_START);
     }]);
-    // 知识提取基础设施验证
-    checks.push(['scripts/collect-code-for-analysis.js', () => fs.existsSync(path.join(projectRoot, 'scripts', 'collect-code-for-analysis.js'))]);
-    checks.push(['scripts/ai-knowledge-consolidator.js', () => fs.existsSync(path.join(projectRoot, 'scripts', 'ai-knowledge-consolidator.js'))]);
-    checks.push(['docs/ai-extracted/', () => fs.existsSync(path.join(projectRoot, 'docs', 'auto'))]);
   }
 
   const mysqlRulesSource = path.join(installRoot, 'configs', 'rules', 'mysql');
@@ -457,44 +453,6 @@ function main() {
   if (args.includeMysql && copyDir(path.join(installRoot, 'configs', 'rules', 'mysql'), path.join(projectRoot, 'configs', 'rules', 'mysql'), args.force)) {
     created.push('configs/rules/mysql/');
   }
-
-  // ========== 知识提取基础设施 ==========
-  // 1. 复制知识收集脚本
-  const knowledgeScriptSource = path.join(installRoot, 'scripts', 'collect-code-for-analysis.js');
-  const knowledgeScriptTarget = path.join(projectRoot, 'scripts', 'collect-code-for-analysis.js');
-  if (fs.existsSync(knowledgeScriptSource)) {
-    ensureDir(path.join(projectRoot, 'scripts'));
-    if (writeFile(knowledgeScriptTarget, fs.readFileSync(knowledgeScriptSource), args.force)) {
-      created.push('scripts/collect-code-for-analysis.js');
-    }
-  }
-  
-  // 2. 复制知识合并脚本（AI 自动沉淀）
-  const consolidatorScriptSource = path.join(installRoot, 'scripts', 'ai-knowledge-consolidator.js');
-  const consolidatorScriptTarget = path.join(projectRoot, 'scripts', 'ai-knowledge-consolidator.js');
-  if (fs.existsSync(consolidatorScriptSource)) {
-    ensureDir(path.join(projectRoot, 'scripts'));
-    if (writeFile(consolidatorScriptTarget, fs.readFileSync(consolidatorScriptSource), args.force)) {
-      created.push('scripts/ai-knowledge-consolidator.js');
-    }
-  }
-  
-  // 3. 创建知识自动提取目录
-  ensureDir(path.join(projectRoot, 'docs', 'auto'));
-  created.push('docs/ai-extracted/');
-  
-  // 4. 创建知识备份目录
-  ensureDir(path.join(projectRoot, '.tmp', 'knowledge-backup'));
-  
-  // 5. 创建知识提取指南（如果不存在）
-  const knowledgeGuideSource = path.join(installRoot, 'docs', 'guides', 'knowledge-extraction-guide.md');
-  const knowledgeGuideTarget = path.join(projectRoot, 'docs', 'guides', 'knowledge-extraction-guide.md');
-  if (fs.existsSync(knowledgeGuideSource)) {
-    if (copyFile(knowledgeGuideSource, knowledgeGuideTarget, args.force)) {
-      created.push('docs/guides/knowledge-extraction-guide.md');
-    }
-  }
-  // ===================================
 
   ensureDir(path.join(projectRoot, 'features'));
   ensureDir(path.join(projectRoot, 'docs'));
