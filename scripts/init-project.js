@@ -458,6 +458,17 @@ function main() {
   ensureDir(path.join(projectRoot, 'docs'));
   ensureDir(path.join(projectRoot, 'docs', 'guides'));
 
+  // 更新 .gitignore，排除 worktrees
+  const gitignorePath = path.join(projectRoot, ".gitignore");
+  let gitignoreContent = "";
+  if (fs.existsSync(gitignorePath)) {
+    gitignoreContent = fs.readFileSync(gitignorePath, "utf-8");
+  }
+  if (!gitignoreContent.includes(".claude/worktrees/")) {
+    fs.appendFileSync(gitignorePath, "\n# tinypowers worktrees\n.claude/worktrees/\n");
+    created.push(".gitignore (updated with worktrees exclusion)");
+  }
+
   console.log('init-project 完成');
   console.log('项目根目录: ' + projectRoot);
   console.log('创建/更新内容:');
