@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "9.6"
+  version: "9.7"
 ---
 
 # /tech:code
@@ -112,16 +112,22 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 
 > 凡在代码中引用项目内的枚举或常量（非 JDK / 框架标准库），必须先读一遍对应定义文件，
 > 确认枚举值存在且命名正确，再写调用代码。不得凭记忆或猜测使用枚举值。
+>
+> 此规范是 tech:feature 采样清单中"枚举/常量读取"要求的编码阶段补充——
+> 若在 tech:feature 阶段已读过目标枚举的定义，此处可跳过重复读取。
 
-**Java 工程编译验证**（强烈推荐）：
+**Java 工程编译验证**（强制执行）：
 
 ```bash
 mvn compile -q
 ```
 
 - 用于捕获错误 import、不存在的方法引用、编译期类型错误
-- 只有工程确实无法在本地编译时才可跳过；跳过时自查标准应更严格
 - 编译失败 → 修复后再进入 Compliance Review
+- **仅以下情况可申请 bypass**（需在 CHECK-2 中记录跳过原因）：
+  - 工程依赖无法在本地启动的外部服务/数据库（如需连接 VPN 内网数据库才能编译）
+  - 需要完整 CI 环境才能通过的注解处理器（如 MapStruct / Lombok 等须在 CI 才能生成代码）
+  - bypass 时自查标准须更严格，逐行核查所有新增类型引用
 
 自查通过后，进入正式审查：
 
