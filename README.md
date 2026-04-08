@@ -134,47 +134,42 @@ configs/rules/
 git clone https://github.com/Walternater/tinypowers.git ~/.tinypowers && ~/.tinypowers/install.sh --global
 ```
 
-一行命令，将 tinypowers 安装到 `~/.claude/skills/tinypowers/`，所有项目共享。
+一行命令，自动完成：
+- 安装 tinypowers 到 `~/.claude/skills/tinypowers/`
+- 创建技能 symlinks（`tech-init`, `tech-feature`, `tech-code`, `tech-commit`）
+- 合并 hooks 配置到 `~/.claude/settings.json`
+- 设置 `TINYPOWERS_DIR` 环境变量
+- 运行 `doctor.js` 验证安装
 
-默认安装面只包含运行时必需内容：
-
+默认包含 Java 全栈组件（`java-fullstack` profile）：
 - workflow skills / agents / hooks
-- 初始化与诊断脚本
-- 运行时指南与模板
-
-默认不会把这些仓库维护材料复制进目标项目：
-
-- `docs/plans/`
-- `docs/workflow-optimization-*.md`
-- `tests/`
-- 其他仅供框架仓库维护使用的文档
+- Java / Spring Boot / MySQL 规范
+- 初始化模板和运行时指南
 
 ### 安装到指定项目
 
 ```bash
 cd /path/to/project
 /path/to/tinypowers/install.sh              # 自动检测技术栈
-/path/to/tinypowers/install.sh java-fullstack  # 指定 profile
 ```
 
-项目级安装仍然支持，但更适合：
-
+项目级安装适合：
 - 只想在单个项目里试用
 - 需要对项目内副本做隔离定制
-- 不希望所有项目共用一套 tinypowers
 
 ### 全部参数
 
 | 参数 | 说明 |
 |------|------|
-| `--global` | 安装到 `~/.claude/skills/tinypowers/`，全局生效 |
+| `--global` | 安装到 `~/.claude/skills/tinypowers/`，全局生效（默认使用 `java-fullstack` profile） |
+| `--profile NAME` | 指定 profile（`java-fullstack`, `java-light`, `minimal`） |
 | `--target DIR` | 安装到指定目录 |
 | `--force` | 覆盖已有安装 |
 | `--list` | 列出可用组件和 profile |
 | `--components a,b` | 指定组件列表 |
 
 可用 profile：
-- `java-fullstack`：Java + Spring Boot + MySQL 全套 runtime
+- `java-fullstack`：Java + Spring Boot + MySQL 全套 runtime（全局安装默认）
 - `java-light`：Java + Spring Boot（无 MySQL）
 - `minimal`：最小 runtime（`core + docs-runtime`）
 
@@ -196,9 +191,6 @@ cd /path/to/project
 # 验证安装
 node ~/.claude/skills/tinypowers/scripts/doctor.js --project .
 ```
-
-如果你用的是项目级安装，对应脚本路径会是 `.claude/skills/tinypowers/scripts/doctor.js`。
-`doctor` 现在除了检查安装完整性，也会提示 hooks 接线和项目运行时准备情况。
 
 ## 快速开始
 
