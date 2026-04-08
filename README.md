@@ -16,6 +16,25 @@
 /tech:init → /tech:feature → /tech:code → /tech:commit
 ```
 
+## AI 知识沉淀（实验性）
+
+自动从代码变更中提取设计模式、架构决策和最佳实践：
+
+```bash
+# 1. 收集代码变更
+node scripts/collect-code-for-analysis.js
+
+# 2. 生成 AI 分析提示词
+node scripts/extract-knowledge-brainstorm.js
+
+# 3. 交给 AI 分析（Claude/Codex/Cursor），保存结果到 docs/ai-extracted/
+
+# 4. 合并到主知识库
+node scripts/ai-knowledge-consolidator.js
+```
+
+特点：零配置、与宿主 AI 工具协作、人工确认后合并。
+
 ## 核心理念
 
 1. **Skills 即规范** - 把流程写进 skill，而不是散落在团队口头约定里。
@@ -37,6 +56,7 @@
 | Anti-Rationalization | 防止自我合理化绕过门禁 |
 | Worktree Isolation | 复杂需求可使用独立 worktree 隔离执行 |
 | Knowledge Base | `docs/knowledge.md` + 可选的 `notepads/learnings.md` 提升链路 |
+| AI Knowledge Extraction | 自动从代码变更中提取设计模式、架构决策和最佳实践 |
 
 ## 能力地图
 
@@ -44,7 +64,7 @@
 
 | Skill | 用途 |
 |-------|------|
-| `tech-init` | 初始化目标项目骨架，并同步 README / 项目级知识入口 |
+| `tech-init` | 初始化项目骨架，检测技术栈，检查版本更新，同步 README / 知识库 |
 | `tech-feature` | 需求理解、技术方案、任务拆解 |
 | `tech-code` | 开发执行、审查修复、测试验证 |
 | `tech-commit` | 文档同步、提交、PR 流程 |
