@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "9.0"
+  version: "9.1"
 ---
 
 # /tech:code
@@ -92,6 +92,22 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 
 ### 3. 审查修复（可迭代）
 
+**编码完成后，进入正式审查前先做决策自查**：
+
+```
+决策落地自查（逐条核对，5 分钟内完成）
+----------------------------------------
+逐条读取 技术方案.md 中的"锁定决策"，在代码中定位对应实现：
+□ 每条决策 → 确认有对应代码体现（注解、异常处理、查询路由等）
+□ 引用了项目枚举/常量 → 确认读过对应类的实际定义，未用不存在的值
+□ 未落地的决策 → 立即补充，再继续
+
+目的：把"本应在编码阶段发现的低级问题"拦截在自查阶段，
+     减少 Compliance Review 的无效往返。
+```
+
+自查通过后，进入正式审查：
+
 固定顺序：
 
 ```text
@@ -102,13 +118,13 @@ compliance-reviewer（方案符合性 + 安全）
 ```
 
 原则：
-- 先确认“做的是对的东西”
-- 再确认“实现是否安全”
+- 先确认"做的是对的东西"
+- 再确认"实现是否安全"
 - 最后处理可维护性与代码质量问题
 
 执行要求：
-- `compliance-reviewer` 输出“决策合规性 + 安全审查”结构化结果
-- `code-reviewer` 输出“代码质量与工程风险”结构化结果
+- `compliance-reviewer` 输出"决策合规性 + 安全审查"结构化结果
+- `code-reviewer` 输出"代码质量与工程风险"结构化结果
 - 两类结果都必须通过 `scripts/update-verification.js` 写回 `VERIFICATION.md`
 
 阻塞规则：
@@ -139,17 +155,22 @@ compliance-reviewer（方案符合性 + 安全）
 
 ### 5. CHECK-2（code -> commit）
 
-进入 `/tech:commit` 前，输出一个显式 checkpoint 摘要：
+进入 `/tech:commit` 前，按以下固定格式输出 checkpoint 摘要：
 
-- 变更摘要
-- 测试结果
-- 审查结论
-- 决策合规性摘要
-- 残留风险
+```
+--- CHECK-2 ---
+变更：新增 {N} 个文件，修改 {N} 个文件
+测试：{N}/{N} TC 通过
+审查：Compliance {PASS/FAIL}，Code Review {PASS/FAIL}
+决策：{N}/{N} 条锁定决策已落地
+残留风险：{风险描述，无则填"无"}
+门禁：{人工确认 / soft gate bypassed}
+---------------
+```
 
 语义：
 - 有人工确认：按确认结果进入 `/tech:commit`
-- 无人工确认但需要继续：记录 `soft gate bypassed`
+- 无人工确认但需要继续：`门禁` 填 `soft gate bypassed`
 - `soft gate bypassed` 只是边界说明，不等于审批通过
 
 ## 内部执行说明

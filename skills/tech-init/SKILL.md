@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.0"
+  version: "5.1"
 ---
 
 # /tech:init
@@ -236,6 +236,20 @@ lazy mode 下也应至少：
 - 检查 README 是否需要补最小项目说明
 - 在 `docs/knowledge.md` 中保留项目关键选型骨架，而不是只留空白模板
 
+### 5.3 knowledge.md 完成验收
+
+init 最后一步：确认 `docs/knowledge.md` 有实质内容，而不是空壳模板。
+
+**验收标准**（满足全部方可视为 init 完成）：
+- 有效字符数 > 500（空模板约 100-200 字符，不达标说明未填写）
+- 至少覆盖以下 4 个方面：
+  - 技术栈（Spring Boot 版本、构建工具、数据库）
+  - 中间件（缓存、MQ、RPC 等，无则注明"无"）
+  - 关键约定或坑位（特殊注解用法、数据源切换、分层规范等）
+  - 项目边界（对外接口入口、依赖的外部系统）
+
+**不满足时**：继续补充，直到满足为止。这是 init 阶段唯一强制的质量门。
+
 ## 配套文档
 
 | 文档 | 作用 |
@@ -249,3 +263,4 @@ lazy mode 下也应至少：
 - 非 Java 项目不要继续初始化，否则会得到不匹配的入口文档
 - 已存在的 `.claude/settings.json` 不应盲目覆盖，应先走更新策略
 - `scripts/validate.js` 是 tinypowers 框架自身的组件校验器，**不适合**在目标项目初始化流程中调用
+- `docs/knowledge.md` 内容空白 ≠ init 完成；只有通过 5.3 验收标准才算真正完成

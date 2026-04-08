@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.0"
+  version: "5.1"
 ---
 
 # /tech:commit
@@ -43,7 +43,9 @@ metadata:
 
 ### 1. Document Sync
 
-建议先执行：
+**根据项目类型选择同步方式：**
+
+**npm 项目**（项目根目录含 `package.json`）：
 
 ```bash
 npm run commit:prepare-docs
@@ -54,6 +56,20 @@ npm run commit:check-docs
 - 优先取当前 `git branch` 对应的 `features/{id}-{name}`
 - 如果分支无法识别，再回退到唯一活跃 feature
 - 只有存在歧义时，才需要手动补 `--feature`
+
+**Java / 其他非 npm 项目**（无 `package.json`，不可执行上述脚本）：
+
+手动逐项确认以下同步清单：
+
+```
+Document Sync 检查清单（Java 工程）
+------------------------------------
+□ 技术方案.md 中的接口路径、方法名、锁定决策与实现一致
+□ VERIFICATION.md 结论仍为 PASS / 通过
+□ 测试计划.md / 测试报告.md 已更新（medium / standard 路径）
+□ docs/knowledge.md 已记录本次 feature 产生的新知识（如有）
+□ README / API 文档已同步（如接口有变化）
+```
 
 优先同步真正受影响的文档：
 - `技术方案.md`
@@ -69,12 +85,10 @@ npm run commit:check-docs
 - 不把未完成项写成已完成
 - reviewer 只看 PR 也能理解改动
 - Fast 路径不为凑齐模板而补写 `测试计划.md` / `测试报告.md`
-- `prepare-commit-docs` 负责对当前 feature 文档、`README.md`、`docs/knowledge.md` 做增量更新
-- `check-commit-docs` 负责拦截“代码准备提交了，但文档同步还没跟上”的情况
 
 ### 2. SPEC-STATE → DONE
 
-`DONE` 的语义改为“最终交付快照的一部分”，不再单独补一个状态 commit。
+`DONE` 的语义改为"最终交付快照的一部分"，不再单独补一个状态 commit。
 
 执行方式：
 1. 完成 Document Sync
@@ -119,25 +133,27 @@ Standard 路径可继续委托 `superpowers:finishing-a-development-branch`。
 - GitHub：`/compare/{base}...{head}?expand=1`
 - GitLab：`/-/merge_requests/new?merge_request[source_branch]={head}&merge_request[target_branch]={base}`
 
-## 交付后可选动作
+## 交付后可选动作：knowledge capture
 
-只有在 `notepads/learnings.md` 里出现明确复用价值时，才推荐做 knowledge capture。
+提交完成后，快速判断本次 feature 是否有值得沉淀到 `docs/knowledge.md` 的新知识。
 
-推荐触发条件：
-- 解决了非显而易见的 bug
-- 发现了框架自身限制或项目特殊约束
-- 形成了后续 feature 会复用的决策经验
-- 补充了不容易从公开资料直接获得的项目内知识
+**触发判断（满足其中任意一条即值得沉淀）**：
 
-推荐信号：
-- `notepads/learnings.md` 中出现 `[PERSIST]`
-- learnings 条目已经写清“适用场景 / 约束 / 反例”
+```
+□ 发现了项目特殊约定或隐蔽坑位（如特定注解必须配对使用、从库命名规则等）
+□ 确认了某个中间件/框架的用法约束（如 @DS 注解的数据源切换行为）
+□ 找到了对后续 feature 有参考价值的决策经验（如异常安全的写法模式）
+□ 补充了不容易从公开资料直接获得的项目内知识
+```
+
+**有沉淀价值时**：直接将知识追加到 `docs/knowledge.md` 对应章节，格式参考已有条目。
+
+**无沉淀价值时**：跳过，不强制补写。
 
 原则：
-- 空或低价值 `learnings.md` 直接忽略
-- Fast 路径通常直接跳过 knowledge capture
-- promotion 是“从 feature 暂存区提升到项目知识库”，不是自动同步
-- knowledge capture **不阻塞提交**
+- 不依赖 `notepads/learnings.md` 中间层；有知识直接写入 `docs/knowledge.md`
+- Fast 路径通常直接跳过
+- knowledge capture **不阻塞提交**，提交完成后再做
 
 ## 生命周期说明
 
