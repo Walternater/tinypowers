@@ -40,11 +40,12 @@ metadata:
 
 ```text
 0. 预检（框架仓库 / 非 Java / 已初始化）
-1. 技术栈检测
-2. 检测结果确认
-3. 选择更新策略
-4. 运行 init-project.js 落地骨架（含内置验证）
-5. README 同步与知识沉淀
+1. 版本检查（远端 vs 本地）
+2. 技术栈检测
+3. 检测结果确认
+4. 选择更新策略
+5. 运行 init-project.js 落地骨架（含内置验证）
+6. README 同步与知识沉淀
 ```
 
 ## 0. 预检
@@ -54,7 +55,34 @@ metadata:
 - 检测到 Node.js / Go / Python / Rust 等非 Java 项目
 - 用户只想查看检测结果，不想真正写入项目
 
-## 1. 技术栈检测
+## 1. 版本检查
+
+检测本地安装的 tinypowers 是否落后于远端版本：
+
+```bash
+node "${TINYPOWERS_DIR}/scripts/check-version.js" --install-root "${TINYPOWERS_DIR}"
+```
+
+**输出处理**：
+- 如果 `behind: true`：提示用户版本落后，询问是否升级
+- 如果 `upToDate: true` 或 `error` 非空：继续流程
+
+**版本落后时的用户交互**：
+```
+⚠️ 检测到 tinypowers 版本落后
+  本地版本：v1.2.3
+  远端版本：v1.5.0
+
+  [升级到 v1.5.0] [跳过，继续当前版本] [取消初始化]
+```
+
+- 用户选择升级：执行 `git pull` 或提示用户手动更新
+- 用户选择跳过：继续当前流程
+- 用户选择取消：停止初始化
+
+**版本一致或本地更新时**：静默通过，不打断流程。
+
+## 2. 技术栈检测
 
 当前只接受这些强信号：
 - `pom.xml` -> Java (Maven)
@@ -71,7 +99,7 @@ metadata:
 - Gradle 构建命令：`./gradlew check`
 - 默认分支模式：`feature/{id}-{short-desc}`
 
-## 2. 检测结果确认
+## 3. 检测结果确认
 
 至少向用户确认：
 - 主技术栈
@@ -79,7 +107,7 @@ metadata:
 - 推荐规则集
 - 是否需要 MySQL 规则
 
-## 3. 更新策略
+## 4. 更新策略
 
 支持三种策略：
 - `Update`：只补缺失内容
@@ -88,7 +116,7 @@ metadata:
 
 默认推荐 `Update`。
 
-## 4. 运行 init-project.js
+## 5. 运行 init-project.js
 
 真正落地动作由脚本完成，脚本执行完毕后会**自动运行内置验证**，无需额外调用其他脚本：
 
@@ -115,7 +143,7 @@ node "${TINYPOWERS_DIR}/scripts/init-project.js" \
 `.claude` 细节和 merge 规则保留在：
 - `claude-init.md`
 
-## 5. 知识扫描 / lazy mode
+## 6. 知识扫描 / lazy mode
 
 初始化后要补两类项目上下文：
 
