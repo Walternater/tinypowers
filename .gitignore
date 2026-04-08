@@ -11,3 +11,4 @@ hooks-settings-template.json
 
 .worktrees/
 .claude/worktrees/
+.opencode/
