@@ -57,10 +57,33 @@ metadata:
 
 ## 0.5. 版本检查
 
-检测本地安装的 tinypowers 是否落后于远端版本：
+**定位 tinypowers 安装目录：**
 
 ```bash
-node scripts/check-version.js
+TINYPOWERS_DIR=""
+for dir in "$HOME/.claude/skills/tinypowers" "$HOME/tinypowers" "$HOME/.npm-global/lib/node_modules/tinypowers" "/usr/local/share/tinypowers"; do
+    if [ -f "$dir/scripts/check-version.js" ]; then
+        TINYPOWERS_DIR="$dir"
+        break
+    fi
+done
+
+# 兜底：全局搜索
+if [ -z "$TINYPOWERS_DIR" ]; then
+    TINYPOWERS_DIR=$(find ~ -name "check-version.js" -path "*/tinypowers/scripts/*" 2>/dev/null | head -1 | xargs -I {} dirname {} | xargs -I {} dirname {})
+fi
+```
+
+**检测失败处理：**
+
+如果以上两种方法都找不到 tinypowers 安装目录：
+- 停止初始化流程
+- 提示用户手动指定安装路径或确认安装方式
+
+**版本检测：**
+
+```bash
+node "$TINYPOWERS_DIR/scripts/check-version.js"
 ```
 
 **输出处理**：
@@ -121,7 +144,7 @@ node scripts/check-version.js
 真正落地动作由脚本完成，脚本执行完毕后会**自动运行内置验证**，无需额外调用其他脚本：
 
 ```bash
-node scripts/init-project.js \
+node "$TINYPOWERS_DIR/scripts/init-project.js" \
   --root . \
   --project-name {project_name} \
   --tech-stack "Java (Maven)" \
