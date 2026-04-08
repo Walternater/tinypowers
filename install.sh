@@ -29,6 +29,7 @@ PROFILE=""
 COMPONENTS=""
 LIST_ONLY=false
 FORCE=false
+YES=false
 
 # --- 参数解析 ---
 while [[ $# -gt 0 ]]; do
@@ -43,6 +44,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --force|-f)
       FORCE=true
+      shift
+      ;;
+    --yes|-y)
+      YES=true
       shift
       ;;
     --components|-c)
@@ -71,7 +76,8 @@ while [[ $# -gt 0 ]]; do
       echo "  --profile NAME       预置 profile (java-fullstack, java-light, minimal)"
       echo "  --components X,Y     指定安装组件，逗号分隔"
       echo "  --target DIR         指定安装目标目录"
-      echo "  --force              覆盖已存在的安装"
+      echo "  --force              强制覆盖已存在的安装（不备份）"
+      echo "  --yes                自动确认覆盖（会备份旧版本）"
       echo "  --list               列出可用组件和 profile"
       echo "  --help               显示帮助"
       echo ""
@@ -118,11 +124,43 @@ echo "安装模式: $INSTALL_MODE"
 echo "安装目标: $INSTALL_DIR"
 echo ""
 
-# --- 检查已安装 ---
+# --- 检查已安装并处理覆盖 ---
 if [[ -d "$INSTALL_DIR" ]] && [[ "$FORCE" != true ]]; then
-  echo "检测到已有安装: $INSTALL_DIR"
-  echo "使用 --force 覆盖，或先删除旧安装"
-  exit 1
+  # 读取旧版本
+  OLD_VERSION="unknown"
+  if [[ -f "$INSTALL_DIR/package.json" ]]; then
+    OLD_VERSION=$(grep '"version"' "$INSTALL_DIR/package.json" | head -1 | sed -E 's/.*"version": "([^"]+)".*/\1/')
+  fi
+
+  echo "检测到已有安装: $INSTALL_DIR (版本: $OLD_VERSION)"
+
+  # 非交互式环境（CI）需要显式参数
+  if [[ ! -t 0 ]] || [[ "${CI:-}" == "true" ]]; then
+    if [[ "$YES" == true ]]; then
+      echo "非交互式环境，使用 --yes 自动覆盖并备份"
+    else
+      echo "错误: 非交互式环境，请使用 --yes（自动备份）或 --force（不备份）参数覆盖"
+      exit 1
+    fi
+  elif [[ "$YES" != true ]]; then
+    # 交互式确认
+    read -p "是否覆盖安装? [y/N]: " -n 1 -r
+    echo ""
+    if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+      echo "安装已取消"
+      exit 0
+    fi
+  fi
+
+  # 自动备份旧版本（--force 跳过备份）
+  BACKUP_DIR="${INSTALL_DIR}-backup"
+  # 删除旧备份（只保留一个）
+  if [[ -d "$BACKUP_DIR" ]]; then
+    rm -rf "$BACKUP_DIR"
+  fi
+  # 将当前安装移为备份
+  mv "$INSTALL_DIR" "$BACKUP_DIR"
+  echo "已备份旧版本: $BACKUP_DIR"
 fi
 
 # --- 确定组件列表 ---
