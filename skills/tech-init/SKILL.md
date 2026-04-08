@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.0"
+  version: "5.5"
 ---
 
 # /tech:init
@@ -225,6 +225,20 @@ node "$TINYPOWERS_DIR/scripts/init-project.js" \
 - 第一次 init：先用 `brainstorming` 汇总 README、代码结构、配置和工程背景，再整理到 `docs/knowledge.md`
 - 后续 update：只增量修正过期内容，不重复做完整梳理
 
+**brainstorming 执行确认**（第一次 init 时必须显式确认，不可静默跳过）：
+
+```
+brainstorming 执行检查
+----------------------
+□ 已读取 README.md（如存在）
+□ 已采样 src/ 下 1-2 个同域 Controller 及至少 1 个 Service / config Java 文件
+  （目标是 .java 源文件，而非 YAML / properties 等配置文件）
+□ 已检查 application.yml / application.properties 中的数据源、中间件配置
+□ 已将上述内容中的项目特有信息整理到 docs/knowledge.md
+```
+
+仅当以上 4 项全部完成，才视为 brainstorming 步骤已执行。未完成时不得跳到 5.3 验收。
+
 只记录模型无法从公开资料获取或无法仅靠通用经验可靠推断的内容。
 
 采样即可，不做全量扫描。以下情况默认 lazy mode：
@@ -235,6 +249,20 @@ node "$TINYPOWERS_DIR/scripts/init-project.js" \
 lazy mode 下也应至少：
 - 检查 README 是否需要补最小项目说明
 - 在 `docs/knowledge.md` 中保留项目关键选型骨架，而不是只留空白模板
+
+### 5.3 knowledge.md 完成验收
+
+init 最后一步：确认 `docs/knowledge.md` 有实质内容，而不是空壳模板。
+
+**验收标准**（满足全部方可视为 init 完成）：
+- 至少包含 3-4 个实质性段落（每段有具体内容，而非空占位或单行标题）
+- 至少覆盖以下 4 个方面：
+  - 技术栈（Spring Boot 版本、构建工具、数据库）
+  - 中间件（缓存、MQ、RPC 等，无则注明"无"）
+  - 关键约定或坑位（特殊注解用法、数据源切换、分层规范等）
+  - 项目边界（对外接口入口、依赖的外部系统）
+
+**不满足时**：继续补充，直到满足为止。这是 init 阶段唯一强制的质量门。
 
 ## 配套文档
 
@@ -249,3 +277,4 @@ lazy mode 下也应至少：
 - 非 Java 项目不要继续初始化，否则会得到不匹配的入口文档
 - 已存在的 `.claude/settings.json` 不应盲目覆盖，应先走更新策略
 - `scripts/validate.js` 是 tinypowers 框架自身的组件校验器，**不适合**在目标项目初始化流程中调用
+- `docs/knowledge.md` 内容空白 ≠ init 完成；只有通过 5.3 验收标准才算真正完成
