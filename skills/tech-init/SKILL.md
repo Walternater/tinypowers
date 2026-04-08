@@ -40,6 +40,7 @@ metadata:
 
 ```text
 0. 预检（框架仓库 / 非 Java / 已初始化）
+0.5. 版本检查（远端 vs 本地）
 1. 技术栈检测
 2. 检测结果确认
 3. 选择更新策略
@@ -53,6 +54,33 @@ metadata:
 - 检测到 tinypowers 框架仓库自身
 - 检测到 Node.js / Go / Python / Rust 等非 Java 项目
 - 用户只想查看检测结果，不想真正写入项目
+
+## 0.5. 版本检查
+
+检测本地安装的 tinypowers 是否落后于远端版本：
+
+```bash
+node "${TINYPOWERS_DIR}/scripts/check-version.js" --install-root "${TINYPOWERS_DIR}"
+```
+
+**输出处理**：
+- 如果 `behind: true`：提示用户版本落后，询问是否升级
+- 如果 `upToDate: true` 或 `error` 非空：继续流程
+
+**版本落后时的用户交互**：
+```
+⚠️ 检测到 tinypowers 版本落后
+  本地版本：v1.2.3
+  远端版本：v1.5.0
+
+  [升级到 v1.5.0] [跳过，继续当前版本] [取消初始化]
+```
+
+- 用户选择升级：执行 `git pull` 或提示用户手动更新
+- 用户选择跳过：继续当前流程
+- 用户选择取消：停止初始化
+
+**版本一致或本地更新时**：静默通过，不打断流程。
 
 ## 1. 技术栈检测
 
