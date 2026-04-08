@@ -27,6 +27,7 @@
         "scripts/scaffold-feature.js",
         "scripts/update-spec-state.js",
         "scripts/update-verification.js",
+        "scripts/check-version.js",
         "scripts/lib/",
         "package.json",
         "README.md"

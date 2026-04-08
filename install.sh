@@ -378,7 +378,12 @@ echo "默认安装面: 运行时必需内容（不含仓库维护材料）"
 echo "位置: $INSTALL_DIR"
 echo "组件: $INSTALL_COMPONENTS"
 echo ""
-# 3. 安装后自动运行 doctor
+# 3. 写入安装路径标记文件
+mkdir -p "$HOME/.config/tinypowers"
+echo "$INSTALL_DIR" > "$HOME/.config/tinypowers/path"
+echo "  + 安装路径标记: ~/.config/tinypowers/path"
+
+# 4. 安装后自动运行 doctor
 echo ""
 echo "--- 安装验证 ---"
 if [[ "$INSTALL_MODE" == "global" ]]; then
