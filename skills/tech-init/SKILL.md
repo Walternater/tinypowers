@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.2"
+  version: "5.3"
 ---
 
 # /tech:init
@@ -231,7 +231,7 @@ node "$TINYPOWERS_DIR/scripts/init-project.js" \
 brainstorming 执行检查
 ----------------------
 □ 已读取 README.md（如存在）
-□ 已采样 src/ 下至少 2 个有代表性的文件（Controller / Service / config）
+□ 已采样 src/ 下 1-2 个同域 Controller 及至少 1 个 Service / config 文件
 □ 已检查 application.yml / application.properties 中的数据源、中间件配置
 □ 已将上述内容中的项目特有信息整理到 docs/knowledge.md
 ```

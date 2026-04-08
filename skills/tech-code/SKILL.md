@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "9.3"
+  version: "9.4"
 ---
 
 # /tech:code

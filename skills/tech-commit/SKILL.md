@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.3"
+  version: "5.4"
 ---
 
 # /tech:commit
@@ -57,7 +57,7 @@ npm run commit:check-docs
 - 如果分支无法识别，再回退到唯一活跃 feature
 - 只有存在歧义时，才需要手动补 `--feature`
 
-**Java / 其他非 npm 项目**（无 `package.json`，不可执行上述脚本）：
+**Java / 其他非 npm 项目**（无 `package.json`，不可执行上述脚本；若误在 Java 项目执行 npm 命令会报错，应改用下方手动清单）：
 
 手动逐项确认以下同步清单：
 
