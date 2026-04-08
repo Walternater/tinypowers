@@ -595,8 +595,12 @@ async function main() {
 }
 
 // 运行
-main().catch(err => {
-  log(`错误: ${err.message}`, 'error');
-  console.error(err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(err => {
+    log(`错误: ${err.message}`, 'error');
+    console.error(err);
+    process.exit(1);
+  });
+}
+
+module.exports = { main, callAI, parseYAML, saveKnowledge };
