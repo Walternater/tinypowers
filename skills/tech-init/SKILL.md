@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.3"
+  version: "5.4"
 ---
 
 # /tech:init
@@ -254,7 +254,7 @@ lazy mode 下也应至少：
 init 最后一步：确认 `docs/knowledge.md` 有实质内容，而不是空壳模板。
 
 **验收标准**（满足全部方可视为 init 完成）：
-- 有效字符数 > 500（空模板约 100-200 字符，不达标说明未填写）
+- 至少包含 3-4 个实质性段落（每段有具体内容，而非空占位或单行标题）
 - 至少覆盖以下 4 个方面：
   - 技术栈（Spring Boot 版本、构建工具、数据库）
   - 中间件（缓存、MQ、RPC 等，无则注明"无"）

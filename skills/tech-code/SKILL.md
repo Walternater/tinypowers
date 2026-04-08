@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "9.4"
+  version: "9.5"
 ---
 
 # /tech:code
@@ -91,6 +91,8 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 - 需要 worktree 协作
 
 ### 3. 审查修复（可迭代）
+
+> 本节以决策自查开头，作为开发执行（§2）收尾动作与正式审查之间的过渡检查点。
 
 **编码完成后，进入正式审查前先做决策自查**：
 

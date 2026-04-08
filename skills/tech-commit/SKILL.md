@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.4"
+  version: "5.5"
 ---
 
 # /tech:commit
@@ -118,7 +118,7 @@ Document Sync 检查清单（Java 工程）
 ```
 □ 新增条目有具体内容，而非"待补充"或空占位
 □ 条目描述了适用场景或约束，不只是结论（例：不只写"用从库"，
-  而写"查询接口必须加 @DS(\"guazi_call_slave\")，否则走主库影响性能"）
+  而写"查询接口必须加 @DS("guazi_call_slave")，否则走主库影响性能"）
 □ 不重复已有条目（检查是否已有同主题的记录）
 ```
 
