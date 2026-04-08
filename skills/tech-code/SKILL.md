@@ -27,7 +27,8 @@ metadata:
 - `features/{id}-{name}/任务拆解表.md`
 - `features/{id}-{name}/SPEC-STATE.md`
 - `features/{id}-{name}/STATE.md`（可选，仅复杂执行时维护）
-- `docs/knowledge.md`（如有相关片段，编码时自动参考）
+- `docs/knowledge.md` — **编码前必须显式读取**（平台约束、组件坑、踩坑记录）
+- `notepads/learnings.md`（如存在，编码前应读取）
 
 ## 生命周期约束
 
@@ -63,6 +64,16 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 ```
 
 ### 2. 开发执行
+
+**编码前必须完成上下文加载**：
+
+```markdown
+1. 读取 `docs/knowledge.md` — 项目级领域知识
+2. 读取 `notepads/learnings.md`（如存在）— feature 级经验
+3. 读取 `任务拆解表.md` — 当前任务详情
+```
+
+> 框架约束（HARD-GATE、Decision Lock 等）已在 README.md 覆盖，编码阶段通过 hooks 强制执行，不需要重复加载。
 
 默认策略：
 - 先复用已有模式
@@ -168,7 +179,7 @@ features/{id}-{name}/
 
 - `VERIFICATION.md` 是进入 `/tech:commit` 的前置证据
 - `测试计划.md` 和 `测试报告.md` 是 `medium / standard` 路径的显式交付物
-- `docs/knowledge.md` 是项目级知识库；如 `notepads/learnings.md` 有沉淀价值，可在交付后回写
+- `docs/knowledge.md` 是项目级知识库；编码前必须读取，交付后如有新知识可回写
 - `CHECK-2` 摘要是 `/tech:commit` 的直接输入之一
 - 同一问题连续失败 3 次，应停止并上升到架构讨论
 
