@@ -2,9 +2,9 @@
 # install.sh — tinypowers 安装脚本
 #
 # 用法:
-#   ./install.sh --global           # 推荐：安装到全局 skills 目录
+#   ./install.sh --global           # 推荐：安装到全局 skills 目录（默认 java-fullstack）
 #   ./install.sh                    # 项目级安装（当前项目）
-#   ./install.sh java-fullstack     # 使用预置 profile
+#   ./install.sh --profile minimal  # 使用指定 profile
 #   ./install.sh --components rules-java,templates  # 指定组件
 #   ./install.sh --list             # 列出可用组件和 profile
 #
@@ -12,6 +12,14 @@
 #   全局:    ~/.claude/skills/tinypowers/  (--global, 推荐)
 #   项目级:  {target}/.claude/skills/tinypowers/  (适合隔离试用或项目内定制)
 set -euo pipefail
+
+# --- 检查 Node.js 版本 ---
+NODE_VERSION=$(node --version 2>/dev/null || echo "v0.0.0")
+NODE_MAJOR=$(echo "$NODE_VERSION" | sed -E 's/v([0-9]+).*/\1/')
+if [[ "$NODE_MAJOR" -lt 18 ]]; then
+  echo "错误: 需要 Node.js >= 18，当前版本: $NODE_VERSION"
+  exit 1
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MANIFEST_SCRIPT="$SCRIPT_DIR/scripts/install-manifest.js"
@@ -46,26 +54,30 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --help|-h)
-      echo "用法: $0 [profile|--components X,Y] [--global] [--force]"
+      echo "用法: $0 [--global] [--profile NAME] [--components X,Y] [--force]"
       echo ""
       echo "推荐用法:"
       echo "  $0 --global"
-      echo "    把 tinypowers 安装到全局 skills 目录，适合作为默认长期使用方式"
+      echo "    把 tinypowers 安装到全局 skills 目录，默认包含 Java 全栈组件"
+      echo ""
+      echo "  $0 --global --profile minimal"
+      echo "    最小化安装，仅核心工作流"
       echo ""
       echo "  $0"
-      echo "    安装到当前项目的 .claude/skills/tinypowers，适合隔离试用或项目内定制"
+      echo "    安装到当前项目的 .claude/skills/tinypowers"
       echo ""
       echo "参数:"
-      echo "  profile              预置 profile (java-fullstack, java-light, minimal)"
-      echo "  --components X,Y     指定安装组件，逗号分隔"
       echo "  --global             安装到 ~/.claude/skills/tinypowers/（推荐）"
+      echo "  --profile NAME       预置 profile (java-fullstack, java-light, minimal)"
+      echo "  --components X,Y     指定安装组件，逗号分隔"
       echo "  --target DIR         指定安装目标目录"
       echo "  --force              覆盖已存在的安装"
       echo "  --list               列出可用组件和 profile"
       echo "  --help               显示帮助"
       echo ""
       echo "说明:"
-      echo "  默认安装面会复制运行时必需内容；仓库维护材料不会默认进入目标项目。"
+      echo "  全局安装默认使用 java-fullstack profile（含 Java/Spring Boot/MySQL 规范）"
+      echo "  项目级安装自动检测当前项目技术栈"
       exit 0
       ;;
     *)
@@ -125,7 +137,12 @@ resolve_components() {
     return
   fi
 
-  node "$MANIFEST_SCRIPT" resolve --target "$(pwd)"
+  # 全局安装默认使用 java-fullstack，项目级安装自动检测
+  if [[ "$GLOBAL" == true ]]; then
+    node "$MANIFEST_SCRIPT" resolve --profile "java-fullstack"
+  else
+    node "$MANIFEST_SCRIPT" resolve --target "$(pwd)"
+  fi
 }
 
 INSTALL_COMPONENTS=$(resolve_components)
@@ -268,7 +285,45 @@ SETTINGS_EOF
 echo ""
 echo "  + hooks-settings-template.json (Hook 配置模板)"
 
-# --- 生成安装报告 ---
+# --- 自动配置 ---
+echo ""
+echo "--- 自动配置 ---"
+
+# 1. 全局安装时创建技能 symlinks
+if [[ "$INSTALL_MODE" == "global" ]]; then
+  SKILLS_DIR="$HOME/.claude/skills"
+  mkdir -p "$SKILLS_DIR"
+  for skill in tech-init tech-feature tech-code tech-commit; do
+    local_link="$SKILLS_DIR/$skill"
+    target="tinypowers/skills/$skill"
+    if [[ -L "$local_link" ]]; then
+      rm "$local_link"
+    fi
+    if [[ -e "$local_link" && ! -L "$local_link" ]]; then
+      echo "  WARN $local_link 已存在且不是 symlink，跳过"
+    else
+      ln -sf "$target" "$local_link"
+      echo "  + symlink: $skill -> $target"
+    fi
+  done
+fi
+
+# 2. 自动合并 hooks 配置到 ~/.claude/settings.json
+SETTINGS_JSON="$HOME/.claude/settings.json"
+if [[ "$INSTALL_MODE" == "global" ]]; then
+  mkdir -p "$(dirname "$SETTINGS_JSON")"
+  
+  # 使用 Node.js 合并 settings.json
+  node "$SCRIPT_DIR/scripts/install-merge-settings.js" \
+    --target "$SETTINGS_JSON" \
+    --template "$INSTALL_DIR/configs/templates/settings.json" \
+    --install-dir "$INSTALL_DIR" \
+    2>/dev/null || {
+    echo "  WARN settings.json 自动合并失败，请手动配置"
+    echo "     参考: $INSTALL_DIR/hooks-settings-template.json"
+  }
+fi
+
 echo ""
 echo "=================="
 echo "安装完成"
@@ -285,23 +340,37 @@ echo "默认安装面: 运行时必需内容（不含仓库维护材料）"
 echo "位置: $INSTALL_DIR"
 echo "组件: $INSTALL_COMPONENTS"
 echo ""
-echo "后续步骤:"
+# 3. 安装后自动运行 doctor
 echo ""
-echo "1. 配置 Hooks（二选一）："
+echo "--- 安装验证 ---"
+if [[ "$INSTALL_MODE" == "global" ]]; then
+  node "$INSTALL_DIR/scripts/doctor.js" --global 2>/dev/null || true
+else
+  node "$INSTALL_DIR/scripts/doctor.js" --project "$PROJECT_HINT" 2>/dev/null || true
+fi
+
 echo ""
-echo "   方式 A - 在目标项目的 .claude/settings.json 中手动添加"
-echo "     参考: $INSTALL_DIR/hooks-settings-template.json"
-echo "     将 \${TINYPOWERS_DIR} 替换为: $INSTALL_DIR"
-echo ""
-echo "   方式 B - 设置环境变量后使用（推荐）"
-echo "     export TINYPOWERS_DIR=\"$INSTALL_DIR\""
-echo ""
-echo "2. 运行初始化："
-echo "     /tech:init"
-echo ""
-echo "3. 检查安装状态："
-echo "     node \"$INSTALL_DIR/scripts/doctor.js\" --project \"$PROJECT_HINT\""
-echo ""
-echo "4. 开始新需求："
-echo "     /tech:feature"
+echo "=================="
+echo "后续步骤"
+echo "=================="
+
+if [[ "$INSTALL_MODE" == "global" ]]; then
+  echo "✓ 技能 symlinks 已创建: ~/.claude/skills/tech-* -> tinypowers/skills/tech-*"
+  echo "✓ hooks 配置已合并到: ~/.claude/settings.json"
+  echo "✓ TINYPOWERS_DIR 已设置在: ~/.claude/settings.json (env 段)"
+  echo ""
+  echo "在任意项目中使用:"
+  echo "  1. 进入项目目录"
+  echo "  2. 运行 /tech:init"
+  echo "  3. 开始新需求: /tech:feature"
+else
+  echo "1. 检查安装状态："
+  echo "     node \"$INSTALL_DIR/scripts/doctor.js\" --project \"$PROJECT_HINT\""
+  echo ""
+  echo "2. 运行初始化："
+  echo "     /tech:init"
+  echo ""
+  echo "3. 开始新需求："
+  echo "     /tech:feature"
+fi
 echo ""

@@ -81,7 +81,7 @@ function copyFile(source, target, force) {
 
 function copyDir(sourceDir, targetDir, force) {
   if (!fs.existsSync(sourceDir)) {
-    fail('缺少源目录: ' + sourceDir);
+    return false;
   }
   ensureDir(targetDir);
   for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
@@ -343,7 +343,7 @@ function writeSettings(projectRoot, installRoot, context, force) {
   }
 }
 
-function verifyProject(projectRoot, includeMysql, skipKnowledge) {
+function verifyProject(projectRoot, installRoot, includeMysql, skipKnowledge) {
   const checks = [
     ['CLAUDE.md', () => fs.existsSync(path.join(projectRoot, 'CLAUDE.md'))],
     ['README.md', () => fs.existsSync(path.join(projectRoot, 'README.md'))],
@@ -356,7 +356,10 @@ function verifyProject(projectRoot, includeMysql, skipKnowledge) {
     ['docs/guides/development-spec.md', () => fs.existsSync(path.join(projectRoot, 'docs', 'guides', 'development-spec.md'))],
     ['docs/guides/workflow-guide.md', () => fs.existsSync(path.join(projectRoot, 'docs', 'guides', 'workflow-guide.md'))],
     ['configs/rules/common/', () => fs.existsSync(path.join(projectRoot, 'configs', 'rules', 'common'))],
-    ['configs/rules/java/', () => fs.existsSync(path.join(projectRoot, 'configs', 'rules', 'java'))],
+    ['configs/rules/java/', () => {
+      const javaRulesSource = path.join(installRoot, 'configs', 'rules', 'java');
+      return !fs.existsSync(javaRulesSource) || fs.existsSync(path.join(projectRoot, 'configs', 'rules', 'java'));
+    }],
     ['features/', () => fs.existsSync(path.join(projectRoot, 'features'))],
     ['.claude/settings.json', () => fs.existsSync(path.join(projectRoot, '.claude', 'settings.json'))],
     ['.claude/hooks/spec-state-guard.js', () => fs.existsSync(path.join(projectRoot, '.claude', 'hooks', 'spec-state-guard.js'))]
@@ -370,7 +373,8 @@ function verifyProject(projectRoot, includeMysql, skipKnowledge) {
     }]);
   }
 
-  if (includeMysql) {
+  const mysqlRulesSource = path.join(installRoot, 'configs', 'rules', 'mysql');
+  if (includeMysql && fs.existsSync(mysqlRulesSource)) {
     checks.push(['configs/rules/mysql/', () => fs.existsSync(path.join(projectRoot, 'configs', 'rules', 'mysql'))]);
   }
 
@@ -441,12 +445,12 @@ function main() {
   created.push('.claude/hooks/');
 
   copyDir(path.join(installRoot, 'configs', 'rules', 'common'), path.join(projectRoot, 'configs', 'rules', 'common'), args.force);
-  copyDir(path.join(installRoot, 'configs', 'rules', 'java'), path.join(projectRoot, 'configs', 'rules', 'java'), args.force);
   created.push('configs/rules/common/');
-  created.push('configs/rules/java/');
+  if (copyDir(path.join(installRoot, 'configs', 'rules', 'java'), path.join(projectRoot, 'configs', 'rules', 'java'), args.force)) {
+    created.push('configs/rules/java/');
+  }
 
-  if (args.includeMysql) {
-    copyDir(path.join(installRoot, 'configs', 'rules', 'mysql'), path.join(projectRoot, 'configs', 'rules', 'mysql'), args.force);
+  if (args.includeMysql && copyDir(path.join(installRoot, 'configs', 'rules', 'mysql'), path.join(projectRoot, 'configs', 'rules', 'mysql'), args.force)) {
     created.push('configs/rules/mysql/');
   }
 
@@ -461,7 +465,7 @@ function main() {
     console.log('- ' + item);
   }
 
-  const failures = verifyProject(projectRoot, args.includeMysql, args.skipKnowledge);
+  const failures = verifyProject(projectRoot, installRoot, args.includeMysql, args.skipKnowledge);
   if (failures.length > 0) {
     console.error('初始化验证失败:');
     for (const item of failures) {
