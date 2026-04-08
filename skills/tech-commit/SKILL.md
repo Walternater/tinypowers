@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.5"
+  version: "5.6"
 ---
 
 # /tech:commit
@@ -163,6 +163,8 @@ Standard 路径可继续委托 `superpowers:finishing-a-development-branch`。
 - 不依赖 `notepads/learnings.md` 中间层；有知识直接写入 `docs/knowledge.md`
 - Fast 路径通常直接跳过
 - knowledge capture **不阻塞提交**，提交完成后再做
+
+**历史项目迁移兼容**：若项目存在 `notepads/learnings.md`，检查其中是否有 `[PERSIST]` 标记条目——有则视为有沉淀价值，按上方触发流程处理后可将原条目从 `learnings.md` 移除。
 
 ## 生命周期说明
 

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "8.2"
+  version: "8.3"
 ---
 
 # /tech:feature
@@ -132,8 +132,8 @@ Standard 需要显式表达依赖和建议顺序。
 --- CHECK-1 ---
 需求：{需求编号} {需求名称}
 路由：{Fast / Medium / Standard}
-决策：{N} 条锁定决策，主决策：{最关键的一条}
-任务：{N} 个，{是/否}已达执行粒度
+决策：{锁定条数} 条，主决策：{最关键的一条}
+任务：{总数} 个，{是/否}已达执行粒度
 风险：{主要风险，无则填"无"}
 未决：{未解决的边界问题，无则填"无"}
 门禁：{人工确认 / soft gate bypassed}

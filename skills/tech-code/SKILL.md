@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "9.5"
+  version: "9.6"
 ---
 
 # /tech:code
@@ -176,10 +176,10 @@ compliance-reviewer（方案符合性 + 安全）
 
 ```
 --- CHECK-2 ---
-变更：新增 {N} 个文件，修改 {N} 个文件
-测试：{N}/{N} TC 通过
+变更：新增 {新增数} 个文件，修改 {修改数} 个文件
+测试：{通过数}/{总数} TC 通过（如全通过可注明"全通过"）
 审查：Compliance {PASS/FAIL}，Code Review {PASS/FAIL}
-决策：{N}/{N} 条锁定决策已落地
+决策：{已落地数}/{总数} 条锁定决策已落地（如全落地可注明"全落地"）
 残留风险：{风险描述，无则填"无"}
 门禁：{人工确认 / soft gate bypassed}
 ---------------
