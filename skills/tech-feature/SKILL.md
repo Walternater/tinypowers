@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "8.1"
+  version: "8.2"
 ---
 
 # /tech:feature
@@ -87,7 +87,7 @@ features/{需求编号}-{需求名称}/
 
 ### 2. 技术方案
 
-**编写方案前，先做现有模式采样**（1-2 分钟，避免设计脱离项目现实）：
+**编写方案前，先做现有模式采样**（避免设计脱离项目现实）：
 
 ```
 现有模式采样清单（涉及哪项就采样哪项）

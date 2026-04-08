@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.2"
+  version: "5.3"
 ---
 
 # /tech:commit
@@ -113,6 +113,15 @@ Document Sync 检查清单（Java 工程）
 - 未解决项已标注
 - `CHECK-2` 摘要已经能说明变更、测试、审查结论与残留风险
 
+**knowledge.md 提交前质量自查**（有新知识写入时执行）：
+
+```
+□ 新增条目有具体内容，而非"待补充"或空占位
+□ 条目描述了适用场景或约束，不只是结论（例：不只写"用从库"，
+  而写"查询接口必须加 @DS(\"guazi_call_slave\")，否则走主库影响性能"）
+□ 不重复已有条目（检查是否已有同主题的记录）
+```
+
 验证证据口径：
 - `fast`：至少核对 `VERIFICATION.md`
 - `medium / standard`：核对 `VERIFICATION.md`、`测试计划.md`、`测试报告.md`
@@ -146,18 +155,9 @@ Standard 路径可继续委托 `superpowers:finishing-a-development-branch`。
 □ 补充了不容易从公开资料直接获得的项目内知识
 ```
 
-**有沉淀价值时**：直接将知识追加到 `docs/knowledge.md` 对应章节，格式参考已有条目。
+**有沉淀价值时**：直接将知识追加到 `docs/knowledge.md` 对应章节，格式参考已有条目。内容质量按 §3 Git Commit 中的自查清单核对。
 
 **无沉淀价值时**：跳过，不强制补写。
-
-**knowledge.md 增量质量自查**（写入后执行）：
-
-```
-□ 新增条目有具体内容，而非"待补充"或空占位
-□ 条目描述了适用场景或约束，不只是结论（例：不只写"用从库"，
-  而写"查询接口必须加 @DS(\"guazi_call_slave\")，否则走主库影响性能"）
-□ 不重复已有条目（检查是否已有同主题的记录）
-```
 
 原则：
 - 不依赖 `notepads/learnings.md` 中间层；有知识直接写入 `docs/knowledge.md`

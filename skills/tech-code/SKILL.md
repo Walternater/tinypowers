@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "9.2"
+  version: "9.3"
 ---
 
 # /tech:code
@@ -95,7 +95,7 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 **编码完成后，进入正式审查前先做决策自查**：
 
 ```
-决策落地自查（逐条核对，5 分钟内完成）
+决策落地自查（逐条核对）
 ----------------------------------------
 逐条读取 技术方案.md 中的"锁定决策"，在代码中定位对应实现：
 □ 每条决策 → 确认有对应代码体现（注解、异常处理、查询路由等）
@@ -111,14 +111,14 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 > 凡在代码中引用项目内的枚举或常量（非 JDK / 框架标准库），必须先读一遍对应定义文件，
 > 确认枚举值存在且命名正确，再写调用代码。不得凭记忆或猜测使用枚举值。
 
-**Java 工程最低限度编译验证**（可选但推荐）：
+**Java 工程编译验证**（强烈推荐）：
 
 ```bash
 mvn compile -q
 ```
 
 - 用于捕获错误 import、不存在的方法引用、编译期类型错误
-- 若工程无法在本地快速编译，可跳过，但此时自查标准应更严格
+- 只有工程确实无法在本地编译时才可跳过；跳过时自查标准应更严格
 - 编译失败 → 修复后再进入 Compliance Review
 
 自查通过后，进入正式审查：
