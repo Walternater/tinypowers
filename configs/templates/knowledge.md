@@ -58,7 +58,7 @@
 
 每次更新前自动备份：
 ```
-.tmp/knowledge-backup/
+.tinypowers/knowledge-backup/
 ├── knowledge-backup-2026-04-08T10-30-00.md
 ├── knowledge-backup-2026-04-09T14-20-15.md
 └── ...
@@ -67,10 +67,10 @@
 如需恢复：
 ```bash
 # 查看最新备份
-ls -la .tmp/knowledge-backup/
+ls -la .tinypowers/knowledge-backup/
 
 # 恢复上一版本
-cp .tmp/knowledge-backup/knowledge-backup-xxxxx.md docs/knowledge.md
+cp .tinypowers/knowledge-backup/knowledge-backup-xxxxx.md docs/knowledge.md
 ```
 
 ### 手动触发
@@ -112,4 +112,4 @@ ANALYSIS_MODE=full /tech:commit
 
 ---
 
-*本文档由 AI 自动维护，人工确认即可。备份位置: .tmp/knowledge-backup/*
+*本文档由 AI 自动维护，人工确认即可。备份位置: .tinypowers/knowledge-backup/*

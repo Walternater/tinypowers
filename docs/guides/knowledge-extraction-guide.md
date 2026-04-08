@@ -42,8 +42,8 @@ node scripts/collect-code-for-analysis.js
 
 找到 3 个变更文件
 📊 统计: 450 行代码, 3 个文件
-📁 输出: .tmp/code-analysis-input.json
-📝 可读版本: .tmp/code-analysis-input.md
+📁 输出: .tinypowers/code-analysis-input.json
+📝 可读版本: .tinypowers/code-analysis-input.md
 ```
 
 #### 步骤 2：生成 AI 分析提示词
@@ -58,12 +58,12 @@ node scripts/extract-knowledge-brainstorm.js
 检测到 3 个代码文件变更
 读取了 3 个文件的内容
 生成 AI 分析提示词...
-✅ 提示词已保存: .tmp/knowledge-extraction-prompt-2026-04-08.md
+✅ 提示词已保存: .tinypowers/knowledge-extraction-prompt-2026-04-08.md
 
 ========== 下一步操作 ==========
 
 1. 打开提示词文件:
-   cat .tmp/knowledge-extraction-prompt-2026-04-08.md
+   cat .tinypowers/knowledge-extraction-prompt-2026-04-08.md
 
 2. 将文件内容发送给 AI（Claude/Codex/Cursor）:
    - 复制文件全部内容
@@ -82,7 +82,7 @@ node scripts/extract-knowledge-brainstorm.js
 
 1. **复制提示词内容**：
    ```bash
-   cat .tmp/knowledge-extraction-prompt-2026-04-08.md | pbcopy  # macOS
+   cat .tinypowers/knowledge-extraction-prompt-2026-04-08.md | pbcopy  # macOS
    # 或手动复制文件内容
    ```
 
@@ -131,13 +131,13 @@ node scripts/ai-knowledge-consolidator.js
 ```
 🤖 启动知识库合并...
 发现知识文件: knowledge-2026-04-08-1712541234567.md
-ℹ️ 已备份原知识库: .tmp/knowledge-backup/knowledge-backup-2026-04-08T10-30-00.md
-✅ 合并提示词已生成: .tmp/knowledge-consolidation-prompt.md
+ℹ️ 已备份原知识库: .tinypowers/knowledge-backup/knowledge-backup-2026-04-08T10-30-00.md
+✅ 合并提示词已生成: .tinypowers/knowledge-consolidation-prompt.md
 
 ========== 下一步操作 ==========
 
 1. 打开合并提示词文件:
-   cat .tmp/knowledge-consolidation-prompt.md
+   cat .tinypowers/knowledge-consolidation-prompt.md
 
 2. 将文件内容发送给 AI（Claude/Codex/Cursor）:
    - 复制文件全部内容
@@ -147,7 +147,7 @@ node scripts/ai-knowledge-consolidator.js
 3. 将 AI 的回复保存到: docs/knowledge.md
 
 4. 如需恢复，备份位置:
-   ls .tmp/knowledge-backup/
+   ls .tinypowers/knowledge-backup/
 ```
 
 执行最后一步：将 AI 返回的合并后知识库保存到 `docs/knowledge.md`
@@ -172,7 +172,7 @@ node scripts/ai-knowledge-consolidator.js
 ### 临时分析文件
 
 ```
-.tmp/
+.tinypowers/
 ├── code-analysis-input.json              # 代码分析结构化数据
 ├── code-analysis-input.md                # 可读版本
 ├── knowledge-extraction-prompt-{date}.md # AI 分析提示词
@@ -204,7 +204,7 @@ docs/ai-extracted/
 每次合并前，系统会自动备份原知识库：
 
 ```
-.tmp/knowledge-backup/knowledge-backup-{timestamp}.md
+.tinypowers/knowledge-backup/knowledge-backup-{timestamp}.md
 ```
 
 ### 手动恢复
@@ -213,13 +213,13 @@ docs/ai-extracted/
 
 ```bash
 # 查看最新备份
-ls -la .tmp/knowledge-backup/
+ls -la .tinypowers/knowledge-backup/
 
 # 恢复上一版本
-cp .tmp/knowledge-backup/knowledge-backup-xxxxx.md docs/knowledge.md
+cp .tinypowers/knowledge-backup/knowledge-backup-xxxxx.md docs/knowledge.md
 
 # 或恢复到今天的第一份备份
-cp .tmp/knowledge-backup/knowledge-backup-$(date +%Y-%m-%d)*.md docs/knowledge.md
+cp .tinypowers/knowledge-backup/knowledge-backup-$(date +%Y-%m-%d)*.md docs/knowledge.md
 ```
 
 ## 最佳实践

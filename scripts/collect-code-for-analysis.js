@@ -10,7 +10,7 @@ const path = require('path');
 const CONFIG = {
   maxFiles: 15,
   maxLinesPerFile: 100,
-  outputFile: '.tmp/code-analysis-input.json',
+  outputFile: '.tinypowers/code-analysis-input.json',
   mode: process.env.ANALYSIS_MODE || 'incremental' // 'incremental' | 'full'
 };
 
@@ -153,12 +153,12 @@ function analyzeProject() {
   
   // 同时输出可读的 Markdown
   const markdown = generateMarkdown(result);
-  fs.writeFileSync('.tmp/code-analysis-input.md', markdown);
+  fs.writeFileSync('.tinypowers/code-analysis-input.md', markdown);
   
   console.log(`\n✅ 分析完成！`);
   console.log(`📊 统计: ${stats.totalLines} 行代码, ${stats.analyzedFiles} 个文件`);
   console.log(`📁 输出: ${CONFIG.outputFile}`);
-  console.log(`📝 可读版本: .tmp/code-analysis-input.md`);
+  console.log(`📝 可读版本: .tinypowers/code-analysis-input.md`);
   
   return result;
 }

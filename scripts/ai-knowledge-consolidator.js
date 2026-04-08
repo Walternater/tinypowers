@@ -16,7 +16,7 @@ const path = require('path');
 const CONFIG = {
   mainKnowledge: 'docs/knowledge.md',
   extractedDir: 'docs/ai-extracted',
-  backupDir: '.tmp/knowledge-backup'
+  backupDir: '.tinypowers/knowledge-backup'
 };
 
 function log(message, type = 'info') {
