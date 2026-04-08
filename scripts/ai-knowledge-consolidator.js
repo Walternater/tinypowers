@@ -9,7 +9,7 @@ const path = require('path');
 
 const CONFIG = {
   mainKnowledge: 'docs/knowledge.md',
-  autoDir: 'docs/auto',
+  autoDir: 'docs/ai-extracted',
   backupDir: '.tmp/knowledge-backup'
 };
 

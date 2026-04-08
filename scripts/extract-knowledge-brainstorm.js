@@ -12,7 +12,7 @@ const { execSync } = require('child_process');
 const CONFIG = {
   maxFilesToAnalyze: 10,      // 最多分析的文件数
   maxCodeLengthPerFile: 3000, // 每个文件最多读取的字符数
-  outputDir: 'docs/auto',     // 知识输出目录
+  outputDir: 'docs/ai-extracted',     // 知识输出目录
   knowledgeMain: 'docs/knowledge.md', // 主知识库文件
   aiModel: process.env.AI_MODEL || 'default',
 };

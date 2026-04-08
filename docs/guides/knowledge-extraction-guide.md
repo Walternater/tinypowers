@@ -19,7 +19,7 @@
     ├── 1. 收集变更代码（git diff）
     ├── 2. AI 分析代码结构和变更
     ├── 3. 提取知识点（模式/决策/实践/风险）
-    ├── 4. 生成报告到 docs/auto/
+    ├── 4. 生成报告到 docs/ai-extracted/
     └── 5. 等待人工确认后合并到主知识库
 ```
 
@@ -85,7 +85,7 @@ node scripts/ai-knowledge-consolidator.js
 ### 知识提取报告
 
 ```
-docs/auto/
+docs/ai-extracted/
 ├── knowledge-2026-04-08-1712541234567.md
 ├── knowledge-2026-04-09-1712634567890.md
 └── ...
@@ -117,7 +117,7 @@ docs/auto/
 ```bash
 💡 请确认 [y/n/e]: e
 
-# 在编辑器中修改 docs/auto/knowledge-xxxxx.md
+# 在编辑器中修改 docs/ai-extracted/knowledge-xxxxx.md
 # 保存后确认合并
 ```
 
@@ -129,7 +129,7 @@ docs/auto/
 💡 请确认 [y/n/e]: n
 
 ⏭️  已跳过本次知识沉淀
-📄 报告仍保留在 docs/auto/，可稍后手动查看
+📄 报告仍保留在 docs/ai-extracted/，可稍后手动查看
 ```
 
 ## 备份与恢复

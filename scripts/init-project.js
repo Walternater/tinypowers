@@ -374,7 +374,7 @@ function verifyProject(projectRoot, installRoot, includeMysql, skipKnowledge) {
     // 知识提取基础设施验证
     checks.push(['scripts/collect-code-for-analysis.js', () => fs.existsSync(path.join(projectRoot, 'scripts', 'collect-code-for-analysis.js'))]);
     checks.push(['scripts/ai-knowledge-consolidator.js', () => fs.existsSync(path.join(projectRoot, 'scripts', 'ai-knowledge-consolidator.js'))]);
-    checks.push(['docs/auto/', () => fs.existsSync(path.join(projectRoot, 'docs', 'auto'))]);
+    checks.push(['docs/ai-extracted/', () => fs.existsSync(path.join(projectRoot, 'docs', 'auto'))]);
   }
 
   const mysqlRulesSource = path.join(installRoot, 'configs', 'rules', 'mysql');
@@ -481,7 +481,7 @@ function main() {
   
   // 3. 创建知识自动提取目录
   ensureDir(path.join(projectRoot, 'docs', 'auto'));
-  created.push('docs/auto/');
+  created.push('docs/ai-extracted/');
   
   // 4. 创建知识备份目录
   ensureDir(path.join(projectRoot, '.tmp', 'knowledge-backup'));
