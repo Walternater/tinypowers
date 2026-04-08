@@ -60,7 +60,7 @@ metadata:
 检测本地安装的 tinypowers 是否落后于远端版本：
 
 ```bash
-node "${TINYPOWERS_DIR}/scripts/check-version.js" --install-root "${TINYPOWERS_DIR}"
+node scripts/check-version.js
 ```
 
 **输出处理**：
@@ -121,7 +121,7 @@ node "${TINYPOWERS_DIR}/scripts/check-version.js" --install-root "${TINYPOWERS_D
 真正落地动作由脚本完成，脚本执行完毕后会**自动运行内置验证**，无需额外调用其他脚本：
 
 ```bash
-node "${TINYPOWERS_DIR}/scripts/init-project.js" \
+node scripts/init-project.js \
   --root . \
   --project-name {project_name} \
   --tech-stack "Java (Maven)" \
