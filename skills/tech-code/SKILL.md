@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "9.1"
+  version: "9.2"
 ---
 
 # /tech:code
@@ -105,6 +105,21 @@ node "${TINYPOWERS_DIR}/scripts/update-spec-state.js" \
 目的：把"本应在编码阶段发现的低级问题"拦截在自查阶段，
      减少 Compliance Review 的无效往返。
 ```
+
+**编码规范补充**：
+
+> 凡在代码中引用项目内的枚举或常量（非 JDK / 框架标准库），必须先读一遍对应定义文件，
+> 确认枚举值存在且命名正确，再写调用代码。不得凭记忆或猜测使用枚举值。
+
+**Java 工程最低限度编译验证**（可选但推荐）：
+
+```bash
+mvn compile -q
+```
+
+- 用于捕获错误 import、不存在的方法引用、编译期类型错误
+- 若工程无法在本地快速编译，可跳过，但此时自查标准应更严格
+- 编译失败 → 修复后再进入 Compliance Review
 
 自查通过后，进入正式审查：
 

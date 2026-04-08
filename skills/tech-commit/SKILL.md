@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.1"
+  version: "5.2"
 ---
 
 # /tech:commit
@@ -149,6 +149,15 @@ Standard 路径可继续委托 `superpowers:finishing-a-development-branch`。
 **有沉淀价值时**：直接将知识追加到 `docs/knowledge.md` 对应章节，格式参考已有条目。
 
 **无沉淀价值时**：跳过，不强制补写。
+
+**knowledge.md 增量质量自查**（写入后执行）：
+
+```
+□ 新增条目有具体内容，而非"待补充"或空占位
+□ 条目描述了适用场景或约束，不只是结论（例：不只写"用从库"，
+  而写"查询接口必须加 @DS(\"guazi_call_slave\")，否则走主库影响性能"）
+□ 不重复已有条目（检查是否已有同主题的记录）
+```
 
 原则：
 - 不依赖 `notepads/learnings.md` 中间层；有知识直接写入 `docs/knowledge.md`

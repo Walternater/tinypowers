@@ -5,7 +5,7 @@ license: MIT
 compatibility: Claude Code
 metadata:
   author: tinypowers
-  version: "5.1"
+  version: "5.2"
 ---
 
 # /tech:init
@@ -224,6 +224,19 @@ node "$TINYPOWERS_DIR/scripts/init-project.js" \
 推荐策略：
 - 第一次 init：先用 `brainstorming` 汇总 README、代码结构、配置和工程背景，再整理到 `docs/knowledge.md`
 - 后续 update：只增量修正过期内容，不重复做完整梳理
+
+**brainstorming 执行确认**（第一次 init 时必须显式确认，不可静默跳过）：
+
+```
+brainstorming 执行检查
+----------------------
+□ 已读取 README.md（如存在）
+□ 已采样 src/ 下至少 2 个有代表性的文件（Controller / Service / config）
+□ 已检查 application.yml / application.properties 中的数据源、中间件配置
+□ 已将上述内容中的项目特有信息整理到 docs/knowledge.md
+```
+
+仅当以上 4 项全部完成，才视为 brainstorming 步骤已执行。未完成时不得跳到 5.3 验收。
 
 只记录模型无法从公开资料获取或无法仅靠通用经验可靠推断的内容。
 
