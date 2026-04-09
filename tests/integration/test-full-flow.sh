@@ -89,10 +89,11 @@ EOF
 # 更新报告总结
 finalize_report() {
     local result="$1"
-    sed -i '' "s/{{TESTS_TOTAL}}/$TESTS_TOTAL/g" "$REPORT_FILE"
-    sed -i '' "s/{{TESTS_PASSED}}/$TESTS_PASSED/g" "$REPORT_FILE"
-    sed -i '' "s/{{TESTS_FAILED}}/$TESTS_FAILED/g" "$REPORT_FILE"
-    sed -i '' "s/{{RESULT}}/$result/g" "$REPORT_FILE"
+    sed -i.bak "s/{{TESTS_TOTAL}}/$TESTS_TOTAL/g" "$REPORT_FILE"
+    sed -i.bak "s/{{TESTS_PASSED}}/$TESTS_PASSED/g" "$REPORT_FILE"
+    sed -i.bak "s/{{TESTS_FAILED}}/$TESTS_FAILED/g" "$REPORT_FILE"
+    sed -i.bak "s/{{RESULT}}/$result/g" "$REPORT_FILE"
+    rm -f "$REPORT_FILE.bak"
 }
 
 # 清理测试目录
