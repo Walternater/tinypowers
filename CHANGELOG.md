@@ -53,3 +53,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Knowledge Flywheel** - docs/knowledge.md accumulates conventions and gotchas across iterations
 
 [1.0.0]: https://github.com/wcf/tinypowers/releases/tag/v1.0.0
+
+## [1.0.1] - 2026-04-09
+
+### Fixed
+
+- Cross-platform compatibility for test scripts - Changed macOS-specific `sed -i ''` to `sed -i.bak` in all integration test scripts
+
+### Added
+
+- Complete v1.0 implementation with full documentation
+- `.planning/v1.0/` with detailed PLAN.md, CONTEXT.md, and END-TO-END-REVIEW.md
+- All SKILL.md files for four core skills (tech-init, tech-feature, tech-code, tech-commit)
+- All gate scripts (CHECK-1, CHECK-2 enter/exit)
+- compliance-reviewer Agent with 5-dimension review
+- Full integration test suite (35 test cases, all passing)
+- End-to-end review report with 9.0/10 score
+
+[1.0.1]: https://github.com/wcf/tinypowers/releases/tag/v1.0.1
