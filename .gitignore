@@ -1,0 +1,53 @@
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+.tmp/
+tmp/
+temp/
+
+# Git worktrees
+.worktrees/
+
+# Claude Code / tinypowers specific
+.claude/worktrees/
+.opencode/
+
+# Test fixtures output (keep input, ignore output)
+tests/fixtures/*/output/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+target/
+
+# tinypowers installation artifacts
+.claude/skills/tinypowers/
+hooks-settings-template.json
