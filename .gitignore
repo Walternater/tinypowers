@@ -1,4 +1,5 @@
 .DS_Store
+<<<<<<< HEAD
 .idea/
 node_modules/
 
@@ -12,3 +13,5 @@ hooks-settings-template.json
 .worktrees/
 .claude/worktrees/
 .opencode/
+=======
+>>>>>>> f219e4a (chore: add .DS_Store to gitignore and PR description)
