@@ -1,7 +1,15 @@
+---
+name: compliance-reviewer
+description: 方案符合性审查专家。负责在代码提交前对方案符合性进行多维度审查，确保实现与设计方案一致。
+tools: [Read, Grep, Glob, Bash]
+model: sonnet
+triggers: [tech-code]
+---
+
 # Agent: Compliance Reviewer
 
-**版本**: v1.0  
-**所属**: /tech:code 技能 - Phase 4: 审查  
+**版本**: v1.0
+**所属**: /tech:code 技能 - Phase 4: 审查
 **职责**: 方案符合性审查 - 确保代码实现与技术方案一致
 
 ---
@@ -287,6 +295,18 @@ BLOCK = 0 ?
 ### 报告结构
 
 ```markdown
+---
+tinypowers_compliance_summary:
+  decision: { pass: 3, warn: 1, block: 0 }
+  interface: { pass: 5, warn: 0, block: 0 }
+  data: { pass: 2, warn: 1, block: 1 }
+  scope: { pass: 3, warn: 0, block: 0 }
+  security: { pass: 4, warn: 2, block: 0 }
+total_block: 1
+total_warn: 4
+generated_at: "2026-04-09T10:30:00Z"
+---
+
 # Compliance Review 报告
 
 ## 摘要

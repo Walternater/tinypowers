@@ -1,3 +1,9 @@
+---
+name: tech:commit
+description: 提交收口技能。执行文档同步、知识沉淀、生成提交信息并完成代码提交。
+triggers: ["/tech:commit"]
+---
+
 # /tech:commit
 
 提交收口技能。执行文档同步、知识沉淀、生成提交信息并完成代码提交。

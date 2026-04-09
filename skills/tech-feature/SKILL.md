@@ -1,3 +1,9 @@
+---
+name: tech:feature
+description: 功能规划技能。引导需求分析，生成 PRD、技术方案和任务拆解文档。
+triggers: ["/tech:feature"]
+---
+
 # /tech:feature
 
 功能规划技能。引导需求分析，生成 PRD、技术方案和任务拆解文档。

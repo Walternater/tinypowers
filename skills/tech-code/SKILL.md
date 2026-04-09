@@ -1,3 +1,9 @@
+---
+name: tech:code
+description: 代码开发技能。执行编码任务，进行模式扫描、合规审查和 CHECK-2 门禁控制。
+triggers: ["/tech:code"]
+---
+
 # /tech:code
 
 代码开发技能。执行编码任务，进行模式扫描、合规审查和 CHECK-2 门禁控制。

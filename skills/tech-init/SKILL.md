@@ -1,3 +1,9 @@
+---
+name: tech:init
+description: 项目初始化技能。检测技术栈并生成项目入口文档和领域知识骨架。
+triggers: ["/tech:init"]
+---
+
 # /tech:init
 
 项目初始化技能。检测技术栈并生成项目入口文档和领域知识骨架。

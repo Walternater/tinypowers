@@ -47,3 +47,7 @@ tests/fixtures/*/output/
 dist/
 build/
 target/
+
+# tinypowers installation artifacts
+.claude/skills/tinypowers/
+hooks-settings-template.json
