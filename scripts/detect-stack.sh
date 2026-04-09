@@ -18,6 +18,11 @@ if [ ! -d "$PROJECT_PATH" ]; then
     exit 1
 fi
 
+# 检测优先级：Maven > Gradle
+# 理由：如果项目同时存在 pom.xml 和 build.gradle（如迁移期项目或多模块项目），
+# 优先使用 Maven 作为当前活跃构建工具
+# 如需强制指定，可设置 FORCE_BUILD_TOOL 环境变量覆盖
+
 # 检测 Maven
 if [ -f "$PROJECT_PATH/pom.xml" ]; then
     echo '{"stack":"java","buildTool":"maven","detectedAt":"'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"}'

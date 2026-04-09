@@ -65,4 +65,11 @@ tests/fixtures/*/output/
 dist/
 build/
 target/
+<<<<<<< HEAD
 >>>>>>> 342b38e (fix: restore comprehensive .gitignore and remove .idea/ from git)
+=======
+
+# tinypowers installation artifacts
+.claude/skills/tinypowers/
+hooks-settings-template.json
+>>>>>>> 3dae26e (fix: 修复审查报告中的 P1 问题)

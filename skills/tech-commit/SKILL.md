@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 ---
 name: tech:commit
 description: 当用户要求提交代码、创建 PR、同步文档、或完成 feature 收口时触发。
@@ -175,6 +176,14 @@ Standard 路径可继续委托 `superpowers:finishing-a-development-branch`。
 **委托 superpowers**:
 - Standard 提交收口 → `superpowers:finishing-a-development-branch`
 =======
+=======
+---
+name: tech:commit
+description: 提交收口技能。执行文档同步、知识沉淀、生成提交信息并完成代码提交。
+triggers: ["/tech:commit"]
+---
+
+>>>>>>> 3dae26e (fix: 修复审查报告中的 P1 问题)
 # /tech:commit
 
 提交收口技能。执行文档同步、知识沉淀、生成提交信息并完成代码提交。

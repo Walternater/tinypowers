@@ -54,7 +54,7 @@ elif [ -f "$WORKTREE_DIR/build.gradle" ] || [ -f "$WORKTREE_DIR/build.gradle.kts
 fi
 
 echo ""
-read -p "代码是否已编译通过? (yes/no): " COMPILE_CONFIRM
+read -r -p "代码是否已编译通过? (yes/no): " COMPILE_CONFIRM 2>/dev/null || COMPILE_CONFIRM="no"
 if [ "$COMPILE_CONFIRM" = "yes" ] || [ "$COMPILE_CONFIRM" = "y" ]; then
     echo -e "${GREEN}PASS${NC} 代码编译通过 (人工确认)"
 else
@@ -67,18 +67,22 @@ echo ""
 echo "□ compliance-reviewer 通过 ..."
 COMPLIANCE_FILE="$PROJECT_DIR/compliance-review-report.md"
 if [ -f "$COMPLIANCE_FILE" ]; then
-    # 解析 BLOCK 和 WARN 数量
-    COMPLIANCE_BLOCK_RAW=$(grep -oE "BLOCK.*[0-9]+" "$COMPLIANCE_FILE" | grep -oE "[0-9]+$" | head -1 || true)
-    COMPLIANCE_WARN_RAW=$(grep -oE "WARN.*[0-9]+" "$COMPLIANCE_FILE" | grep -oE "[0-9]+$" | head -1 || true)
+    # 解析 BLOCK 和 WARN 数量（优先从 YAML front matter 读取）
+    COMPLIANCE_BLOCK=0
+    COMPLIANCE_WARN=0
 
-    # 设置默认值
-    COMPLIANCE_BLOCK="${COMPLIANCE_BLOCK_RAW:-0}"
-    COMPLIANCE_WARN="${COMPLIANCE_WARN_RAW:-0}"
-
-    # 如果上面没取到，尝试其他格式
-    if [ "$COMPLIANCE_BLOCK" = "0" ]; then
-        BLOCK_COUNT=$(grep -cE "^\s*-\s*\[\s*\].*BLOCK" "$COMPLIANCE_FILE" 2>/dev/null || echo "0")
-        COMPLIANCE_BLOCK="$BLOCK_COUNT"
+    # 尝试从机器可读的 front matter 提取
+    if grep -q "^tinypowers_compliance_summary:" "$COMPLIANCE_FILE" 2>/dev/null; then
+        TOTAL_BLOCK=$(grep -E "^total_block:" "$COMPLIANCE_FILE" | tail -1 | sed 's/.*://' | tr -d ' ' || echo "0")
+        TOTAL_WARN=$(grep -E "^total_warn:" "$COMPLIANCE_FILE" | tail -1 | sed 's/.*://' | tr -d ' ' || echo "0")
+        COMPLIANCE_BLOCK="${TOTAL_BLOCK:-0}"
+        COMPLIANCE_WARN="${TOTAL_WARN:-0}"
+    else
+        # 回退：从摘要表格解析
+        COMPLIANCE_BLOCK_RAW=$(grep -oE "BLOCK.*[0-9]+" "$COMPLIANCE_FILE" | grep -oE "[0-9]+$" | head -1 || true)
+        COMPLIANCE_WARN_RAW=$(grep -oE "WARN.*[0-9]+" "$COMPLIANCE_FILE" | grep -oE "[0-9]+$" | head -1 || true)
+        COMPLIANCE_BLOCK="${COMPLIANCE_BLOCK_RAW:-0}"
+        COMPLIANCE_WARN="${COMPLIANCE_WARN_RAW:-0}"
     fi
 
     # 确保是数字
@@ -104,7 +108,7 @@ if [ -f "$COMPLIANCE_FILE" ]; then
 else
     echo -e "${YELLOW}WARN${NC} compliance-review-report.md 不存在"
     echo "       建议运行 compliance-reviewer 审查后再检查"
-    read -p "是否继续? (yes/no): " CONTINUE
+    read -r -p "是否继续? (yes/no): " CONTINUE 2>/dev/null || CONTINUE="no"
     if [ "$CONTINUE" != "yes" ] && [ "$CONTINUE" != "y" ]; then
         EXIT_CODE=1
     fi
@@ -121,7 +125,7 @@ echo "  - 已创建 Pull Request / Merge Request"
 echo "  - 代码审查已完成"
 echo "  - 审查意见已处理"
 echo ""
-read -p "代码审查是否已完成? (yes/no): " REVIEW_CONFIRM
+read -r -p "代码审查是否已完成? (yes/no): " REVIEW_CONFIRM 2>/dev/null || REVIEW_CONFIRM="no"
 if [ "$REVIEW_CONFIRM" = "yes" ] || [ "$REVIEW_CONFIRM" = "y" ]; then
     echo -e "${GREEN}PASS${NC} requesting-code-review 通过 (人工确认)"
 else
@@ -140,7 +144,7 @@ echo "  - 单元测试通过"
 echo "  - 集成测试通过"
 echo "  - 验收标准已验证"
 echo ""
-read -p "验证是否已完成? (yes/no): " VERIFY_CONFIRM
+read -r -p "验证是否已完成? (yes/no): " VERIFY_CONFIRM 2>/dev/null || VERIFY_CONFIRM="no"
 if [ "$VERIFY_CONFIRM" = "yes" ] || [ "$VERIFY_CONFIRM" = "y" ]; then
     echo -e "${GREEN}PASS${NC} verification-before-completion 通过 (人工确认)"
 else

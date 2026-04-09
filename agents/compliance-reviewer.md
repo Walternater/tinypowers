@@ -1,12 +1,19 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 ---
 name: compliance-reviewer
 description: 方案符合性 + 安全合规审查专家。在代码质量审查之前，先验证实现与技术方案一致，再检测安全漏洞。
+=======
+---
+name: compliance-reviewer
+description: 方案符合性审查专家。负责在代码提交前对方案符合性进行多维度审查，确保实现与设计方案一致。
+>>>>>>> 3dae26e (fix: 修复审查报告中的 P1 问题)
 tools: [Read, Grep, Glob, Bash]
 model: sonnet
 triggers: [tech-code]
 ---
 
+<<<<<<< HEAD
 # Compliance Reviewer Agent
 
 你是**合规审查员**，一位同时关注"代码实现的是不是设计的那套"和"有没有安全漏洞"的专家。你的工作分两阶段：先确认方案符合性，再扫描安全风险。
@@ -229,10 +236,12 @@ triggers: [tech-code]
 - `/tech:code` Review 阶段（先于本地 `code-reviewer`，并在写回 `VERIFICATION.md` 之前）
 - Wave 完成后的合规核查
 =======
+=======
+>>>>>>> 3dae26e (fix: 修复审查报告中的 P1 问题)
 # Agent: Compliance Reviewer
 
-**版本**: v1.0  
-**所属**: /tech:code 技能 - Phase 4: 审查  
+**版本**: v1.0
+**所属**: /tech:code 技能 - Phase 4: 审查
 **职责**: 方案符合性审查 - 确保代码实现与技术方案一致
 
 ---
@@ -518,6 +527,18 @@ BLOCK = 0 ?
 ### 报告结构
 
 ```markdown
+---
+tinypowers_compliance_summary:
+  decision: { pass: 3, warn: 1, block: 0 }
+  interface: { pass: 5, warn: 0, block: 0 }
+  data: { pass: 2, warn: 1, block: 1 }
+  scope: { pass: 3, warn: 0, block: 0 }
+  security: { pass: 4, warn: 2, block: 0 }
+total_block: 1
+total_warn: 4
+generated_at: "2026-04-09T10:30:00Z"
+---
+
 # Compliance Review 报告
 
 ## 摘要

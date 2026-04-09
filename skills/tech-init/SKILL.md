@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 ---
 name: tech:init
 description: 当用户在全新项目中首次使用、或要求重新初始化 AI 开发环境时触发。
@@ -280,6 +281,14 @@ init 最后一步：确认 `docs/knowledge.md` 有实质内容，而不是空壳
 - `scripts/validate.js` 是 tinypowers 框架自身的组件校验器，**不适合**在目标项目初始化流程中调用
 - `docs/knowledge.md` 内容空白 ≠ init 完成；只有通过 5.3 验收标准才算真正完成
 =======
+=======
+---
+name: tech:init
+description: 项目初始化技能。检测技术栈并生成项目入口文档和领域知识骨架。
+triggers: ["/tech:init"]
+---
+
+>>>>>>> 3dae26e (fix: 修复审查报告中的 P1 问题)
 # /tech:init
 
 项目初始化技能。检测技术栈并生成项目入口文档和领域知识骨架。

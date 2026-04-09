@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 ---
 name: tech:feature
 description: 当用户开始新功能需求、需求模糊不完整、或需要先做技术方案和任务拆解时触发。
@@ -188,6 +189,14 @@ Standard 需要显式表达依赖和建议顺序。
 - 任务的验收标准不能只有"功能正常"这类空描述
 - `SPEC-STATE.md` 是辅助门禁，不是 feature 阶段的主产物
 =======
+=======
+---
+name: tech:feature
+description: 功能规划技能。引导需求分析，生成 PRD、技术方案和任务拆解文档。
+triggers: ["/tech:feature"]
+---
+
+>>>>>>> 3dae26e (fix: 修复审查报告中的 P1 问题)
 # /tech:feature
 
 功能规划技能。引导需求分析，生成 PRD、技术方案和任务拆解文档。

@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 ---
 name: tech:code
 description: 当用户要求执行已规划的任务、开始编码实现、或继续未完成的执行时触发。
@@ -239,6 +240,14 @@ features/{id}-{name}/
 **配套脚本**:
 - 审查结果写回 `VERIFICATION.md` → `scripts/update-verification.js`
 =======
+=======
+---
+name: tech:code
+description: 代码开发技能。执行编码任务，进行模式扫描、合规审查和 CHECK-2 门禁控制。
+triggers: ["/tech:code"]
+---
+
+>>>>>>> 3dae26e (fix: 修复审查报告中的 P1 问题)
 # /tech:code
 
 代码开发技能。执行编码任务，进行模式扫描、合规审查和 CHECK-2 门禁控制。
