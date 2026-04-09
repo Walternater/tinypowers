@@ -1,0 +1,3717 @@
+Index: .claude/hooks/gsd-context-monitor.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.claude/hooks/gsd-context-monitor.js b/.claude/hooks/gsd-context-monitor.js
+new file mode 100644
+--- /dev/null	(date 1775185612976)
++++ b/.claude/hooks/gsd-context-monitor.js	(date 1775185612976)
+@@ -0,0 +1,156 @@
++#!/usr/bin/env node
++// gsd-hook-version: 1.29.0
++// Context Monitor - PostToolUse/AfterTool hook (Gemini uses AfterTool)
++// Reads context metrics from the statusline bridge file and injects
++// warnings when context usage is high. This makes the AGENT aware of
++// context limits (the statusline only shows the user).
++//
++// How it works:
++// 1. The statusline hook writes metrics to /tmp/claude-ctx-{session_id}.json
++// 2. This hook reads those metrics after each tool use
++// 3. When remaining context drops below thresholds, it injects a warning
++//    as additionalContext, which the agent sees in its conversation
++//
++// Thresholds:
++//   WARNING  (remaining <= 35%): Agent should wrap up current task
++//   CRITICAL (remaining <= 25%): Agent should stop immediately and save state
++//
++// Debounce: 5 tool uses between warnings to avoid spam
++// Severity escalation bypasses debounce (WARNING -> CRITICAL fires immediately)
++
++const fs = require('fs');
++const os = require('os');
++const path = require('path');
++
++const WARNING_THRESHOLD = 35;  // remaining_percentage <= 35%
++const CRITICAL_THRESHOLD = 25; // remaining_percentage <= 25%
++const STALE_SECONDS = 60;      // ignore metrics older than 60s
++const DEBOUNCE_CALLS = 5;      // min tool uses between warnings
++
++let input = '';
++// Timeout guard: if stdin doesn't close within 10s (e.g. pipe issues on
++// Windows/Git Bash, or slow Claude Code piping during large outputs),
++// exit silently instead of hanging until Claude Code kills the process
++// and reports "hook error". See #775, #1162.
++const stdinTimeout = setTimeout(() => process.exit(0), 10000);
++process.stdin.setEncoding('utf8');
++process.stdin.on('data', chunk => input += chunk);
++process.stdin.on('end', () => {
++  clearTimeout(stdinTimeout);
++  try {
++    const data = JSON.parse(input);
++    const sessionId = data.session_id;
++
++    if (!sessionId) {
++      process.exit(0);
++    }
++
++    // Check if context warnings are disabled via config
++    const cwd = data.cwd || process.cwd();
++    const configPath = path.join(cwd, '.planning', 'config.json');
++    if (fs.existsSync(configPath)) {
++      try {
++        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
++        if (config.hooks?.context_warnings === false) {
++          process.exit(0);
++        }
++      } catch (e) {
++        // Ignore config parse errors
++      }
++    }
++
++    const tmpDir = os.tmpdir();
++    const metricsPath = path.join(tmpDir, `claude-ctx-${sessionId}.json`);
++
++    // If no metrics file, this is a subagent or fresh session -- exit silently
++    if (!fs.existsSync(metricsPath)) {
++      process.exit(0);
++    }
++
++    const metrics = JSON.parse(fs.readFileSync(metricsPath, 'utf8'));
++    const now = Math.floor(Date.now() / 1000);
++
++    // Ignore stale metrics
++    if (metrics.timestamp && (now - metrics.timestamp) > STALE_SECONDS) {
++      process.exit(0);
++    }
++
++    const remaining = metrics.remaining_percentage;
++    const usedPct = metrics.used_pct;
++
++    // No warning needed
++    if (remaining > WARNING_THRESHOLD) {
++      process.exit(0);
++    }
++
++    // Debounce: check if we warned recently
++    const warnPath = path.join(tmpDir, `claude-ctx-${sessionId}-warned.json`);
++    let warnData = { callsSinceWarn: 0, lastLevel: null };
++    let firstWarn = true;
++
++    if (fs.existsSync(warnPath)) {
++      try {
++        warnData = JSON.parse(fs.readFileSync(warnPath, 'utf8'));
++        firstWarn = false;
++      } catch (e) {
++        // Corrupted file, reset
++      }
++    }
++
++    warnData.callsSinceWarn = (warnData.callsSinceWarn || 0) + 1;
++
++    const isCritical = remaining <= CRITICAL_THRESHOLD;
++    const currentLevel = isCritical ? 'critical' : 'warning';
++
++    // Emit immediately on first warning, then debounce subsequent ones
++    // Severity escalation (WARNING -> CRITICAL) bypasses debounce
++    const severityEscalated = currentLevel === 'critical' && warnData.lastLevel === 'warning';
++    if (!firstWarn && warnData.callsSinceWarn < DEBOUNCE_CALLS && !severityEscalated) {
++      // Update counter and exit without warning
++      fs.writeFileSync(warnPath, JSON.stringify(warnData));
++      process.exit(0);
++    }
++
++    // Reset debounce counter
++    warnData.callsSinceWarn = 0;
++    warnData.lastLevel = currentLevel;
++    fs.writeFileSync(warnPath, JSON.stringify(warnData));
++
++    // Detect if GSD is active (has .planning/STATE.md in working directory)
++    const isGsdActive = fs.existsSync(path.join(cwd, '.planning', 'STATE.md'));
++
++    // Build advisory warning message (never use imperative commands that
++    // override user preferences — see #884)
++    let message;
++    if (isCritical) {
++      message = isGsdActive
++        ? `CONTEXT CRITICAL: Usage at ${usedPct}%. Remaining: ${remaining}%. ` +
++          'Context is nearly exhausted. Do NOT start new complex work or write handoff files — ' +
++          'GSD state is already tracked in STATE.md. Inform the user so they can run ' +
++          '/gsd:pause-work at the next natural stopping point.'
++        : `CONTEXT CRITICAL: Usage at ${usedPct}%. Remaining: ${remaining}%. ` +
++          'Context is nearly exhausted. Inform the user that context is low and ask how they ' +
++          'want to proceed. Do NOT autonomously save state or write handoff files unless the user asks.';
++    } else {
++      message = isGsdActive
++        ? `CONTEXT WARNING: Usage at ${usedPct}%. Remaining: ${remaining}%. ` +
++          'Context is getting limited. Avoid starting new complex work. If not between ' +
++          'defined plan steps, inform the user so they can prepare to pause.'
++        : `CONTEXT WARNING: Usage at ${usedPct}%. Remaining: ${remaining}%. ` +
++          'Be aware that context is getting limited. Avoid unnecessary exploration or ' +
++          'starting new complex work.';
++    }
++
++    const output = {
++      hookSpecificOutput: {
++        hookEventName: process.env.GEMINI_API_KEY ? "AfterTool" : "PostToolUse",
++        additionalContext: message
++      }
++    };
++
++    process.stdout.write(JSON.stringify(output));
++  } catch (e) {
++    // Silent fail -- never block tool execution
++    process.exit(0);
++  }
++});
+Index: .claude/hooks/gsd-code-checker.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.claude/hooks/gsd-code-checker.js b/.claude/hooks/gsd-code-checker.js
+new file mode 100644
+--- /dev/null	(date 1775185612976)
++++ b/.claude/hooks/gsd-code-checker.js	(date 1775185612976)
+@@ -0,0 +1,235 @@
++#!/usr/bin/env node
++// gsd-code-checker.js
++// Strict-mode code check reminder + Residual debug code detector
++
++const fs = require('fs');
++const os = require('os');
++const path = require('path');
++const { execSync } = require('child_process');
++
++const HOOK_LEVEL = process.env.TINYPOWERS_HOOK_LEVEL || 'standard';
++const HOOK_TYPE = process.argv[2] || 'PostToolUse';
++
++const JAVA_DEBUG_PATTERNS = [
++  { pattern: /System\.out\.print/, label: 'System.out.print', level: 'BLOCK' },
++  { pattern: /System\.err\.print/, label: 'System.err.print', level: 'BLOCK' },
++  { pattern: /@SuppressWarnings\("all"\)/, label: '@SuppressWarnings("all")', level: 'WARNING' },
++];
++
++const JS_DEBUG_PATTERNS = [
++  { pattern: /console\.log\(/, label: 'console.log', level: 'WARNING' },
++];
++
++const VALIDATION_COMMANDS = [
++  /\bmvn\b.*\b(test|verify|compile|checkstyle:check|spotbugs:check|formatter:validate)\b/i,
++  /\bgradle\b.*\b(test|check|build)\b/i,
++  /\bgradlew\b.*\b(test|check|build)\b/i,
++  /\bnpm\b.*\b(test|lint|check|typecheck)\b/i,
++  /\bpnpm\b.*\b(test|lint|check|typecheck)\b/i,
++  /\byarn\b.*\b(test|lint|check|typecheck)\b/i,
++  /\bpytest\b/i,
++  /\bgo test\b/i
++];
++const REMINDER_INTERVAL = 4;
++
++function getModifiedFiles(cwd) {
++  try {
++    const output = execSync(
++      'git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null || git diff --name-only --cached 2>/dev/null',
++      { cwd, encoding: 'utf8', timeout: 5000 }
++    );
++    return output.split('\n').map(line => line.trim()).filter(Boolean);
++  } catch {
++    return [];
++  }
++}
++
++function buildSuggestions(files) {
++  const suggestions = [];
++
++  if (files.some(file => file.endsWith('.java') || file === 'pom.xml' || file.startsWith('src/main'))) {
++    suggestions.push('mvn test');
++  }
++  if (files.some(file => file.endsWith('.js') || file.endsWith('.ts') || file === 'package.json')) {
++    suggestions.push('npm test');
++  }
++  if (files.some(file => file.endsWith('.sql') || file.includes('db/') || file.includes('migration'))) {
++    suggestions.push('检查 DDL / migration 与技术方案、测试数据是否一致');
++  }
++
++  if (suggestions.length === 0) {
++    suggestions.push('运行与你当前改动匹配的最小验证命令');
++  }
++
++  return suggestions;
++}
++
++function getStatePath(sessionId) {
++  const suffix = sessionId || 'default';
++  return path.join(os.tmpdir(), `tinypowers-strict-check-${suffix}.json`);
++}
++
++function handleStop(cwd) {
++  const modifiedFiles = getModifiedFiles(cwd);
++  if (modifiedFiles.length === 0) {
++    process.exit(0);
++  }
++
++  const issues = [];
++  for (const file of modifiedFiles) {
++    const fullPath = path.join(cwd, file);
++    if (!fs.existsSync(fullPath)) continue;
++
++    const ext = path.extname(file);
++    let patterns = [];
++
++    if (ext === '.java') {
++      patterns = [...JAVA_DEBUG_PATTERNS];
++    } else if (ext === '.js' || ext === '.ts' || ext === '.jsx' || ext === '.tsx') {
++      patterns = [...JS_DEBUG_PATTERNS];
++    } else {
++      continue;
++    }
++
++    let content;
++    try {
++      content = fs.readFileSync(fullPath, 'utf8');
++    } catch (e) {
++      continue;
++    }
++
++    const lines = content.split('\n');
++    for (const { pattern, label, level } of patterns) {
++      for (let i = 0; i < lines.length; i++) {
++        if (pattern.test(lines[i])) {
++          issues.push({ level, label, file, line: i + 1 });
++          break;
++        }
++      }
++    }
++  }
++
++  if (issues.length === 0) {
++    process.exit(0);
++  }
++
++  const blocks = issues.filter(i => i.level === 'BLOCK');
++  const warns = issues.filter(i => i.level === 'WARNING');
++
++  let msg = '残留代码检查结果：\n';
++  if (blocks.length > 0) {
++    msg += '\nBLOCK（必须修复）：\n';
++    for (const b of blocks) {
++      msg += `  - ${b.label} in ${b.file}:${b.line}\n`;
++    }
++  }
++  if (warns.length > 0) {
++    msg += '\nWARNING（建议清理）：\n';
++    for (const w of warns) {
++      msg += `  - ${w.label} in ${w.file}:${w.line}\n`;
++    }
++  }
++  msg += '\n如果是调试临时代码，请清理后再提交。';
++
++  process.stdout.write(JSON.stringify({
++    hookSpecificOutput: {
++      hookEventName: 'Stop',
++      additionalContext: msg
++    }
++  }));
++}
++
++if (HOOK_TYPE === 'Stop') {
++  let input = '';
++  const stdinTimeout = setTimeout(() => process.exit(0), 5000);
++  process.stdin.setEncoding('utf8');
++  process.stdin.on('data', chunk => input += chunk);
++  process.stdin.on('end', () => {
++    clearTimeout(stdinTimeout);
++    try {
++      const data = JSON.parse(input);
++      const cwd = data.workspace?.cwd || data.cwd || process.cwd();
++      handleStop(cwd);
++    } catch {
++      process.exit(0);
++    }
++  });
++} else {
++  let input = '';
++  const stdinTimeout = setTimeout(() => process.exit(0), 10000);
++  process.stdin.setEncoding('utf8');
++  process.stdin.on('data', chunk => input += chunk);
++  process.stdin.on('end', () => {
++    clearTimeout(stdinTimeout);
++
++    if (HOOK_LEVEL !== 'strict') {
++      process.exit(0);
++    }
++
++    try {
++      const data = JSON.parse(input);
++      const toolName = data.tool_name;
++      const toolArgs = data.tool_args || {};
++      const cwd = data.cwd || toolArgs.cwd || process.cwd();
++      const sessionId = data.session_id;
++      const statePath = getStatePath(sessionId);
++
++      if (!['Bash', 'Edit', 'Write', 'MultiEdit'].includes(toolName)) {
++        process.exit(0);
++      }
++
++      const command = String(toolArgs.command || '').trim();
++      if (toolName === 'Bash' && VALIDATION_COMMANDS.some(pattern => pattern.test(command))) {
++        fs.writeFileSync(statePath, JSON.stringify({ sinceReminder: 0 }, null, 2));
++        process.exit(0);
++      }
++
++      const modifiedFiles = getModifiedFiles(cwd);
++      if (modifiedFiles.length === 0) {
++        process.exit(0);
++      }
++
++      let state = { sinceReminder: 0 };
++      if (fs.existsSync(statePath)) {
++        try {
++          state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
++        } catch {
++          state = { sinceReminder: 0 };
++        }
++      }
++
++      state.sinceReminder = Number(state.sinceReminder || 0) + 1;
++      if (state.sinceReminder < REMINDER_INTERVAL) {
++        fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
++        process.exit(0);
++      }
++
++      state.sinceReminder = 0;
++      fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
++
++      const suggestions = buildSuggestions(modifiedFiles);
++      const preview = modifiedFiles.slice(0, 5).map(file => `- ${file}`).join('\n');
++      const more = modifiedFiles.length > 5 ? `\n- ... 还有 ${modifiedFiles.length - 5} 个文件` : '';
++      const message = [
++        'STRICT 模式提醒：当前已有代码改动，但最近还没有看到对应的验证命令。',
++        '',
++        '已变更文件示例：',
++        preview + more,
++        '',
++        '建议尽快运行：',
++        ...suggestions.map(item => `- ${item}`),
++        '',
++        '如果你刚刚已经做过等价校验，可以忽略本提醒。'
++      ].join('\n');
++
++      process.stdout.write(JSON.stringify({
++        hookSpecificOutput: {
++          hookEventName: 'PostToolUse',
++          additionalContext: message
++        }
++      }));
++    } catch {
++      process.exit(0);
++    }
++  });
++}
+Index: docs/workflow-review/archive/2026-04-03-e2e-workflow-review.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/docs/workflow-review/archive/2026-04-03-e2e-workflow-review.md b/docs/workflow-review/archive/2026-04-03-e2e-workflow-review.md
+new file mode 100644
+--- /dev/null	(date 1775188287381)
++++ b/docs/workflow-review/archive/2026-04-03-e2e-workflow-review.md	(date 1775188287381)
+@@ -0,0 +1,350 @@
++# 端到端工作流试跑审查报告（2026-04-03）
++
++> 基于最新 skill 版本，在独立 worktree 上完整执行 init → feature → code → commit 全流程。
++> 测试选手: opencode+ohmyopencode+qwen-3.6-plus
++
++## 试跑概要
++
++| 项目 | 值 |
++|------|-----|
++| 测试工程 | `/private/tmp/demo-order-service`（Java + Spring Boot 3.2 + MyBatis + MySQL） |
++| Worktree | `/Users/wcf/personal/tinypowers-worktrees/demo-order-workflow` |
++| 测试需求 | ORDER-102 阶梯折扣系统（DB 变更 + 新 Service + 新 API + 订单流集成） |
++| Skill 版本 | tech-init 5.0 / tech-feature 8.0 / tech-code 9.0 / tech-commit 5.0 |
++| 需求路由 | Medium（单系统内，10 个任务，有 DB 变更） |
++
++## 产出统计
++
++| 阶段 | 文件数 | 行数 | 耗时 |
++|------|--------|------|------|
++| init | 17 新文件（不含框架副本） | ~2800 行 | < 1 min |
++| feature | 8 文档 | ~350 行 | ~10 min |
++| code | 23 源码 + 2 测试 | ~800 行 | 30 min（agent 超时） |
++| commit | 2 commits | - | < 1 min |
++| **总计** | **178 文件（含框架副本）** | **~4000 行** | **~42 min** |
++
++> ⚠️ 178 文件中约 145 个是 `.claude/skills/tinypowers/` 框架副本 + `target/` 构建产物，实际业务相关仅 ~33 个文件。
++
++---
++
++## 逐步审查
++
++### 1. /tech:init
++
++**执行过程**：运行 `init-project.js` → 验证通过 → 产出 CLAUDE.md + rules + guides + hooks + knowledge.md 模板
++
++**复杂度评价**：低 ✅
++
++**做得好的地方**：
++- 初始化完全脚本化，无需 AI 手工操作
++- 技术栈检测准确（Java Maven + MySQL）
++- 内置验证通过，无需额外校验
++- Lazy mode 知识扫描合理（空项目不强做）
++
++**发现的问题**：
++
++| # | 问题 | 严重度 | 说明 |
++|---|------|--------|------|
++| I-01 | 框架副本被完整复制到目标项目 | 高 | `install.sh` 把整个 `.claude/skills/tinypowers/` 复制进目标项目，包含 145+ 个文件（agents、docs/archive、所有 templates），导致后续 commit 全部包含这些文件 |
++| I-02 | `target/` 目录无 `.gitignore` | 中 | 构建产物被提交到 git 历史 |
++| I-03 | init 后无 `.gitignore` 创建 | 中 | 目标项目缺少基础的 `.gitignore` |
++
++**合理性判断**：init 本身合理且高效，但**安装机制导致的目标项目膨胀**是最大问题。
++
++---
++
++### 2. /tech:feature
++
++**执行过程**：创建 PRD → 需求理解 → 技术方案（4 条锁定决策） → 任务拆解表（10 任务） → SPEC-STATE
++
++**复杂度评价**：中偏高 ⚠️
++
++**做得好的地方**：
++- 需求路由选择准确（Medium：10 任务，有 DB 变更，无跨系统依赖）
++- 技术方案包含 4 条明确的锁定决策（D-001 到 D-004）
++- 任务拆解有依赖关系和执行批次
++- 验收标准使用 EARS 格式（When/Then）
++
++**发现的问题**：
++
++| # | 问题 | 严重度 | 说明 |
++|---|------|--------|------|
++| F-01 | SPEC-STATE 模板格式与脚本解析不匹配 | 高 | 脚本要求 `phase: PLAN` 在 YAML 代码块中 + `track` 字段，但默认创建时缺少这些，导致 `update-spec-state.js` 报错 "缺少合法的 phase" |
++| F-02 | PRD 验收标准格式门禁过严 | 中 | 脚本要求 AC-N: 或 EARS 格式正则匹配，普通中文描述被拒绝。用户需要知道这个隐含格式要求 |
++| F-03 | 技术方案"锁定决策"关键词硬编码 | 中 | 脚本检查 `/(已锁定决策\|决策记录\|锁定决策)/` 和 `\| 已确认 \|` 表格格式，文档作者需要知道这个精确格式 |
++| F-04 | 需求理解.md 非标准产物 | 低 | SKILL.md 默认骨架不包含此文件，但实际分析时创建了，增加了文档数量 |
++| F-05 | 无用户确认环节 | 中 | 流程设计有"方案与任务确认"步骤，但实际执行中 AI 自行完成，没有真正的暂停确认点 |
++
++**合理性判断**：规划质量高，但**门禁脚本的格式要求与文档模板之间存在 gap**，导致需要反复修正格式才能通过。
++
++---
++
++### 3. /tech:code
++
++**执行过程**：Gate Check → 推进 SPEC-STATE 到 EXEC → 委托 deep agent 实现 → 产出 23 个源码文件 → 编译通过 → 测试因环境失败 → 手动创建测试计划/报告/VERIFICATION → 推进到 REVIEW
++
++**复杂度评价**：高 ⚠️
++
++**做得好的地方**：
++- Gate Check 门禁有效（验证了 PRD、技术方案、任务拆解的存在性和内容质量）
++- 生成的代码质量不错：构造函数注入、@Transactional、BigDecimal 金额、遵循 4 条锁定决策
++- 包结构符合 Java 编码规范
++- SPEC-STATE 阶段推进正确
++
++**发现的问题**：
++
++| # | 问题 | 严重度 | 说明 |
++|---|------|--------|------|
++| C-01 | Deep agent 超时（30 min / 1800s） | 高 | 10 个任务的实现委托给 deep agent，超过最大等待时间。虽然最终产出了代码，但超时说明任务粒度或 prompt 有问题 |
++| C-02 | 无审查环节 | 高 | SKILL.md 要求 compliance-reviewer → code-review 顺序，但实际未执行任何审查。直接跳到了测试验证 |
++| C-03 | 测试计划/报告/VERIFICATION 手动创建 | 中 | 这些应该是执行过程的产物，但实际是编码完成后手动补写的"事后文档" |
++| C-04 | 测试因 Java 版本不匹配失败 | 中 | pom.xml 未指定 Java 版本，测试类被编译为 Java 17 (class 61.0)，但运行环境是 Java 8。这是 init 时应该检测的 |
++| C-05 | 无 compliance-reviewer 调用 | 高 | 技术方案中的 4 条决策是否在代码中被正确遵守，没有经过显式验证 |
++| C-06 | 决策合规性在 VERIFICATION.md 中手动填写 | 低 | 应该是自动化检查，而非人工填写表格 |
++
++**合理性判断**：代码实现质量可接受，但**审查环节完全缺失**，测试文档是"补作业"而非执行过程的自然产物。
++
++---
++
++### 4. /tech:commit
++
++**执行过程**：Document Sync（已同步） → Git Commit（含 Evidence） → SPEC-STATE → DONE（独立 commit）
++
++**复杂度评价**：低 ✅
++
++**做得好的地方**：
++- Commit message 格式规范，包含 Evidence
++- SPEC-STATE → DONE 作为独立 commit（正确顺序）
++- 前置条件检查通过（VERIFICATION.md PASS）
++
++**发现的问题**：
++
++| # | 问题 | 严重度 | 说明 |
++|---|------|--------|------|
++| M-01 | 提交包含 178 个文件（含框架副本） | 高 | 一个 feature 提交不应该包含整个 `.claude/skills/tinypowers/` 框架副本（145 个文件） |
++| M-02 | `target/` 构建产物被提交 | 高 | 缺少 `.gitignore` 导致编译产物进入 git 历史 |
++| M-03 | 无 PR 创建 | 中 | 无 remote 仓库所以无法推送，但流程中缺少 PR 步骤的记录 |
++| M-04 | 知识沉淀未执行 | 低 | `notepads/learnings.md` 未创建，`docs/knowledge.md` 仍为空模板 |
++
++**合理性判断**：提交流程正确，但**提交内容过于臃肿**，包含了大量不应提交的文件。
++
++---
++
++## 核心问题汇总
++
++### 按严重度排序
++
++| 优先级 | 编号 | 问题 | 影响阶段 | 优化建议 |
++|--------|------|------|---------|---------|
++| P0 | I-01 | 框架完整副本被安装到目标项目 | init | install.sh 应只安装运行时需要的 skills/hooks/rules，不复制整个框架仓库 |
++| P0 | M-01 | 提交包含 178 个文件（145 个框架副本） | commit | 框架文件应全局安装（`~/.claude/skills/`），不随项目提交 |
++| P0 | C-02 | 审查环节完全缺失 | code | 要么自动化审查，要么从流程中移除这个步骤 |
++| P1 | C-01 | Deep agent 超时（30 min） | code | 拆分任务为更小的并行单元，或增加超时限制 |
++| P1 | F-01 | SPEC-STATE 格式与脚本不匹配 | feature | 统一模板格式，或让脚本更宽容 |
++| P1 | M-02 | target/ 被提交 | commit | init 时自动创建 .gitignore |
++| P2 | F-02 | PRD 格式门禁过严 | feature | 提供更灵活的验收标准格式检测 |
++| P2 | C-03 | 测试文档事后补写 | code | 测试计划应在编码前创建，测试报告应在测试执行时自动填写 |
++| P2 | C-04 | Java 版本不匹配 | code/init | init 时应检测并配置正确的 Java 版本 |
++| P3 | F-05 | 无真正的用户确认环节 | feature | 当前流程中确认步骤是 AI 自行完成的 |
++| P3 | M-04 | 知识沉淀未执行 | commit | learnings.md 和 knowledge.md 的链路未激活 |
++
++---
++
++## 文档产出分析
++
++### 单个 Medium 需求产生的文档
++
++| 文档 | 行数 | 是否必要 | 评价 |
++|------|------|---------|------|
++| PRD.md | 42 | ✅ 必要 | 需求输入，简洁有效 |
++| 需求理解.md | 54 | ⚠️ 可选 | 与 PRD 有重叠，可合并到 PRD 的"结构化理解"部分 |
++| 技术方案.md | 110 | ✅ 必要 | 核心设计文档，质量高 |
++| 任务拆解表.md | 45 | ✅ 必要 | 直接指导开发 |
++| SPEC-STATE.md | 57 | ⚠️ 部分必要 | 阶段历史有价值，但阶段定义/判断规则是模板重复内容 |
++| 测试计划.md | 35 | ⚠️ 事后补写 | 应在编码前完成 |
++| 测试报告.md | 28 | ⚠️ 事后补写 | 应在测试执行时自动填写 |
++| VERIFICATION.md | 40 | ✅ 必要 | 验收证据汇总 |
++| **总计** | **411** | | |
++
++**文档效率评价**：中等。技术方案和任务拆解表质量高，但测试文档是"补作业"，SPEC-STATE 模板内容占比过高（~60% 是模板重复）。
++
++---
++
++## 知识沉淀评估
++
++| 维度 | 状态 | 说明 |
++|------|------|------|
++| `docs/knowledge.md` | ❌ 空模板 | init 时创建了模板，但全程无任何内容写入 |
++| `notepads/learnings.md` | ❌ 未创建 | feature 执行过程中没有创建 |
++| 隐式知识沉淀 | ⚠️ 部分 | 技术方案中的决策记录是有效的知识，但散落在 feature 目录中 |
++
++**问题**：知识沉淀链路（learnings.md → knowledge.md）在本次全流程中完全未激活。原因：
++1. 没有显式触发点
++2. AI 不知道什么内容"值得沉淀"
++3. 提交后可选动作被忽略
++
++---
++
++## 与历史试跑对比
++
++对比 2026-04-02 的 e2e-workflow-review-complex：
++
++| 指标 | 上次（04-02） | 本次（04-03） | 变化 |
++|------|-------------|-------------|------|
++| init 文件数 | 17 | 17 | 持平 |
++| feature 文档行数 | 374 | 411 | +10% |
++| 代码文件数 | 13 | 23 | +77% |
++| 提交数 | 2 | 2 | 持平 |
++| 审查环节 | 缺失 | 缺失 | 未改善 |
++| 知识沉淀 | 未激活 | 未激活 | 未改善 |
++| 框架副本问题 | 存在 | 存在 | 未改善 |
++
++**结论**：核心流程问题（审查缺失、知识未沉淀、框架副本膨胀）与上次一致，未得到改善。
++
++---
++
++## 优化方案
++
++### 阶段一：立即可做（零代码改动）
++
++#### 1.1 修复 .gitignore 缺失
++```
++init-project.js 在初始化时自动创建 .gitignore，至少包含：
++- target/
++- *.class
++- *.jar
++- .DS_Store
++```
++
++#### 1.2 SPEC-STATE 模板修复
++```
++确保 update-spec-state.js 能正确处理模板格式：
++- 方案 A：让脚本同时支持 "当前阶段: PLAN" 和 "phase: PLAN" 两种格式
++- 方案 B：更新 spec-state.md 模板确保包含 YAML 代码块
++```
++
++#### 1.3 PRD 验收标准格式提示
++```
++在 PRD 模板中增加注释说明：
++"验收标准请使用 AC-N: 描述 或 EARS 格式（When...Then...）"
++```
++
++### 阶段二：Skill 层优化
++
++#### 2.1 /tech:code 审查环节自动化
++
++**当前问题**：compliance-reviewer 和 code-review 完全缺失。
++
++**优化方案**：
++```
++在 /tech:code 的"审查修复"步骤中：
++1. 编码完成后自动触发 compliance-reviewer（检查方案符合性 + 决策合规）
++2. 自动检查锁定决策（D-001 到 D-004）是否在代码中被遵守
++3. 审查结果自动写入 VERIFICATION.md 的"决策合规性"部分
++4. 仅在审查发现严重问题时要求人工介入
++```
++
++#### 2.2 /tech:code 测试文档前置
++
++**当前问题**：测试计划/报告是事后补写。
++
++**优化方案**：
++```
++将测试计划创建移到 Gate Check 之后、开发执行之前：
++1. Gate Check 通过后，基于任务拆解表自动生成测试计划初稿
++2. 编码完成后执行测试（或跳过并记录原因）
++3. 测试报告在执行时自动填写，而非事后补写
++```
++
++#### 2.3 /tech:feature 确认环节实质化
++
++**当前问题**：确认步骤是 AI 自行完成，没有真正的暂停。
++
++**优化方案**：
++```
++在输出技术方案和任务拆解表后，向用户输出确认摘要：
++"方案已就绪，包含 N 条决策和 M 个任务。确认要点：
++1. 技术方案是否覆盖所有需求？
++2. 任务拆解是否有遗漏？
++确认后输入 '继续' 进入 /tech:code"
++```
++
++### 阶段三：架构层优化
++
++#### 3.1 框架安装机制重构（最关键）
++
++**当前问题**：install.sh 把整个框架仓库复制到目标项目。
++
++**优化方案**：
++```
++方案 A（推荐）：全局安装
++- install.sh --global 安装到 ~/.claude/skills/tinypowers/
++- 目标项目只安装 hooks + rules + CLAUDE.md 模板
++- skills 通过全局路径引用，不复制到项目内
++
++方案 B：精简安装
++- install.sh 只复制运行时需要的文件（skills/*.md, hooks/*.js, rules/**）
++- 不复制 docs/archive、manifests、scripts（除运行时需要的）
++- 不复制 .claude/skills/tinypowers/ 下的框架自身文档
++```
++
++**影响**：
++- 提交文件数：178 → ~35（减少 80%）
++- 提交大小：~500KB → ~100KB（减少 80%）
++- git 历史清洁度：显著提升
++
++#### 3.2 知识沉淀链路激活
++
++**优化方案**：
++```
++在 /tech:commit 的"交付后可选动作"中：
++1. 检查 notepads/learnings.md 是否有内容
++2. 如果有，自动提取到 docs/knowledge.md
++3. 如果没有，检查本次 feature 是否有新的踩坑经验
++4. 如果有，建议创建 learnings.md 条目
++
++触发条件（至少满足一条）：
++- 遇到了非显而易见的 bug 并解决
++- 发现了框架自身的限制或问题
++- 有对后续 feature 有价值的决策经验
++```
++
++#### 3.3 Agent 超时优化
++
++**优化方案**：
++```
++对于 10+ 任务的 feature：
++1. 拆分为 2-3 个并行 agent（数据层 / 业务层 / 接口层）
++2. 每个 agent 只负责 3-4 个任务
++3. 设置合理的超时（15 min per agent）
++4. 使用 session_id 续传失败的 agent
++```
++
++---
++
++## 总结
++
++### 做得好的
++
++1. **流程完整性**：init → feature → code → commit 全流程可执行，门禁有效
++2. **脚本化程度高**：init-project.js、update-spec-state.js 减少了 AI 手工操作
++3. **SPEC-STATE 门禁有效**：格式校验、前置条件检查都能正确拦截
++4. **代码质量可接受**：生成的 Java 代码遵循规范，决策合规
++
++### 需要优先改善的
++
++1. **框架安装膨胀**（P0）：178 个文件的提交中 80% 是框架副本，必须重构安装机制
++2. **审查环节缺失**（P0）：规划了 compliance-reviewer 但从未执行，要么自动化要么移除
++3. **测试文档补作业**（P2）：测试计划和报告应在执行过程中自然产生，而非事后补写
++4. **知识沉淀未激活**（P3）：learnings → knowledge 链路全程未触发
++
++### 投入产出评估
++
++| 优化项 | 投入 | 收益 | 优先级 |
++|--------|------|------|--------|
++| 框架安装重构 | 中（改 install.sh + manifests） | 高（减少 80% 提交膨胀） | P0 |
++| 审查自动化 | 中（集成 compliance-reviewer） | 高（填补最大流程缺口） | P0 |
++| .gitignore 自动创建 | 低（init-project.js 加一行） | 中（防止构建产物提交） | P1 |
++| SPEC-STATE 模板修复 | 低（改模板或脚本） | 中（减少格式调试） | P1 |
++| 测试文档前置 | 中（改 /tech:code 流程） | 中（改善文档质量） | P2 |
++| 知识沉淀激活 | 低（commit skill 加检查） | 低（当前价值有限） | P3 |
+Index: .claude/hooks/spec-state-guard.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.claude/hooks/spec-state-guard.js b/.claude/hooks/spec-state-guard.js
+new file mode 100644
+--- /dev/null	(date 1775185612977)
++++ b/.claude/hooks/spec-state-guard.js	(date 1775185612977)
+@@ -0,0 +1,262 @@
++#!/usr/bin/env node
++// spec-state-guard.js
++// PreToolUse hook: enforces SPEC-STATE phase gates
++//
++// When an active feature has phase < EXEC, blocks:
++//   - Edit/Write/MultiEdit on ANY code file in the project
++//   - Bash commands that compile/run code
++//
++// Detection: any features/*/SPEC-STATE.md that exists and phase != DONE
++// Priority: git branch match > most recently modified SPEC-STATE.md
++// Whitelist: .md/.yaml/.json files always allowed; npm test/lint/validate always allowed
++
++const fs = require('fs');
++const path = require('path');
++
++const CODE_EXTENSIONS = new Set([
++  '.js', '.ts', '.jsx', '.tsx', '.java', '.py', '.go', '.rs',
++  '.rb', '.php', '.c', '.cpp', '.h', '.hpp', '.cs', '.swift',
++  '.kt', '.scala', '.sh', '.sql', '.vue', '.svelte', '.astro',
++  '.css', '.scss', '.less', '.sass', '.html', '.htm', '.svg'
++]);
++
++const PLANNING_EXTENSIONS = new Set(['.md', '.yaml', '.yml', '.json']);
++
++const PHASES = ['PLAN', 'EXEC', 'REVIEW', 'DONE'];
++
++const CODE_EDIT_ALLOWED_FROM = PHASES.indexOf('EXEC');
++
++const CODE_BASH_PATTERNS = [
++  { pattern: /\bnode\s+\S+\.(js|ts|mjs)\b/, label: 'node 脚本执行' },
++  { pattern: /\bpython\d?\s+\S+\.py\b/, label: 'python 脚本执行' },
++  { pattern: /\bgo\s+(run|build|test)\s+/, label: 'go 编译/运行' },
++  { pattern: /\bjavac\s+/, label: 'javac 编译' },
++  { pattern: /\bjava\s+/, label: 'java 运行' },
++  { pattern: /\b(npm|pnpm|yarn)\s+(run|exec)\s+(?!validate\b|test\b|lint\b|typecheck\b|doctor\b|check\b|ci\b)\S+/, label: 'npm/pnpm/yarn 脚本执行' },
++  { pattern: /\bnpx\s+/, label: 'npx 执行' },
++  { pattern: /\b(npm|pnpm|yarn)\s+(run\s+)?dev\b/, label: 'dev server 启动' },
++  { pattern: /\b(npm|pnpm|yarn)\s+(run\s+)?build\b/, label: '项目构建' },
++  { pattern: /\b(npm|pnpm|yarn)\s+(run\s+)?start\b/, label: '项目启动' },
++  { pattern: /\bmvn\s+(compile|package|install|spring-boot:run)\b/, label: 'maven 编译/运行' },
++  { pattern: /\bgradlew?\s+(compile|build|bootRun)\b/, label: 'gradle 编译/运行' },
++  { pattern: /\bcargo\s+(build|run)\b/, label: 'cargo 编译/运行' },
++  { pattern: /\brustc\s+/, label: 'rustc 编译' },
++  { pattern: /\bdotnet\s+(build|run)\b/, label: 'dotnet 编译/运行' },
++  { pattern: /\bbun\s+(run|build)\s+/, label: 'bun 运行/构建' },
++];
++
++const ALLOWED_BASH_PATTERNS = [
++  /\b(node|bun)\s+\S*(scaffold-feature|update-spec-state|doctor|validate|install-manifest|repair)\.js\b/,
++  /\b(npm|pnpm|yarn)\s+(run\s+)?(validate|doctor|check|lint|test|typecheck|ci)\b/
++];
++
++function findActiveFeature(cwd) {
++  const featuresDir = path.join(cwd, 'features');
++  if (!fs.existsSync(featuresDir)) {
++    return null;
++  }
++
++  const featureDirs = fs.readdirSync(featuresDir, { withFileTypes: true })
++    .filter(entry => entry.isDirectory())
++    .map(entry => entry.name);
++
++  let branchFeature = null;
++  try {
++    const { execSync } = require('child_process');
++    const branch = execSync('git branch --show-current', {
++      cwd, encoding: 'utf8', timeout: 5000
++    }).trim();
++    if (branch) {
++      const matchedFeature = matchFeatureFromBranch(branch, featureDirs);
++      if (matchedFeature && fs.existsSync(path.join(featuresDir, matchedFeature, 'SPEC-STATE.md'))) {
++        branchFeature = matchedFeature;
++      }
++    }
++  } catch (e) {}
++
++  let latestFeature = null;
++  let latestMtime = 0;
++  try {
++    for (const entry of fs.readdirSync(featuresDir, { withFileTypes: true })) {
++      if (entry.isDirectory()) {
++        const specState = path.join(featuresDir, entry.name, 'SPEC-STATE.md');
++        if (fs.existsSync(specState)) {
++          const content = fs.readFileSync(specState, 'utf8');
++          const phase = extractPhase(content);
++          if (phase === 'DONE') continue;
++
++          const stat = fs.statSync(specState);
++          if (stat.mtimeMs > latestMtime) {
++            latestMtime = stat.mtimeMs;
++            latestFeature = entry.name;
++          }
++        }
++      }
++    }
++  } catch (e) {}
++
++  return branchFeature || latestFeature;
++}
++
++function matchFeatureFromBranch(branch, featureDirs) {
++  if (!branch.startsWith('feature/')) {
++    return null;
++  }
++
++  const raw = branch.replace('feature/', '');
++  const normalized = raw.replace(/\//g, '-');
++  const idPrefix = raw.split('/')[0];
++
++  if (featureDirs.includes(raw)) {
++    return raw;
++  }
++  if (featureDirs.includes(normalized)) {
++    return normalized;
++  }
++
++  const prefixMatches = featureDirs.filter(name => name === idPrefix || name.startsWith(idPrefix + '-'));
++  if (prefixMatches.length === 1) {
++    return prefixMatches[0];
++  }
++
++  return null;
++}
++
++function extractPhase(content) {
++  const match = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|PLAN|EXEC|REVIEW|VERIFY|CLOSED|DONE)/);
++  if (!match) {
++    return null;
++  }
++  const aliases = {
++    INIT: 'PLAN',
++    REQ: 'PLAN',
++    DESIGN: 'PLAN',
++    TASKS: 'PLAN',
++    PLAN: 'PLAN',
++    EXEC: 'EXEC',
++    REVIEW: 'REVIEW',
++    VERIFY: 'REVIEW',
++    CLOSED: 'DONE',
++    DONE: 'DONE'
++  };
++  return aliases[match[1]] || null;
++}
++
++function isCodeFile(relPath) {
++  return CODE_EXTENSIONS.has(path.extname(relPath));
++}
++
++function isPlanningFile(relPath) {
++  return PLANNING_EXTENSIONS.has(path.extname(relPath));
++}
++
++function isCodeBashCommand(command) {
++  const trimmed = command.trim();
++  for (const { pattern, label } of CODE_BASH_PATTERNS) {
++    if (pattern.test(trimmed)) {
++      return label;
++    }
++  }
++  return null;
++}
++
++function isAllowedBashCommand(command) {
++  const trimmed = command.trim();
++  return ALLOWED_BASH_PATTERNS.some(pattern => pattern.test(trimmed));
++}
++
++function block(msg) {
++  process.stdout.write(JSON.stringify({
++    hookSpecificOutput: {
++      hookEventName: 'PreToolUse',
++      additionalContext: msg
++    }
++  }));
++  process.exit(0);
++}
++
++function buildBlockMessage(activeFeature, phaseLabel, detail) {
++  return 'SPEC-STATE 门禁拦截：当前阶段为 ' + phaseLabel +
++    '，不允许执行代码操作。\n\n' +
++    detail + '\n\n' +
++    'Feature: ' + activeFeature + '\n' +
++    '阶段推进：PLAN → EXEC（此时才允许写代码）→ REVIEW → DONE\n\n' +
++    '当前允许：编辑 .md/.yaml/.json 规划文档\n\n' +
++    '如需强制推进：\n' +
++    '  node scripts/update-spec-state.js --feature ' + activeFeature +
++    ' --to EXEC --force\n\n' +
++    '如果是误拦截，请说明原因后继续。';
++}
++
++let input = '';
++const stdinTimeout = setTimeout(() => process.exit(0), 5000);
++process.stdin.setEncoding('utf8');
++process.stdin.on('data', chunk => input += chunk);
++process.stdin.on('end', () => {
++  clearTimeout(stdinTimeout);
++  try {
++    const data = JSON.parse(input);
++    const toolName = data.tool_name;
++    const toolArgs = data.tool_args || {};
++    const cwd = data.cwd || process.cwd();
++
++    const activeFeature = findActiveFeature(cwd);
++    if (!activeFeature) {
++      process.exit(0);
++    }
++
++    const specStatePath = path.join(cwd, 'features', activeFeature, 'SPEC-STATE.md');
++    if (!fs.existsSync(specStatePath)) {
++      process.exit(0);
++    }
++
++    const phase = extractPhase(fs.readFileSync(specStatePath, 'utf8'));
++    if (!phase) {
++      process.exit(0);
++    }
++
++    const phaseIndex = PHASES.indexOf(phase);
++    if (phaseIndex === -1 || phaseIndex >= CODE_EDIT_ALLOWED_FROM) {
++      process.exit(0);
++    }
++
++    const phaseLabels = { 0: 'PLAN' };
++    const phaseLabel = phaseLabels[phaseIndex] || phase;
++
++    if (toolName === 'Bash') {
++      const command = String(toolArgs.command || '');
++      if (isAllowedBashCommand(command)) {
++        process.exit(0);
++      }
++      const codeLabel = isCodeBashCommand(command);
++      if (!codeLabel) {
++        process.exit(0);
++      }
++
++      block(buildBlockMessage(activeFeature, phaseLabel,
++        '被拦截命令：' + codeLabel + '\n命令内容：' + command.slice(0, 120)));
++    }
++
++    if (toolName !== 'Edit' && toolName !== 'Write' && toolName !== 'MultiEdit') {
++      process.exit(0);
++    }
++
++    const filePath = toolArgs.file_path || toolArgs.path || '';
++    if (!filePath) {
++      process.exit(0);
++    }
++
++    if (isPlanningFile(filePath) && !isCodeFile(filePath)) {
++      process.exit(0);
++    }
++
++    if (!isCodeFile(filePath)) {
++      process.exit(0);
++    }
++
++    block(buildBlockMessage(activeFeature, phaseLabel,
++      '被拦截文件：' + filePath));
++  } catch (e) {
++    process.exit(0);
++  }
++});
+Index: docs/workflow-review/archive/ORDER-102-workflow-review.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/docs/workflow-review/archive/ORDER-102-workflow-review.md b/docs/workflow-review/archive/ORDER-102-workflow-review.md
+new file mode 100644
+--- /dev/null	(date 1775188212626)
++++ b/docs/workflow-review/archive/ORDER-102-workflow-review.md	(date 1775188212626)
+@@ -0,0 +1,196 @@
++# Workflow Review — ORDER-102 演练复盘
++
++> 基于 demo-order-service / ORDER-102 订单退款申请与审批流的完整演练
++> 演练日期：2026-04-03
++> 执行路径：init → feature → code → commit（Standard 路由）
++> 测试选手: codebuddy+default
++
++---
++
++## 一、整体判断
++
++当前 workflow（v5~v9）已建立了正确的骨架：**规划先行、门禁保护、可追溯提交**。
++核心价值是真实的。问题集中在三个方面：
++
++1. **文档密度过高**：相同信息在多个文档中重复出现
++2. **AI 自驱时暂停点失效**：设计为"人机协作"的暂停点，在 AI 自驱场景中变成空转
++3. **路由分级不够彻底**：Fast/Medium/Standard 的差异体现在口头描述，但文档模板、步骤数量几乎相同
++
++---
++
++## 二、逐步骤问题明细
++
++### tech:init
++
++| 问题 | 现象 | 影响 |
++|------|------|------|
++| 不区分"主树 init"与"worktree 继承" | worktree 已有完整骨架，init 流程仍走完整确认 | 产生无效确认轮次 |
++| 更新策略（Update/Skip/Overwrite）在 worktree 场景无意义 | worktree 从主树继承文件，没有独立 init 的概念 | 流程噪音 |
++| 检测结果确认 4 项（技术栈/构建工具/规则集/MySQL）对已 init 项目冗余 | 每次进入 worktree 都要重新确认 | 上下文污染 |
++
++**建议**：
++- 增加 `--skip-if-initialized` 快速路径：检测到 `CLAUDE.md` + `.claude/` 完整后，输出一行确认并跳过后续步骤
++- Worktree 检测：检测到 `.git` 文件（非目录）时，识别为 worktree，直接跳到 Step 5（知识扫描）
++
++---
++
++### tech:feature
++
++| 问题 | 现象 | 影响 |
++|------|------|------|
++| PRD 与技术方案内容重叠 | 范围边界（In Scope/Out of Scope）在 PRD 和技术方案中各写一遍；接口设计在技术方案和任务拆解中重复描述 | 维护两份文档，改一处要改两处 |
++| 双暂停点在 AI 自驱时失效 | "输出技术方案后暂停"和"输出任务拆解后暂停"在 AI 自驱场景中没有人响应，变成文字描述 | 确认机制形式化 |
++| 路由选择标准模糊 | "跨系统依赖"是升级到 Standard 的信号，但没有明确定义什么算"跨系统" | AI 路由选择随机性高 |
++| notepads/learnings.md 在 PLAN 阶段创建但内容为空 | feature 阶段创建文件，code 阶段才有内容，commit 阶段才沉淀 | 空文件噪音 |
++
++**建议**：
++1. **PRD + 技术方案合并为单文件**（`DESIGN.md`）：结构化为"需求 + 方案 + 决策"三节，消除重复
++2. **暂停点明确化**：不用文字描述"暂停"，而是直接在文档末尾加 `## ✅ 等待人工确认`，并在 SPEC-STATE 中加 `PLAN-CONFIRMED` 子状态
++3. **路由决策表**：用二维表（任务数 × 跨系统）替代文字描述，避免歧义
++4. **learnings.md 延迟创建**：改为 EXEC 阶段按需创建，不在 PLAN 阶段创建空文件
++
++---
++
++### tech:code
++
++| 问题 | 现象 | 影响 |
++|------|------|------|
++| 审查两步（compliance → code review）在 AI 自驱时等于自审自查 | AI 写了代码，AI 做了审查，没有真正的外部视角 | 安全和质量风险无法被发现 |
++| 测试计划 + 测试报告强制两个文件 | 本次 6 个验收标准，测试计划 20 行，测试报告 15 行，内容高度重叠 | 文档碎片化，维护负担 |
++| STATE.md 在单 session 执行时冗余 | Standard 路由要求 STATE.md，但单次连续执行时 STATE 只是对任务拆解表的翻版 | 重复文档 |
++| Wave 粒度与任务拆解表重复 | 任务拆解表已有 Wave 列，STATE.md 再记录一遍 | 一致性维护成本 |
++
++**建议**：
++1. **合并测试计划和测试报告为 `TEST.md`**：计划（用例列表）+ 执行结果（PASS/FAIL）在同一文件，用时间戳区分轮次
++2. **STATE.md 仅在跨 session 时强制**：单 session 内不要求；跨 session 重入时自动生成初稿
++3. **审查步骤改为明确暂停**：AI 完成编码后输出"审查请求"（代码 diff 摘要 + 关注点），等待人工确认后才继续；若人工不可用，记录"AI 自审"并注明局限性
++4. **`compliance-reviewer` 内联**：不单独作为一轮，而是在 Gate Check 时一并完成安全检查清单
++
++---
++
++### tech:commit
++
++| 问题 | 现象 | 影响 |
++|------|------|------|
++| Push / PR 步骤在本地 demo 仓库中不可执行 | 生成了 PR 链接格式描述，实际无法使用 | 噪音输出 |
++| Document Sync 容易触发"把已正确文档重写一遍" | AI 倾向于"做了些什么"，会对无需修改的文档做微调 | 不必要的 diff 污染 |
++| SPEC-STATE → DONE 独立 commit 是正确的，但步骤描述过重 | 描述了 4 个子步骤，实际只需 1 个命令 | 阅读负担 |
++| 知识沉淀"不为沉淀而沉淀"原则执行时难自律 | AI 倾向于把任何内容都写入 knowledge.md，包括显而易见的决策 | knowledge.md 膨胀，信噪比下降 |
++
++**建议**：
++1. **Document Sync 改为差量检查**：仅列出"本次新增/修改了哪些接口/表/配置"，明确说明"以下文档需要更新"，不泛化为"同步所有相关文档"
++2. **Push/PR 改为条件步骤**：检测 `git remote` 是否存在，无 remote 则跳过，避免生成无用输出
++3. **SPEC-STATE → DONE 简化**：直接给出命令，不展开 4 个子步骤
++4. **knowledge.md 写入门槛**：仅在 learnings.md 明确标注 `[PERSIST]` 的条目才写入；Fast 路由默认不沉淀
++
++---
++
++## 三、核心问题归因
++
++### 问题根因 1：文档系统为"人工读者"设计，AI 自驱时产生大量冗余
++
++当前 features/ 目录在一次 Standard 需求后产生了：
++
++```
++PRD.md / 技术方案.md / 任务拆解表.md / SPEC-STATE.md /
++STATE.md / 测试计划.md / 测试报告.md / VERIFICATION.md /
++notepads/learnings.md
++```
++
++**9 个文件**，约 600-800 行文档，其中真正不可删除的核心是：
++- `DESIGN.md`（PRD + 方案 + 决策）— **不可省**
++- `VERIFICATION.md`（验收证据）— **不可省**
++- `SPEC-STATE.md`（门禁状态）— **不可省**
++
++其余 6 个文件存在不同程度的冗余，可合并或按需创建。
++
++### 问题根因 2：暂停点设计假设了同步人机协作，但 AI 自驱是异步的
++
++`tech:feature` 和 `tech:code` 各设计了 2 个人机确认点，总计 4 次。在真正的人机协作场景中这是合理的。但当 AI 被要求"自驱完整执行"时，这 4 个暂停点全部失效，变成 AI 自问自答。
++
++**根本矛盾**：Skill 设计基于"AI 做提案、人做决策"的模型，但使用场景常常是"AI 做全流程演练"。
++
++### 问题根因 3：路由分级在产物数量上没有体现差异
++
++Fast / Medium / Standard 的口头差异清晰，但实际生成的文件结构几乎相同。Fast 路由和 Standard 路由都会创建同样的 9 个文件，只是某些文件"可以更简洁"。这导致 Fast 路由失去了其应有的轻量优势。
++
++---
++
++## 四、优化方案
++
++### 方案 A：文档整合（高收益，低风险）
++
++| 现状 | 优化后 | 节省 |
++|------|--------|------|
++| PRD.md + 技术方案.md + 任务拆解表.md | `DESIGN.md`（3节合1） | -2 文件 |
++| 测试计划.md + 测试报告.md | `TEST.md`（计划+结果） | -1 文件 |
++| STATE.md（跨 session 时） | 仅跨 session 时按需创建 | -1 文件（多数情况） |
++| notepads/learnings.md（PLAN 阶段空文件） | EXEC 阶段按需创建 | -1 空文件 |
++
++**效果**：Standard 需求从 9 文件降到 4 文件（DESIGN.md / TEST.md / VERIFICATION.md / SPEC-STATE.md）
++
++### 方案 B：路由产物明确分层（中收益，需要 Skill 改写）
++
++| 路由 | 必须产物 | 可选产物 |
++|------|---------|---------|
++| Fast（1-2 tasks） | DESIGN.md（轻模板）/ SPEC-STATE.md | VERIFICATION.md（简版）|
++| Medium（3-8 tasks）| DESIGN.md / TEST.md / VERIFICATION.md / SPEC-STATE.md | STATE.md |
++| Standard（跨系统）| 全部，含 STATE.md | - |
++
++**关键变化**：Fast 路由不强制写 VERIFICATION.md，只需 commit message Evidence 字段。
++
++### 方案 C：暂停点重设计（高价值，需要流程改动）
++
++将 4 个隐式暂停改为 2 个显式检查点：
++
++1. **CHECK-1（feature → code 边界）**：`DESIGN.md` 完成后，AI 输出"📋 方案摘要"（3-5 行），等待人工 `go` 指令；无人响应则记录 `[AI-SELF-APPROVED]` 标注
++2. **CHECK-2（code → commit 边界）**：`VERIFICATION.md` 完成后，AI 输出"🔍 变更摘要"（新增/修改文件列表 + 测试结果），等待人工 `go`
++
++**效果**：2 次有意义的暂停 vs 当前 4 次无效暂停。
++
++### 方案 D：knowledge.md 写入门控（低收益，高质量）
++
++在 `learnings.md` 中引入显式标记：
++
++```markdown
++<!-- [PERSIST] -->
++`cancelByIdAndVersion` 必须双条件 WHERE，仅 version 有复用风险
++<!-- /PERSIST -->
++```
++
++commit 阶段只将 `[PERSIST]` 块写入 `knowledge.md`，其余内容作为 feature-local 笔记保留在 `notepads/`。
++
++---
++
++## 五、优先级建议
++
++| 优先级 | 方案 | 改动范围 | 预期效果 |
++|--------|------|---------|---------|
++| P0 | 方案 A（文档整合） | 4 个 Skill 模板改写 | 立竿见影，减少 50% 文档碎片 |
++| P1 | 方案 C（暂停点重设计） | tech:feature + tech:code SKILL.md | 消除"自问自答"暂停点 |
++| P2 | 方案 B（路由产物分层） | 3 个 Skill + scaffold 脚本 | Fast 路由真正轻量化 |
++| P3 | 方案 D（knowledge 门控） | tech:commit SKILL.md + notepads 模板 | 知识库信噪比提升 |
++
++---
++
++## 六、不建议改动的部分
++
++以下设计是**正确的**，不应在"简化"名义下删除：
++
++- **SPEC-STATE 门禁**：防止跳步，有真实价值
++- **Gate Check 在 tech:code 入口**：3 项前置检查，低成本高价值
++- **CAS + OutBox 模式的决策记录**：knowledge 沉淀的真正价值载体
++- **commit message Evidence 字段**：可追溯性的核心
++- **SPEC-STATE → DONE 必须在 commit 成功后**：顺序约束正确，不可省
++
++---
++
++## 附录：本次演练产物清单
++
++| 产物 | 路径 |
++|------|------|
++| Worktree | `/private/tmp/demo-order-service-refund` (branch: feature/ORDER-102-order-refund) |
++| 功能代码 | 8 个新 Java 文件 + 1 个改动 |
++| 测试 | `RefundServiceTest.java`（6 cases），全部 PASS |
++| Feature 文档 | `features/ORDER-102-订单退款申请与审批/` （9 文件）|
++| Git Commits | `1829ec5`（功能）+ `c104c09`（SPEC-STATE DONE）|
+Index: .claude/hooks/config-protection.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.claude/hooks/config-protection.js b/.claude/hooks/config-protection.js
+new file mode 100644
+--- /dev/null	(date 1775185612975)
++++ b/.claude/hooks/config-protection.js	(date 1775185612975)
+@@ -0,0 +1,110 @@
++#!/usr/bin/env node
++// config-protection.js
++// Prevents agents from weakening lint/formatter/config files
++// instead of fixing the actual code
++//
++// This hook intercepts Edit/Write operations on config files and warns the agent
++// to fix the code, not weaken the config.
++
++const fs = require('fs');
++const path = require('path');
++
++// Protected config files (relative to project root)
++const PROTECTED_PATTERNS = [
++  // Linter configs
++  /\.eslintrc\.?/i,
++  /\.eslintignore$/i,
++  /prettier\.config\./i,
++  /prettier\.ignore$/i,
++  /biome\.json$/i,
++  /biome\.js$/i,
++  /\.stylelintrc/i,
++  // Formatter configs
++  /\.editorconfig$/i,
++  // TypeScript configs
++  /tsconfig.*\.json$/i,
++  // Java configs
++  /checkstyle.*\.xml$/i,
++  /spotbugs.*\.xml$/i,
++  /pom\.xml$/i,
++  // Maven wrapper
++  /mvnw$/i,
++  /gradlew$/i,
++  // CI configs
++  /\.github\/workflows\//i,
++  /Jenkinsfile/i,
++  // Security configs
++  /\.gitignore$/i,
++  /dependabot\.yml$/i,
++  // Hooks
++  /hooks\//i,
++  /\.claude\//i,
++  /\.husky\//i
++];
++
++// Directories to protect
++const PROTECTED_DIRS = [
++  /hooks\//,
++  /\.claude\//,
++  /\.github\//,
++  /\.husky\//,
++];
++
++let input = '';
++const stdinTimeout = setTimeout(() => process.exit(0), 5000);
++process.stdin.setEncoding('utf8');
++process.stdin.on('data', chunk => input += chunk);
++process.stdin.on('end', () => {
++  clearTimeout(stdinTimeout);
++  try {
++    const data = JSON.parse(input);
++    const toolName = data.tool_name;
++    const toolArgs = data.tool_args || {};
++
++    // Only check Edit and Write operations
++    if (toolName !== 'Edit' && toolName !== 'Write' && toolName !== 'MultiEdit') {
++      process.exit(0);
++    }
++
++    // Get the file path being modified
++    const filePath = toolArgs.file_path || toolArgs.path || '';
++    if (!filePath) {
++      process.exit(0);
++    }
++
++    // Normalize path
++    const normalizedPath = filePath.replace(/\\/g, '/');
++
++    // Check against protected patterns
++    const isProtected = PROTECTED_PATTERNS.some(pattern =>
++      pattern.test(normalizedPath)
++    );
++
++    const isInProtectedDir = PROTECTED_DIRS.some(dir =>
++      dir.test(normalizedPath)
++    );
++
++    if (isProtected || isInProtectedDir) {
++      const fileName = path.basename(normalizedPath);
++      const msg = '🔒 配置文件保护：检测到正在修改 "' + fileName + '"\n\n'
++        + '这是受保护的配置文件。请通过以下方式修复问题，而不是修改配置：\n\n'
++        + '1. 修复代码以符合现有 lint 规则\n'
++        + '2. 如果规则确实不合理，请先与用户确认后再修改\n'
++        + '3. 不要为了让代码通过检查而降低检查标准\n\n'
++        + '如果你的修改是有意的，请输入"ALLOW_CONFIG_EDIT"继续。';
++
++      const output = {
++        hookSpecificOutput: {
++          hookEventName: 'PostToolUse',
++          additionalContext: msg
++        }
++      };
++
++      process.stdout.write(JSON.stringify(output));
++    }
++
++  } catch (e) {
++    // Silent fail
++    process.exit(0);
++  }
++});
+Index: .claude/hooks/README.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.claude/hooks/README.md b/.claude/hooks/README.md
+new file mode 100644
+--- /dev/null	(date 1775185612975)
++++ b/.claude/hooks/README.md	(date 1775185612975)
+@@ -0,0 +1,227 @@
++# Hooks
++
++本目录存放 tinypowers 的运行期守护脚本。
++
++这些 hook 不负责业务实现，而是负责在执行过程中"扶正流程"：
++- 防止危险命令和高风险读写
++- 监控上下文压力
++- 为会话恢复提供入口
++- 防止为了过检查去改配置
++- 检测残留调试代码
++
++## 设计目标
++
++hooks 解决的不是"怎么写代码"，而是"怎么不把流程写歪"。
++
++它们主要防护这几类问题：
++- 会话切换后忘了上次做到哪
++- 上下文快满了却没有及时压缩
++- 为了让检查通过去改 lint / tsconfig / hook 配置
++- 在不适合的场景运行额外检查，拖慢体验
++
++## Hook 模式
++
++默认通过 `hooks-settings-template.json` 接线全部核心 hook。
++
++`TINYPOWERS_HOOK_LEVEL` 现在只影响 `gsd-code-checker.js` 的提醒强度：
++
++```bash
++export TINYPOWERS_HOOK_LEVEL=standard
++```
++
++- `standard`：保留 Stop 残留代码检测，不主动频繁提醒验证命令
++- `strict`：额外开启 PostToolUse 验证提醒
++
++## 文件说明
++
++| 文件 | 作用 |
++|------|------|
++| `spec-state-guard.js` | 基于 SPEC-STATE 阻止越阶段代码编辑 |
++| `gsd-context-monitor.js` | 监控上下文占用，提醒 `/compact` |
++| `gsd-session-manager.js` | SessionStart / Stop / PreCompact 生命周期管理 |
++| `gsd-code-checker.js` | strict 模式验证提醒 + Stop 时残留代码检测 |
++| `config-protection.js` | 保护 lint / formatter / hook / CI 等关键配置 |
++
++## 核心行为
++
++### 1. 上下文监控
++
++`gsd-context-monitor.js` 在常见工具调用后运行：
++- 当上下文余量下降时发出警告
++- 在合适时机提醒压缩
++
++它的作用不是强制中断，而是让执行更平稳。
++
++### 2. 会话恢复
++
++`gsd-session-manager.js` 负责三类事件：
++- `SessionStart`
++- `Stop`
++- `PreCompact`
++
++当前约定：
++- `features/{id}-{name}/SPEC-STATE.md` 是恢复主数据源
++- `/tmp/tinypowers-session-{session_id}.json` 是恢复入口快照
++- `SPEC-STATE.md` 在 `EXEC` 阶段用 `current_wave` / `exec_progress` 追踪执行状态
++
++恢复流程：
++
++```
++SessionStart
++  -> 检测 /tmp 快照
++  -> 提示是否恢复
++  -> 用户确认后读取 features/{id}-{name}/SPEC-STATE.md
++  -> 从断点继续
++```
++
++这意味着：
++- Snapshot 只负责"提醒有未完成工作"
++- `SPEC-STATE.md` 才负责"告诉你具体做到哪了"
++
++### 3. 配置保护
++
++`config-protection.js` 会在修改关键配置文件后发出提醒，目标是防止这种行为：
++- 为了过 lint 改 `.eslintrc`
++- 为了过类型检查改 `tsconfig.json`
++- 为了绕过流程改 `.claude/` 或 `hooks/`
++
++默认保护范围包括：
++- lint / formatter 配置
++- TypeScript 配置
++- Java 构建与检查配置
++- CI 工作流
++- `.claude/`、`hooks/`、`.husky/`
++
++### 4. Strict 验证提醒 + 残留代码检测
++
++`gsd-code-checker.js` 负责两部分功能：
++
++**PostToolUse 时（strict 模式）**：根据最近修改过的文件类型，提醒运行最匹配的验证命令，例如：
++- Java 改动后提醒 `mvn test`
++- JS / TS 改动后提醒 `npm test`
++- SQL / migration 改动后提醒检查 DDL 与技术方案是否一致
++
++**Stop 时（任意模式）**：检测残留调试代码（System.out/console.log 等），防止调试代码进入生产。
++
++这样可以保留严格模式的约束感，又避免把所有开发场景都强绑到一套固定命令上。
++
++## 如何接到目标项目
++
++通常在目标项目的 `~/.claude/settings.json` 或项目级设置中挂接：
++
++```json
++{
++  "hooks": {
++    "PreToolUse": [
++      {
++        "matcher": "Edit|Write|MultiEdit|Bash",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \"{HOOKS_DIR}/spec-state-guard.js\"",
++            "timeout": 5
++          }
++        ]
++      }
++    ],
++    "SessionStart": [
++      {
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \"{HOOKS_DIR}/gsd-session-manager.js\" SessionStart",
++            "timeout": 5
++          }
++        ]
++      }
++    ],
++    "Stop": [
++      {
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \"{HOOKS_DIR}/gsd-session-manager.js\" Stop",
++            "timeout": 5
++          }
++        ]
++      },
++      {
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \"{HOOKS_DIR}/gsd-code-checker.js\" Stop",
++            "timeout": 10
++          }
++        ]
++      }
++    ],
++    "PreCompact": [
++      {
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \"{HOOKS_DIR}/gsd-session-manager.js\" PreCompact",
++            "timeout": 5
++          }
++        ]
++      }
++    ],
++    "PostToolUse": [
++      {
++        "matcher": "Bash|Edit|Write|MultiEdit|Agent|Task",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \"{HOOKS_DIR}/gsd-context-monitor.js\"",
++            "timeout": 10
++          }
++        ]
++      },
++      {
++        "matcher": "Edit|Write|MultiEdit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \"{HOOKS_DIR}/config-protection.js\"",
++            "timeout": 5
++          }
++        ]
++      },
++      {
++        "matcher": "Bash|Edit|Write|MultiEdit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \"{HOOKS_DIR}/gsd-code-checker.js\"",
++            "timeout": 15
++          }
++        ]
++      }
++    ]
++  }
++}
++```
++
++## 配置方式
++
++### 全局 shell
++
++```bash
++echo 'export TINYPOWERS_HOOK_LEVEL=strict' >> ~/.zshrc
++```
++
++## 维护建议
++
++修改 hooks 时，优先遵守这些原则：
++- 文档和实现必须同步
++- 不要让 Snapshot 替代 `SPEC-STATE.md`
++- 不要把"提醒型 hook"改成高频误报
++- 不要把"配置保护"做成无法维护框架自身
++
++特别注意：
++- 如果改了上下文门槛，请同步检查用户提示文案
++- 如果新增受保护文件类型，请确认不会误伤正常维护动作
++
++## 相关文档
++
++- [README.md](../README.md)
+Index: .claude/hooks/gsd-session-manager.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.claude/hooks/gsd-session-manager.js b/.claude/hooks/gsd-session-manager.js
+new file mode 100644
+--- /dev/null	(date 1775185612976)
++++ b/.claude/hooks/gsd-session-manager.js	(date 1775185612976)
+@@ -0,0 +1,270 @@
++#!/usr/bin/env node
++// gsd-session-manager.js
++// Session lifecycle: Stop / PreCompact / SessionStart
++
++const fs = require('fs');
++const os = require('os');
++const path = require('path');
++
++const HOOK_TYPE = process.argv[2] || 'SessionStart';
++
++let input = '';
++const stdinTimeout = setTimeout(() => process.exit(0), 5000);
++process.stdin.setEncoding('utf8');
++process.stdin.on('data', chunk => input += chunk);
++process.stdin.on('end', () => {
++  clearTimeout(stdinTimeout);
++  try {
++    const data = JSON.parse(input);
++    const sessionId = data.session_id || 'default';
++    const cwd = data.workspace?.cwd || process.cwd();
++    const snapshotPath = path.join(os.tmpdir(), `tinypowers-session-${sessionId}.json`);
++
++    if (HOOK_TYPE === 'SessionStart') handleSessionStart(snapshotPath, cwd);
++    else if (HOOK_TYPE === 'Stop') handleStop(data, snapshotPath, cwd);
++    else if (HOOK_TYPE === 'PreCompact') handlePreCompact(data, snapshotPath, cwd);
++  } catch (e) {
++    process.exit(0);
++  }
++});
++
++function handleSessionStart(snapshotPath, cwd) {
++  if (!fs.existsSync(snapshotPath)) process.exit(0);
++
++  let snapshot;
++  try {
++    snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
++  } catch (e) {
++    fs.unlinkSync(snapshotPath);
++    process.exit(0);
++  }
++
++  const now = Math.floor(Date.now() / 1000);
++  if (snapshot.timestamp && (now - snapshot.timestamp) > 86400) {
++    fs.unlinkSync(snapshotPath);
++    process.exit(0);
++  }
++  if (snapshot.feature_path && !fs.existsSync(path.join(cwd, snapshot.feature_path))) {
++    fs.unlinkSync(snapshotPath);
++    process.exit(0);
++  }
++
++  const s = snapshot.summary || {};
++  const progressPct = s.total_tasks > 0 ? Math.round((s.completed_tasks / s.total_tasks) * 100) : 0;
++  let message = '检测到上次会话未完成：\n' +
++    'Feature: ' + (snapshot.feature_id || '未知') + '\n' +
++    '阶段: ' + (s.phase || '未知') + '\n' +
++    '进度: ' + progressBar(progressPct) + ' ' + (s.completed_tasks || 0) + '/' + (s.total_tasks || 0) + '\n' +
++    'Wave: ' + (s.wave || '?') + '/' + (s.total_waves || '?') + '\n' +
++    '最后: ' + (s.last_action || '无') + '\n';
++
++  if (s.blockers && s.blockers.length > 0) {
++    message += '阻塞: ' + s.blockers.join(', ') + '\n';
++  }
++
++  message += '\n恢复方法：读取 features/' + (snapshot.feature_id || '?') + '/SPEC-STATE.md 从断点继续。';
++
++  const notepadPath = path.join(cwd, '.tinypowers', 'notepad.md');
++  if (fs.existsSync(notepadPath)) {
++    message += '\n\n---\n.tinypowers/notepad.md 已存在，读取可获取压缩前状态。';
++  }
++
++  process.stdout.write(JSON.stringify({
++    hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: message }
++  }));
++}
++
++function handleStop(data, snapshotPath, cwd) {
++  const featuresDir = path.join(cwd, 'features');
++  if (!fs.existsSync(featuresDir)) process.exit(0);
++
++  const featureId = detectCurrentFeature(cwd, featuresDir);
++  const specStatePath = path.join(cwd, 'features', featureId, 'SPEC-STATE.md');
++
++  if (!fs.existsSync(specStatePath)) {
++    ensureFeatureDir(cwd, featureId);
++    process.exit(0);
++  }
++
++  const summary = extractSummaryFromSpecState(fs.readFileSync(specStatePath, 'utf8'), cwd, featureId);
++
++  const state = {
++    session_id: data.session_id,
++    feature_id: featureId,
++    feature_path: 'features/' + featureId,
++    current_wave: summary.wave || 1,
++    timestamp: Math.floor(Date.now() / 1000),
++    summary: {
++      phase: summary.phase || 'unknown',
++      wave: summary.wave || '?',
++      total_waves: summary.total_waves || '?',
++      completed_tasks: summary.completed_tasks || 0,
++      total_tasks: summary.total_tasks || 0,
++      blockers: summary.blockers || [],
++      last_action: summary.last_action || ''
++    }
++  };
++
++  try {
++    fs.writeFileSync(snapshotPath, JSON.stringify(state, null, 2));
++  } catch (e) {}
++
++  writeNotepad(cwd, featureId, summary);
++}
++
++function writeNotepad(cwd, featureId, summary) {
++  const lines = [
++    '# Session Recovery', '',
++    'Feature: ' + featureId,
++    'Phase: ' + (summary.phase || 'unknown'),
++    'Wave: ' + (summary.wave || '?') + '/' + (summary.total_waves || '?'),
++    'Tasks: ' + (summary.completed_tasks || 0) + '/' + (summary.total_tasks || 0),
++    'Updated: ' + new Date().toLocaleString(), ''
++  ];
++  if (summary.blockers && summary.blockers.length > 0) {
++    lines.push('Blockers:');
++    for (const b of summary.blockers) lines.push('- ' + b);
++    lines.push('');
++  }
++  if (summary.last_action) lines.push('Next: ' + summary.last_action);
++
++  const notepadPath = path.join(cwd, '.tinypowers', 'notepad.md');
++  try {
++    fs.mkdirSync(path.dirname(notepadPath), { recursive: true });
++    fs.writeFileSync(notepadPath, lines.join('\n') + '\n');
++  } catch (e) {}
++}
++
++function handlePreCompact(data, snapshotPath, cwd) {
++  const featuresDir = path.join(cwd, 'features');
++  const featureId = detectCurrentFeature(cwd, featuresDir);
++  const specStatePath = path.join(cwd, 'features', featureId, 'SPEC-STATE.md');
++  const summary = fs.existsSync(specStatePath)
++    ? extractSummaryFromSpecState(fs.readFileSync(specStatePath, 'utf8'), cwd, featureId)
++    : {};
++
++  try {
++    fs.writeFileSync(snapshotPath, JSON.stringify({
++      session_id: data.session_id,
++      feature_id: featureId,
++      feature_path: 'features/' + featureId,
++      current_wave: summary.wave || 1,
++      timestamp: Math.floor(Date.now() / 1000),
++      hook: 'PreCompact'
++    }, null, 2));
++  } catch (e) {}
++
++  writeNotepad(cwd, featureId, summary);
++
++  process.stdout.write(JSON.stringify({
++    hookSpecificOutput: {
++      hookEventName: "PreCompact",
++      additionalContext: '压缩前已快照：Feature ' + featureId + ', Wave ' + (summary.wave || '?') +
++        '\n.tinypowers/notepad.md 已更新。'
++    }
++  }));
++}
++
++function detectCurrentFeature(cwd, featuresDir) {
++  try {
++    const { execSync } = require('child_process');
++    const branch = execSync('git branch --show-current', { cwd, encoding: 'utf8', timeout: 5000 }).trim();
++    if (branch && branch.startsWith('feature/')) {
++      const featureDirs = featuresDir && fs.existsSync(featuresDir)
++        ? fs.readdirSync(featuresDir, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name)
++        : [];
++      const matched = matchFeatureFromBranch(branch, featureDirs);
++      if (matched) return matched;
++
++      return branch.replace('feature/', '').replace(/\//g, '-');
++    }
++  } catch (e) {}
++
++  if (featuresDir && fs.existsSync(featuresDir)) {
++    let latestFeature = null;
++    let latestMtime = 0;
++    for (const entry of fs.readdirSync(featuresDir, { withFileTypes: true })) {
++      if (entry.isDirectory()) {
++        const specState = path.join(featuresDir, entry.name, 'SPEC-STATE.md');
++        if (fs.existsSync(specState)) {
++          const content = fs.readFileSync(specState, 'utf8');
++          const phase = extractPhase(content);
++          if (phase === 'DONE') continue;
++
++          const stat = fs.statSync(specState);
++          if (stat.mtimeMs > latestMtime) {
++            latestMtime = stat.mtimeMs;
++            latestFeature = entry.name;
++          }
++        }
++      }
++    }
++    if (latestFeature) return latestFeature;
++  }
++
++  return 'unknown';
++}
++
++function matchFeatureFromBranch(branch, featureDirs) {
++  if (!branch.startsWith('feature/')) return null;
++
++  const raw = branch.replace('feature/', '');
++  const normalized = raw.replace(/\//g, '-');
++  const idPrefix = raw.split('/')[0];
++
++  if (featureDirs.includes(raw)) return raw;
++  if (featureDirs.includes(normalized)) return normalized;
++
++  const prefixMatches = featureDirs.filter(name => name === idPrefix || name.startsWith(idPrefix + '-'));
++  if (prefixMatches.length === 1) return prefixMatches[0];
++
++  return null;
++}
++
++function extractPhase(content) {
++  const match = content.match(/phase:\s*(INIT|REQ|DESIGN|TASKS|PLAN|EXEC|REVIEW|VERIFY|CLOSED|DONE)/);
++  if (!match) return null;
++  const aliases = {
++    INIT: 'PLAN', REQ: 'PLAN', DESIGN: 'PLAN', TASKS: 'PLAN', PLAN: 'PLAN',
++    EXEC: 'EXEC', REVIEW: 'REVIEW', VERIFY: 'REVIEW', CLOSED: 'DONE', DONE: 'DONE'
++  };
++  return aliases[match[1]] || null;
++}
++
++function extractSummaryFromSpecState(content, cwd, featureId) {
++  const result = { blockers: [], decisions: [] };
++
++  const phase = extractPhase(content);
++  if (phase) result.phase = phase;
++
++  const waveMatch = content.match(/current_wave:\s*(\d+)\s*\/\s*(\d+)/);
++  if (waveMatch) { result.wave = waveMatch[1]; result.total_waves = waveMatch[2]; }
++
++  const taskBreakdownPath = path.join(cwd, 'features', featureId, '任务拆解表.md');
++  if (fs.existsSync(taskBreakdownPath)) {
++    const taskContent = fs.readFileSync(taskBreakdownPath, 'utf8');
++    const completed = (taskContent.match(/\[x\]/g) || []).length;
++    const pending = (taskContent.match(/\[ \]/g) || []).length;
++    result.completed_tasks = completed;
++    result.total_tasks = completed + pending;
++  }
++
++  const blockersMatch = content.match(/blockers:\s*(.+)/);
++  if (blockersMatch && blockersMatch[1].trim() !== '无') {
++    result.blockers = blockersMatch[1].split(',').map(s => s.trim()).filter(Boolean);
++  }
++
++  return result;
++}
++
++function ensureFeatureDir(cwd, featureId) {
++  const dir = path.join(cwd, 'features', featureId);
++  try {
++    fs.mkdirSync(dir, { recursive: true });
++  } catch (e) {}
++}
++
++function progressBar(pct) {
++  const filled = Math.round(pct / 10);
++  return '[' + '#'.repeat(filled) + '.'.repeat(10 - filled) + '] ' + pct + '%';
++}
+Index: docs/workflow-review/workflow-optimization-plan.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/docs/workflow-review/workflow-optimization-plan.md b/docs/workflow-review/workflow-optimization-plan.md
+new file mode 100644
+--- /dev/null	(date 1775193351857)
++++ b/docs/workflow-review/workflow-optimization-plan.md	(date 1775193351857)
+@@ -0,0 +1,844 @@
++# tinypowers Workflow 优化方案
++
++> **生成日期**: 2026-04-03  
++> **基于**: 5份端到端Workflow审查报告综合分析  
++> **测试工程**: demo-order-service (Java + Spring Boot 3.2 + MyBatis)  
++> **Skill版本**: tech-init 5.0 / tech-feature 8.0 / tech-code 9.0 / tech-commit 5.0
++
++---
++
++## 一、问题总览
++
++### 1.1 核心问题（按严重度排序）
++
++| 严重度 | 编号 | 问题 | 影响阶段 | 影响范围 |
++|--------|------|------|---------|---------|
++| **P0** | I-01 | 框架副本膨胀（145+文件被复制到项目） | init/commit | 所有选手 |
++| **P0** | C-02 | 审查环节完全缺失 | code | 所有选手 |
++| **P0** | C-05 | 测试文档三文件重叠>70% | code | 所有选手 |
++| **P0** | F-01 | SPEC-STATE模板与脚本格式不匹配 | feature | opencode |
++| **P1** | F-02 | SPEC-STATE假done状态 | feature | 所有选手 |
++| **P1** | F-04 | 审批点在AI自驱时失效 | feature | 所有选手 |
++| **P1** | C-01 | Deep Agent超时（30min） | code | opencode |
++| **P1** | C-03 | Java版本不匹配 | code/init | opencode, codex |
++| **P1** | C-04 | 测试文档事后补写 | code | 所有选手 |
++| **P1** | M-01 | SPEC-STATE独立commit | commit | 所有选手 |
++| **P1** | M-02 | 知识沉淀未激活 | commit | 所有选手 |
++| **P2** | M-03 | Push/PR在本地仓库失败 | commit | 所有选手 |
++| **P2** | I-02 | init升级感知缺失 | init | codex |
++| **P2** | I-03 | .gitignore缺失 | init | opencode |
++
++### 1.2 问题影响量化
++
++```
++文档效率损失
++  │
++40%├███████████████████████████ 测试文档重复（3文件→1文件）
++  │
++30%├█████████████████████ 文档提前创建（PLAN阶段创建测试文档）
++  │
++20%├██████████████ 审批点失效（4次暂停→0次有效暂停）
++  │
++10%├███████ 知识沉淀未激活（learnings→knowledge链路断裂）
++  │
++ 0└───────────────────────────────────────────────────────
++
++提交质量损失
++  │
++80%├███████████████████████████████████████████████████████ 框架副本膨胀
++  │
++20%├██████████████ 构建产物提交（.gitignore缺失）
++  │
++ 0└───────────────────────────────────────────────────────
++```
++
++---
++
++## 二、P0级优化方案（必须立即实施）
++
++### 优化1: 框架安装机制重构 ⭐⭐⭐⭐⭐
++
++#### 现状
++
++```
++install.sh 把整个框架仓库复制到目标项目：
++- .claude/skills/tinypowers/agents/
++- .claude/skills/tinypowers/docs/archive/
++- .claude/skills/tinypowers/manifests/
++- .claude/skills/tinypowers/scripts/（非运行时）
++= 145+ 个文件，~400KB
++```
++
++#### 影响
++
++- **opencode**: 提交包含178个文件，其中145个是框架副本
++- **所有选手**: git历史膨胀，review困难
++
++#### 优化方案
++
++**方案A（推荐）: 全局安装**
++
++```bash
++# 安装时
++install.sh --global
++# 安装到: ~/.claude/skills/tinypowers/
++
++# 目标项目只保留:
++.claude/
++├── CLAUDE.md              # 项目配置
++├── settings.json          # 项目设置
++├── hooks/                 # git hooks（5个）
++│   ├── spec-state-guard
++│   ├── gsd-session-manager
++│   ├── pre-commit
++│   ├── prepare-commit-msg
++│   └── post-commit
++└── rules/                 # 项目规则
++    └── coding-standards.md
++
++# skills 通过全局路径引用:
++# ~/.claude/skills/tinypowers/skills/
++```
++
++**方案B: 精简安装**
++
++```bash
++# install.sh 只复制运行时需要的文件
++.claude/skills/tinypowers/
++├── skills/               # *.md 文件
++│   ├── tech-init/
++│   ├── tech-feature/
++│   ├── tech-code/
++│   └── tech-commit/
++├── hooks/                # *.js 文件
++├── rules/                # 项目规则
++├── CLAUDE.md             # 模板
++└── guides/               # 快速参考
++
++# 不复制:
++# - docs/archive/
++# - manifests/
++# - scripts/（除运行时需要的）
++# - 框架自身文档
++```
++
++#### 改动范围
++
++| 文件 | 改动 |
++|------|------|
++| `install.sh` | 增加`--global`和`--minimal`参数 |
++| `manifests/` | 更新文件清单，区分core和optional |
++| `CLAUDE.md` | 增加全局路径引用说明 |
++| `doctor` | 增加全局安装检测 |
++
++#### 预期收益
++
++```
++提交文件数: 178 → ~35（减少80%）
++提交大小: ~500KB → ~100KB（减少80%）
++git历史清洁度: 显著提升
++```
++
++---
++
++### 优化2: 审查环节自动化 ⭐⭐⭐⭐⭐
++
++#### 现状
++
++```
++/tech:code SKILL.md 规划了:
++1. compliance-reviewer（方案符合性审查）
++2. code-review（代码质量审查）
++
++实际执行:
++❌ 两个审查环节完全缺失，所有选手都跳过
++```
++
++#### 影响
++
++- 技术方案中的锁定决策是否在代码中被遵守，没有经过验证
++- 安全和质量问题无法被发现
++- 代码质量依赖AI自我约束
++
++#### 优化方案
++
++```yaml
++在/tech:code的"审查修复"步骤中:
++
++Step 1: 自动触发compliance-reviewer
++  输入:
++    - 技术方案.md（锁定决策部分）
++    - 本次变更的所有代码文件
++  输出:
++    - 决策合规性报告
++    - 每条决策的符合状态: PASS / WARN / FAIL
++
++Step 2: 自动code-review
++  输入:
++    - 代码diff
++    - 项目编码规范
++  输出:
++    - 代码审查报告
++    - 问题分级: critical / warning / suggestion
++
++Step 3: 自动更新VERIFICATION.md
++  - 将审查结果写入"决策合规性"部分
++  - 将代码审查问题写入"已知问题"部分
++
++Step 4: 人工介入判断
++  - 仅当发现critical问题时暂停
++  - warning和suggestion由AI自行修复
++```
++
++#### 审查检查清单
++
++**compliance-reviewer检查项**:
++
++| 检查项 | 示例 | 优先级 |
++|--------|------|--------|
++| 决策D-001 | 乐观锁CAS用法是否正确 | P0 |
++| 决策D-002 | OutBox模式是否实现 | P0 |
++| 决策D-003 | 幂等性Key是否生成 | P1 |
++| 决策D-004 | 事务边界是否正确 | P1 |
++
++**code-review检查项**:
++
++| 检查项 | 示例 | 优先级 |
++|--------|------|--------|
++| SQL注入 | 是否使用预编译语句 | P0 |
++| NPE风险 | 是否有空指针检查 | P1 |
++| 资源泄漏 | 连接是否正确关闭 | P1 |
++| 并发安全 | 共享变量是否正确同步 | P1 |
++
++#### 改动范围
++
++| 文件 | 改动 |
++|------|------|
++| `/tech:code/SKILL.md` | 增加审查自动化步骤 |
++| `agents/compliance-reviewer.md` | 创建审查agent定义 |
++| `agents/code-reviewer.md` | 创建审查agent定义 |
++| `update-verification.js` | 增加审查结果自动写入 |
++
++#### 预期收益
++
++```
++代码质量: 显著提升
++决策合规性: 100%可追溯
++人工介入: 仅critical问题（减少90%审查负担）
++```
++
++---
++
++### 优化3: 测试文档三合一 ⭐⭐⭐⭐⭐
++
++#### 现状
++
++```
++测试计划.md（测试用例表）
+++ 测试报告.md（执行结果表）
+++ VERIFICATION.md（AC映射）
++= 3个文件，信息重叠>70%
++```
++
++#### 影响
++
++- 维护成本高，改一处要改三处
++- 容易不一致
++- 文档/代码比=0.8:1，比例失衡
++
++#### 优化方案
++
++**合并为一个 VERIFICATION.md**
++
++```markdown
++# VERIFICATION.md
++
++## 1. 测试用例
++
++| 编号 | 场景 | 前置条件 | 操作步骤 | 预期结果 | 实际结果 | 状态 |
++|------|------|---------|---------|---------|---------|------|
++| TC-01 | 正常下单 | 用户已登录 | 1. 选择商品<br>2. 提交订单 | 订单创建成功 | 订单创建成功 | PASS |
++| TC-02 | 库存不足 | 商品库存为0 | 1. 选择商品<br>2. 提交订单 | 返回错误提示 | 返回错误提示 | PASS |
++
++## 2. AC映射
++
++| 验收标准 | 对应测试用例 | 验证结果 | 备注 |
++|---------|-------------|---------|------|
++| AC-01: 用户能成功创建订单 | TC-01 | PASS | - |
++| AC-02: 库存不足时给出明确提示 | TC-02 | PASS | - |
++
++## 3. 决策合规性
++
++| 决策编号 | 决策内容 | 代码实现 | 验证结果 |
++|---------|---------|---------|---------|
++| D-001 | 使用乐观锁CAS更新库存 | OrderMapper.updateStock | PASS |
++| D-002 | 订单状态变更使用OutBox模式 | OrderEventPublisher | PASS |
++
++## 4. 结论
++
++- **整体状态**: PASS
++- **测试通过率**: 10/10 (100%)
++- **已知问题**: 无
++- **残留风险**: 无
++```
++
++#### 改动范围
++
++| 文件 | 改动 |
++|------|------|
++| `scaffold-feature.js` | 删除测试计划/报告模板创建 |
++| `/tech:code/SKILL.md` | 输出产物从4个减到2个 |
++| `/tech:commit/SKILL.md` | 前置条件不再检查测试计划/报告 |
++| `update-spec-state.js` | EXEC→REVIEW的前置检查只验证VERIFICATION.md |
++
++#### 预期收益
++
++```
++文档量: -40%（3文件→1文件）
++维护成本: 显著降低
++文档/代码比: 0.8:1 → 0.4:1
++```
++
++---
++
++### 优化4: SPEC-STATE模板与脚本统一 ⭐⭐⭐⭐
++
++#### 现状
++
++```markdown
++<!-- 模板格式 -->
++## 当前阶段
++当前阶段: PLAN
++
++<!-- 脚本期望格式 -->
++```yaml
++phase: PLAN
++track: medium
++```
++```
++
++#### 影响
++
++- **opencode**: `update-spec-state.js`报错"缺少合法的phase"
++- 需要反复修正格式才能通过
++
++#### 优化方案
++
++**方案A（推荐）: 脚本兼容多格式**
++
++```javascript
++// update-spec-state.js
++function parsePhase(content) {
++  // 支持格式1: YAML代码块
++  const yamlMatch = content.match(/```yaml\nphase:\s*(\w+)/);
++  if (yamlMatch) return yamlMatch[1];
++  
++  // 支持格式2: 中文格式
++  const cnMatch = content.match(/当前阶段[:：]\s*(\w+)/);
++  if (cnMatch) return cnMatch[1];
++  
++  // 支持格式3: 英文格式
++  const enMatch = content.match(/phase[:：]\s*(\w+)/i);
++  if (enMatch) return enMatch[1];
++  
++  return null;
++}
++```
++
++**方案B: 统一模板格式**
++
++```markdown
++<!-- spec-state.md模板 -->
++```yaml
++phase: PLAN
++track: medium
++```
++
++## 产物状态
++
++| 产物 | 状态 | 说明 |
++|------|------|------|
++| PRD.md | scaffolded | 待填写 |
++| 技术方案.md | scaffolded | 待填写 |
++| 任务拆解表.md | scaffolded | 待填写 |
++```
++
++#### 改动范围
++
++| 文件 | 改动 |
++|------|------|
++| `update-spec-state.js` | 增加多格式兼容解析 |
++| `spec-state.md`模板 | 统一使用YAML代码块 |
++
++#### 预期收益
++
++```
++格式调试时间: 减少80%
++错误率: 显著降低
++```
++
++---
++
++## 三、P1级优化方案（强烈建议）
++
++### 优化5: scaffold分阶段创建 ⭐⭐⭐⭐
++
++#### 现状
++
++```
++scaffold-feature.js 一次创建7个文件:
++- PRD.md
++- 技术方案.md
++- 任务拆解表.md
++- SPEC-STATE.md
++- 测试计划.md      ← PLAN阶段不需要
++- 测试报告.md      ← PLAN阶段不需要
++- notepads/learnings.md  ← 空模板
++```
++
++#### 优化方案
++
++```
++feature阶段创建（4个）:
++  SPEC-STATE.md + PRD.md + 技术方案.md + 任务拆解表.md
++
++code阶段按需创建（1个）:
++  VERIFICATION.md（开始测试时创建）
++
++不再创建:
++  notepads/learnings.md（改为EXEC阶段按需创建）
++  测试计划.md / 测试报告.md（被VERIFICATION.md替代）
++```
++
++#### 产物状态流转
++
++```
++scaffolded → filled → verified
++   │           │          │
++   │           │          └── 验证通过后
++   │           └── 内容填写后
++   └── scaffold创建时
++```
++
++#### 改动范围
++
++| 文件 | 改动 |
++|------|------|
++| `scaffold-feature.js` | 增加`--phase`参数，默认`plan`只创建4个文件 |
++| `/tech:code/SKILL.md` | 进入时检查并创建VERIFICATION.md |
++| `update-spec-state.js` | 状态流转: scaffolded → filled → verified |
++
++#### 预期收益
++
++```
++PLAN阶段体验: 更干净，无空模板
++假done状态: 消除
++```
++
++---
++
++### 优化6: 状态判断基于内容而非文件存在 ⭐⭐⭐⭐
++
++#### 现状
++
++```javascript
++// update-spec-state.js 当前逻辑
++function checkArtifactStatus(filePath) {
++  return fs.existsSync(filePath) ? 'done' : 'pending';
++}
++// 问题: 空模板也显示done
++```
++
++#### 优化方案
++
++```javascript
++// 新逻辑
++function checkArtifactStatus(filePath, minLength = 200) {
++  if (!fs.existsSync(filePath)) {
++    return 'pending';
++  }
++  
++  const content = fs.readFileSync(filePath, 'utf8');
++  const meaningfulContent = content.replace(/\s+/g, '').length;
++  
++  if (meaningfulContent < minLength) {
++    return 'scaffolded';  // 空模板
++  }
++  
++  // 检查关键内容
++  if (filePath.includes('PRD.md')) {
++    const hasAC = content.match(/AC-\d+[:：]|When.*Then/);
++    return hasAC ? 'filled' : 'scaffolded';
++  }
++  
++  if (filePath.includes('技术方案.md')) {
++    const hasDecision = content.match(/已锁定决策|决策记录|锁定决策/);
++    return hasDecision ? 'filled' : 'scaffolded';
++  }
++  
++  return 'filled';
++}
++```
++
++#### 状态定义
++
++| 状态 | 含义 | 触发条件 |
++|------|------|---------|
++| pending | 未创建 | 文件不存在 |
++| scaffolded | 已创建但为空 | 文件存在但内容<200字符 |
++| filled | 已填写 | 内容>=200字符且有关键字段 |
++| verified | 已验证 | 审查通过 |
++
++#### 改动范围
++
++| 文件 | 改动 |
++|------|------|
++| `update-spec-state.js` | 增加内容质量检查 |
++| `spec-state.md`模板 | 更新状态说明 |
++
++#### 预期收益
++
++```
++状态准确性: 显著提升
++误导性: 消除
++```
++
++---
++
++### 优化7: doctor增加构建运行时检查 ⭐⭐⭐
++
++#### 现状
++
++```
++doctor --project 检查:
++✅ hooks接线
++✅ 目录存在
++❌ 不检查Java运行时是否满足项目构建要求
++```
++
++#### 优化方案
++
++```javascript
++// doctor.js 新增检查
++function checkBuildRuntime() {
++  const checks = [];
++  
++  // 检查pom.xml中的Java版本要求
++  if (fs.existsSync('pom.xml')) {
++    const pom = fs.readFileSync('pom.xml', 'utf8');
++    const javaVersionMatch = pom.match(/<java\.version>(\d+)</);
++    const requiredJava = javaVersionMatch ? javaVersionMatch[1] : '8';
++    
++    // 检查当前Java版本
++    const currentJava = execSync('java -version 2>&1').toString();
++    const currentVersionMatch = currentJava.match(/version "(\d+)/);
++    const currentVersion = currentVersionMatch ? currentVersionMatch[1] : 'unknown';
++    
++    if (parseInt(currentVersion) < parseInt(requiredJava)) {
++      checks.push({
++        status: 'FAIL',
++        message: `Java版本不匹配: 项目要求${requiredJava}, 当前${currentVersion}`,
++        suggestion: '使用: export JAVA_HOME=/opt/homebrew/opt/openjdk'
++      });
++    }
++  }
++  
++  return checks;
++}
++```
++
++#### 改动范围
++
++| 文件 | 改动 |
++|------|------|
++| `doctor.js` | 增加Java版本检查 |
++| `doctor.js` | 增加Maven/Gradle检查 |
++
++#### 预期收益
++
++```
++环境问题前置暴露: 100%
++code阶段阻塞: 消除
++```
++
++---
++
++### 优化8: SPEC-STATE变更并入feature commit ⭐⭐⭐
++
++#### 现状
++
++```bash
++# 当前流程
++git commit -m "feat(ORDER-102): add payment callback"
++# 修改SPEC-STATE.md → DONE
++git commit -m "chore(ORDER-102): update spec state to DONE"
++# 问题: 2个commits，增加噪音
++```
++
++#### 优化方案
++
++**方案A: 合并到feature commit**
++
++```bash
++# 修改SPEC-STATE.md → DONE
++git add .
++git commit -m "feat(ORDER-102): add payment callback"
++# 只有1个commit
++```
++
++**方案B: 自动amend**
++
++```bash
++# feature commit后
++git commit -m "feat(ORDER-102): add payment callback"
++# 修改SPEC-STATE.md → DONE
++git add SPEC-STATE.md
++git commit --amend --no-edit
++# 只有1个commit
++```
++
++#### 改动范围
++
++| 文件 | 改动 |
++|------|------|
++| `/tech:commit/SKILL.md` | 修改SPEC-STATE提交流程 |
++
++#### 预期收益
++
++```
++commit数量: 2 → 1
++历史清洁度: 提升
++```
++
++---
++
++## 四、P2级优化方案（建议实施）
++
++### 优化9: 知识沉淀半自动化 ⭐⭐⭐
++
++#### 现状
++
++```
++知识沉淀链路:
++实现细节 → notepads/learnings.md → docs/knowledge.md
++
++实际执行:
++❌ learnings.md 未创建或为空
++❌ knowledge.md 无更新
++❌ 链路全程未触发
++```
++
++#### 优化方案
++
++```yaml
++在/tech:commit的"交付后可选动作"中:
++
++Step 1: 扫描learnings.md
++  - 如果文件存在且有内容，提取条目
++  - 如果文件不存在，检查本次feature是否有沉淀价值
++
++Step 2: 判断沉淀价值
++  触发条件（至少满足一条）:
++    - 遇到了非显而易见的bug并解决
++    - 发现了框架自身的限制或问题
++    - 有对后续feature有价值的决策经验
++    - 技术方案中有新的模式应用
++
++Step 3: 推荐升级项
++  - 从learnings.md中提取1-3条推荐升级项
++  - 向用户展示推荐列表
++  - 用户确认后写入knowledge.md
++
++Step 4: 写入knowledge.md
++  - 按分类写入（Patterns/Decisions/Lessons）
++  - 添加时间戳和feature引用
++```
++
++#### learnings.md格式
++
++```markdown
++# ORDER-102 Learnings
++
++## [PERSIST] 乐观锁CAS用法
++`cancelByIdAndVersion`必须双条件WHERE，仅version有复用风险
++<!-- /PERSIST -->
++
++## 测试技巧
++Mockito在Java 25下对具体类inline mock不稳定，建议用接口mock
++```
++
++#### 改动范围
++
++| 文件 | 改动 |
++|------|------|
++| `/tech:commit/SKILL.md` | 增加知识沉淀步骤 |
++| `notepads/learnings.md`模板 | 增加[PERSIST]标记说明 |
++
++#### 预期收益
++
++```
++知识沉淀率: 0% → 50%+
++知识库价值: 逐步积累
++```
++
++---
++
++### 优化10: 暂停点重设计 ⭐⭐⭐
++
++#### 现状
++
++```
++tech:feature: 2个暂停点（方案后 + 任务拆解后）
++tech:code: 2个暂停点（Gate Check + 审查后）
++= 4个暂停点
++
++AI自驱时: 全部失效，变成AI自问自答
++```
++
++#### 优化方案
++
++```
++将4个隐式暂停改为2个显式检查点：
++
++CHECK-1（feature → code边界）:
++  触发: DESIGN.md完成后
++  AI输出:
++    📋 方案摘要
++    - 需求: ORDER-102 订单退款申请与审批流
++    - 决策: 4条锁定决策
++    - 任务: 6个任务，3个Wave
++    - 风险: 无
++  
++  等待: 人工输入'go'指令
++  超时: 记录[AI-SELF-APPROVED]，继续执行
++
++CHECK-2（code → commit边界）:
++  触发: VERIFICATION.md完成后
++  AI输出:
++    🔍 变更摘要
++    - 新增文件: 8个
++    - 修改文件: 3个
++    - 测试: 6/6 PASS
++    - 决策合规: 4/4 PASS
++  
++  等待: 人工输入'go'指令
++  超时: 记录[AI-SELF-APPROVED]，继续执行
++```
++
++#### 改动范围
++
++| 文件 | 改动 |
++|------|------|
++| `/tech:feature/SKILL.md` | 合并2个暂停点为1个CHECK-1 |
++| `/tech:code/SKILL.md` | 合并2个暂停点为1个CHECK-2 |
++
++#### 预期收益
++
++```
++有效暂停: 0 → 2
++无效暂停: 4 → 0
++用户体验: 显著提升
++```
++
++---
++
++## 五、实施路线图
++
++### 5.1 阶段一（立即实施，1-2天）
++
++| 优化项 | 负责人 | 预计工时 |
++|--------|--------|---------|
++| 框架安装机制重构 | 架构组 | 1天 |
++| SPEC-STATE模板与脚本统一 | 工具组 | 0.5天 |
++| .gitignore自动创建 | 工具组 | 0.5天 |
++
++### 5.2 阶段二（短期实施，1周内）
++
++| 优化项 | 负责人 | 预计工时 |
++|--------|--------|---------|
++| 测试文档三合一 | 文档组 | 2天 |
++| scaffold分阶段创建 | 工具组 | 1天 |
++| 状态判断基于内容 | 工具组 | 1天 |
++| SPEC-STATE并入commit | 工具组 | 0.5天 |
++
++### 5.3 阶段三（中期实施，2周内）
++
++| 优化项 | 负责人 | 预计工时 |
++|--------|--------|---------|
++| 审查环节自动化 | AI组 | 3天 |
++| doctor运行时检查 | 工具组 | 1天 |
++| 知识沉淀半自动化 | AI组 | 2天 |
++| 暂停点重设计 | 流程组 | 1天 |
++
++### 5.4 预期效果
++
++```
++阶段一完成后:
++  - 提交文件数: -80%
++  - 格式错误: -80%
++
++阶段二完成后:
++  - 文档量: -40%
++  - 假done状态: 消除
++  - commit噪音: -50%
++
++阶段三完成后:
++  - 代码质量: 显著提升
++  - 知识沉淀率: 50%+
++  - 用户满意度: 显著提升
++```
++
++---
++
++## 六、验证方案
++
++### 6.1 回归测试
++
++使用demo-order-service重新执行全流程，验证：
++
++| 检查项 | 验证方法 | 通过标准 |
++|--------|---------|---------|
++| 框架副本 | `git status` | 提交文件<50个 |
++| 文档合并 | `ls features/ORDER-XXX/` | 只有4-5个文件 |
++| SPEC-STATE格式 | `update-spec-state.js` | 无报错 |
++| 状态准确性 | 查看SPEC-STATE.md | 空模板显示scaffolded |
++| 审查环节 | 查看VERIFICATION.md | 有决策合规性部分 |
++
++### 6.2 性能测试
++
++| 指标 | 当前 | 目标 | 验证方法 |
++|------|------|------|---------|
++| 全流程耗时 | 30-50min | 20-30min | 计时 |
++| 文档/代码比 | 0.8:1 | 0.4:1 | 统计 |
++| 提交文件数 | 178 | <50 | `git diff --stat` |
++| 知识沉淀率 | 0% | >50% | 统计 |
++
++---
++
++## 七、附录
++
++### 7.1 参考文档
++
++- [2026-04-03-demo-order-service-e2e-review.md](2026-04-03-demo-order-service-e2e-review.md) - codex+GPT-5.4
++- [2026-04-03-e2e-workflow-review.md](2026-04-03-e2e-workflow-review.md) - opencode+qwen-3.6-plus
++- [OPTIMIZATION-2026-04-03.md](OPTIMIZATION-2026-04-03.md) - claude+glm-5.1
++- [ORDER-102-workflow-review.md](ORDER-102-workflow-review.md) - codebuddy+default
++- [workflow-review.md](workflow-review.md) - kilo+minimax-2.7
++
++### 7.2 术语表
++
++| 术语 | 说明 |
++|------|------|
++| tinypowers | AI辅助开发框架 |
++| SKILL.md | 技能定义文件 |
++| SPEC-STATE.md | 需求生命周期状态 |
++| scaffold | 脚手架，自动生成文件 |
++| worktree | git工作树 |
++| compliance-reviewer | 方案符合性审查 |
++| code-review | 代码质量审查 |
++
++---
++
++**文档版本**: v1.0  
++**最后更新**: 2026-04-03  
++**维护者**: Workflow优化小组
+Index: .claude/settings.json
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{\n  \"permissions\": {\n    \"allow\": [\n      \"Bash(npm test)\",\n      \"Bash(npm run build)\",\n      \"Bash(git *)\",\n      \"Bash(./gradlew *)\",\n      \"Bash(date:*)\",\n      \"Bash(echo:*)\",\n      \"Bash(cat:*)\",\n      \"Bash(ls:*)\",\n      \"Bash(mkdir:*)\",\n      \"Bash(wc:*)\",\n      \"Bash(head:*)\",\n      \"Bash(tail:*)\",\n      \"Bash(sort:*)\",\n      \"Bash(grep:*)\",\n      \"Bash(tr:*)\",\n      \"Bash(git add:*)\",\n      \"Bash(git commit:*)\",\n      \"Bash(git status:*)\",\n      \"Bash(git log:*)\",\n      \"Bash(git diff:*)\",\n      \"Bash(git tag:*)\",\n      \"Write(src/**/*)\",\n      \"Write(tests/**/*)\",\n      \"Write(features/**/*)\"\n    ],\n    \"deny\": [\n      \"Bash(rm -rf *)\",\n      \"Bash(sudo *)\",\n      \"Bash(curl *)\",\n      \"Write(*.pem)\",\n      \"Write(.env*)\",\n      \"Write(node_modules/**/*)\",\n      \"ToolCreation\"\n    ]\n  },\n  \"skipDangerousModePermissionPrompt\": true,\n  \"statusLine\": {\n    \"command\": \"bash -c 'plugin_dir=$(ls -d \\\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}\\\"/plugins/cache/claude-hud/claude-hud/*/ 2>/dev/null | awk -F/ '\\\"'\\\"'{ print $(NF-1) \\\"\\\\t\\\" $(0) }'\\\"'\\\"' | sort -t. -k1,1n -k2,2n -k3,3n -k4,4n | tail -1 | cut -f2-); exec \\\"/Users/wcf/.npm-global/bin/bun\\\" --env-file /dev/null \\\"${plugin_dir}src/index.ts\\\"'\",\n    \"type\": \"command\"\n  },\n  \"tools\": {\n    \"useRelated\": true,\n    \"maxTurns\": 50\n  },\n  \"model\": \"opus\",\n  \"hooks\": {\n    \"PreToolUse\": [\n      {\n        \"matcher\": \"Edit|Write|MultiEdit|Bash\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"node \\\"{HOOKS_DIR}/spec-state-guard.js\\\"\",\n            \"timeout\": 5\n          }\n        ]\n      }\n    ],\n    \"PostToolUse\": [\n      {\n        \"matcher\": \"Bash|Edit|Write|MultiEdit|Agent|Task\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"node \\\"{HOOKS_DIR}/gsd-context-monitor.js\\\"\",\n            \"timeout\": 10\n          }\n        ]\n      },\n      {\n        \"matcher\": \"Edit|Write|MultiEdit\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"node \\\"{HOOKS_DIR}/config-protection.js\\\"\",\n            \"timeout\": 5\n          }\n        ]\n      },\n      {\n        \"matcher\": \"Bash|Edit|Write|MultiEdit\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"node \\\"{HOOKS_DIR}/gsd-code-checker.js\\\"\",\n            \"timeout\": 15\n          }\n        ]\n      }\n    ]\n  }\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.claude/settings.json b/.claude/settings.json
+--- a/.claude/settings.json	(revision ff79fe4b4fe504f96838c658792468cf25802eb4)
++++ b/.claude/settings.json	(date 1775185612973)
+@@ -24,7 +24,13 @@
+       "Bash(git tag:*)",
+       "Write(src/**/*)",
+       "Write(tests/**/*)",
+-      "Write(features/**/*)"
++      "Write(features/**/*)",
++      "Bash(mvn *)",
++      "Bash(ls *)",
++      "Bash(cat *)",
++      "Bash(find *)",
++      "Bash(rg *)",
++      "Bash(date *)"
+     ],
+     "deny": [
+       "Bash(rm -rf *)",
+@@ -55,6 +61,16 @@
+             "type": "command",
+             "command": "node \"{HOOKS_DIR}/spec-state-guard.js\"",
+             "timeout": 5
++          }
++        ]
++      },
++      {
++        "matcher": "Edit|Write|MultiEdit|Bash",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \".claude/hooks/spec-state-guard.js\"",
++            "timeout": 5
+           }
+         ]
+       }
+@@ -89,6 +105,72 @@
+             "timeout": 15
+           }
+         ]
++      },
++      {
++        "matcher": "Bash|Edit|Write|MultiEdit|Agent|Task",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \".claude/hooks/gsd-context-monitor.js\"",
++            "timeout": 10
++          }
++        ]
++      },
++      {
++        "matcher": "Edit|Write|MultiEdit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \".claude/hooks/config-protection.js\"",
++            "timeout": 5
++          }
++        ]
++      },
++      {
++        "matcher": "Bash|Edit|Write|MultiEdit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \".claude/hooks/gsd-code-checker.js\"",
++            "timeout": 15
++          }
++        ]
++      }
++    ],
++    "SessionStart": [
++      {
++        "matcher": "*",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \".claude/hooks/gsd-session-manager.js\" SessionStart",
++            "timeout": 5
++          }
++        ]
++      }
++    ],
++    "PreCompact": [
++      {
++        "matcher": "*",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \".claude/hooks/gsd-session-manager.js\" PreCompact",
++            "timeout": 5
++          }
++        ]
++      }
++    ],
++    "Stop": [
++      {
++        "matcher": "*",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "node \".claude/hooks/gsd-session-manager.js\" Stop",
++            "timeout": 5
++          }
++        ]
+       }
+     ]
+   }
+Index: docs/prompts/execution-summary.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/docs/prompts/execution-summary.md b/docs/prompts/execution-summary.md
+new file mode 100644
+--- /dev/null	(date 1775187414174)
++++ b/docs/prompts/execution-summary.md	(date 1775187414174)
+@@ -0,0 +1,75 @@
++# 执行摘要提示词
++
++> 在完成一次完整的 init → feature → code → commit 演练后，用以下提示词请 AI 输出标准化执行摘要。
++
++---
++
++## 提示词
++
++```
++请按以下结构，以 Markdown 格式输出本次执行摘要：
++
++## 完成度
++
++用表格列出每个执行阶段的状态和产物：
++
++| 阶段 | 状态 | 产物 |
++|------|------|------|
++| Worktree 创建 | ✅/⚠️/❌ | ... |
++| tech:init | ✅/⚠️/❌ | ... |
++| tech:feature | ✅/⚠️/❌ | ... |
++| tech:code | ✅/⚠️/❌ | ... |
++| tech:commit | ✅/⚠️/❌ | ... |
++| 其他自定义阶段（如有） | ✅/⚠️/❌ | ... |
++
++末尾注明：**完成度：X/X 项，XX%**
++
++---
++
++## 执行时长估算
++
++按阶段拆分工具调用轮次和时间估算：
++
++| 阶段 | 工具调用轮次 | 估计耗时 |
++|------|------------|---------|
++| ... | ~N 轮 | ~N min |
++| **合计** | **~N 轮** | **~N min** |
++
++---
++
++## 关键数字
++
++用简洁的 bullet 列出本次执行的关键指标，例如：
++- 代码文件数（新增/修改）
++- 文档文件数
++- 测试用例数及通过率
++- Git commit 数
++- 发现问题数（如有审查环节）
++
++> 输出格式要求：整份摘要使用标准 Markdown，表格、标题、bullet 严格按上述结构，不输出额外解释文字。
++```
++
++---
++
++## 字段说明
++
++| 字段 | 说明 |
++|------|------|
++| 阶段状态 | ✅ 完成 / ⚠️ 部分完成或有偏差 / ❌ 未完成或失败 |
++| 产物 | 该阶段实际输出的文件、提交、结论等，用简短文本描述 |
++| 工具调用轮次 | 大致估算，用于衡量执行代价；无精确时间戳时以轮次推算时长 |
++| 估计耗时 | 按每轮约 15-30s 估算，精度为分钟级 |
++| 关键数字 | 仅列出有意义的指标，不堆砌数字 |
++
++---
++
++## 使用场景
++
++- 完成一次需求演练后，作为 session 收口的标准输出
++- 多次演练对比时，作为横向比较基准
++- 提交 PR 前，作为 reviewer 快速了解本次执行情况的入口
++
++## 配套说明
++
++- 本提示词不替代 `VERIFICATION.md`，后者关注"功能是否正确"，本摘要关注"执行过程的效率和完整性"
++- 若有 workflow 审查需求，摘要之后可追加"步骤审查"部分（参考 `docs/workflow-review/` 目录的格式）
+Index: docs/workflow-review/archive/2026-04-03-demo-order-service-e2e-review.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/docs/workflow-review/archive/2026-04-03-demo-order-service-e2e-review.md b/docs/workflow-review/archive/2026-04-03-demo-order-service-e2e-review.md
+new file mode 100644
+--- /dev/null	(date 1775188273854)
++++ b/docs/workflow-review/archive/2026-04-03-demo-order-service-e2e-review.md	(date 1775188273854)
+@@ -0,0 +1,214 @@
++# demo-order-service 端到端工作流复盘
++
++> 测试选手: codex+GPT-5.4
++
++日期：2026-04-03
++
++## 试跑范围
++
++- tinypowers 版本：本地当前仓库中的最新 skill 定义
++  - `tech:init` v5.0
++  - `tech:feature` v8.0
++  - `tech:code` v9.0
++  - `tech:commit` v5.0
++- 测试工程：`/private/tmp/demo-order-service`
++- 独立 worktree：`/private/tmp/demo-order-service-order202`
++- 分支：`feature/ORDER-202-failure-retry`
++- 需求：`ORDER-202 取消事件失败重试与积压摘要`
++
++真实执行链路：
++
++```text
++tech:init -> tech:feature -> tech:code -> tech:commit
++```
++
++实际提交：
++
++```text
++f4e98d1 [AI-Gen] chore(init): refresh tinypowers project assets
++b0ce2b5 [AI-Gen] feat(ORDER-202): add event retry summary and replay
++fec30c9 [AI-Gen] chore(ORDER-202): close feature state
++```
++
++验证命令：
++
++```bash
++JAVA_HOME=/opt/homebrew/opt/openjdk mvn -q test
++```
++
++测试结果：
++- 4 个测试类，10/10 PASS
++- 本地仓库未配置 remote，因此本次只验证到 commit，未执行 push / PR
++
++## 总体结论
++
++这轮流程已经比之前顺很多，尤其是 `medium` 路由终于可用，确实填上了 Fast 和 Standard 之间的空档。
++
++但“拖沓”和“知识沉淀差”这两个核心问题还没有根治，主要表现为：
++
++1. `init` 的默认升级路径不可靠，用户很难知道自己到底有没有升级到最新骨架。
++2. `feature` 虽然变轻了，但仍然会提前生成过多文档，并把“文件存在”误判成“产物完成”。
++3. `code` 阶段真正耗时的不是写代码，而是环境排查、测试运行时兼容性、验证文档手工回填。
++4. `commit` 仍然需要额外一个 `DONE` 收口 commit，流程心智上还是偏重。
++5. 知识沉淀链路虽然存在，但仍需要人工判断、人工搬运，没有形成低摩擦闭环。
++
++## 量化观察
++
++- `tech:init --force` 刷新后产生 4 个项目级文件改动，`+128 / -168`
++- `ORDER-202` feature 提交产生 19 个文件改动，`+727 / -16`
++- `DONE` 收口单独形成 1 个 meta commit
++- `ORDER-202` 目录文档总量 358 行
++  - `PRD.md` 67 行
++  - `技术方案.md` 72 行
++  - `任务拆解表.md` 34 行
++  - `SPEC-STATE.md` 57 行
++  - `测试计划.md` 36 行
++  - `测试报告.md` 39 行
++  - `VERIFICATION.md` 34 行
++  - `learnings.md` 19 行
++
++## 分步审查
++
++### 1. `tech:init`
++
++| 步骤 | 实际情况 | 复杂度 | 合理性 |
++|------|----------|--------|--------|
++| 预检与技术栈判断 | demo 工程已有 `pom.xml`、`MyBatis`、`Spring Boot`，识别很直接 | 低 | 合理 |
++| 默认 `Update` 升级 | 跑完后工作区无 diff，`doctor` 仍显示 `CLAUDE.md init_version: 4.0` | 中 | 不合理 |
++| 改用 `--force` 覆盖 | 这次真正刷新了 hooks / guide / CLAUDE | 中 | 合理，但不该靠用户猜 |
++| `doctor --project` 验证 | 能确认 hooks 接线和目录存在 | 低 | 基本合理，但无法判断“是否已升级到最新骨架” |
++
++关键发现：
++- 默认 `Update` 对“已初始化项目升级”几乎没有可见反馈，容易给用户“升级成功”的错觉。
++- 即使 `--force` 刷新成功，`CLAUDE.md` 里的 `init_version` 仍然显示 `4.0`，导致 `doctor` 也无法帮助判断是否已升到最新模板。
++- `doctor` 没有检查 Java 运行时是否满足项目构建要求，这是后续 `code` 阶段的真实阻塞点。
++
++### 2. `tech:feature`
++
++| 步骤 | 实际情况 | 复杂度 | 合理性 |
++|------|----------|--------|--------|
++| 选择路由 | 本次需求明显比 Fast 重，但又不到 Standard，`medium` 很合适 | 低 | 合理，且是本轮最大进步 |
++| `scaffold-feature.js --track medium` | 骨架秒级生成，体验好 | 低 | 合理 |
++| 补 `PRD.md` | 需要手工把背景、边界、验收补全 | 中 | 合理，但仍偏手工 |
++| 补 `技术方案.md` | 模板够轻，但关键设计仍需人工完整写出 | 中 | 基本合理 |
++| 补 `任务拆解表.md` | Medium 的平铺任务表明显比 Standard 好用 | 低 | 合理 |
++| 推进 `PLAN -> EXEC` | 门禁可用 | 低 | 合理 |
++
++关键发现：
++- `medium` 确实可用，这次需求用它是对的。
++- 但脚手架会提前创建 `测试计划.md`、`测试报告.md`，把执行期文档提前带入 planning，仍然有“还没开始写代码，目录已经很满”的感受。
++- `SPEC-STATE` 的产物表以“文件是否存在”判断 `done/pending`，而不是内容是否就绪。刚 scaffold 完，很多文档虽然是空模板，但状态已经显示 `done`，这会误导使用者。
++- 即使走 `medium`，最终 feature 目录仍达到 358 行文档。相比旧流程轻了，但离“足够轻”还有距离。
++
++### 3. `tech:code`
++
++| 步骤 | 实际情况 | 复杂度 | 合理性 |
++|------|----------|--------|--------|
++| 基线测试 | 默认 `mvn test` 直接失败，因为 shell 指向 Java 8，而项目是 Spring Boot 3.2 | 中高 | 不合理，应该前置暴露 |
++| 环境排查 | 发现本机其实装了 Homebrew OpenJDK 25，只是未被默认使用 | 中 | 不该让用户自己查 |
++| 补测试骨架 | 先写 Consumer / Service / Controller 单测，任务路径清晰 | 中 | 合理 |
++| 首轮跑测 | Mockito + ByteBuddy 在 Java 25 下对具体类 inline mock 不稳定 | 中 | 环境现实合理，但流程没有兜底 |
++| 修测试写法 | 改成“接口 mock + 具体类 fake”后稳定通过 | 中 | 合理，但需要经验 |
++| 实现代码 | 增加 DTO、Service、Controller、Mapper 契约、重试状态机 | 中 | 合理 |
++| 测试与验证文档 | `测试报告.md`、`VERIFICATION.md` 基本全手工回填 | 中高 | 不合理，自动化太弱 |
++
++关键发现：
++- 真正拖慢 `code` 的不是实现复杂度，而是环境和验证产物。
++- `doctor` 没有在最前面提示“当前 Java 8 无法编译本项目”，导致问题延后到编码阶段暴露。
++- 在新 JDK 下，测试框架兼容性也会冒出来；这类运行时信号应该尽量前置。
++- `VERIFICATION.md` 的生成几乎全靠手写，缺少“从最近测试结果自动生成最小骨架”的能力。
++
++### 4. `tech:commit`
++
++| 步骤 | 实际情况 | 复杂度 | 合理性 |
++|------|----------|--------|--------|
++| 文档同步 | 需求文档、测试文档、知识库、learnings 都要人工收口 | 中 | 基本合理，但分散 |
++| init 与 feature 拆 commit | 为了让历史更清晰，手工拆成 init commit 和 feature commit | 中 | 合理，但需要操心 |
++| feature commit | 主功能 commit 很顺 | 低 | 合理 |
++| `REVIEW -> DONE` | 仍需要单独改 `SPEC-STATE.md` 再补一个 meta commit | 中 | 不合理 |
++| push / PR | 仓库无 remote，本次只能降级到本地 commit 完成 | 低 | 合理，但需要文档明确说明 |
++
++关键发现：
++- `DONE` 收口仍然天然制造一次额外 commit，这个问题没有消失。
++- “知识沉淀”和“状态收口”都堆在 commit 阶段，导致最后一公里依然显得拖。
++- 对没有 remote 的本地测试仓库，当前流程缺少一个明确的“到 commit 即完成”的降级定义。
++
++## 知识沉淀链路审查
++
++这次我实际走了这条链路：
++
++```text
++实现细节 -> notepads/learnings.md -> docs/knowledge.md
++```
++
++评价：
++- 方向是对的，至少 feature 级 learnings 和项目级 knowledge 已经分层。
++- 但触发仍然全靠人工判断，系统不会提示“哪些 learnings 值得升级成 knowledge”。
++- `docs/knowledge.md` 很容易在 `init --force` 时被覆盖成空模板，如果没有后续人工回填，沉淀会直接丢失。
++
++结论：
++- 现在不是“没有知识沉淀结构”，而是“沉淀动作还没有变成低成本默认动作”。
++
++## 优化方案
++
++### P0
++
++1. 修正 `tech:init` 的升级感知
++   - `Update` 后必须明确输出“哪些文件未更新、为什么未更新”
++   - `CLAUDE.md` 中的 `init_version` 必须跟模板版本同步
++   - `doctor` 需要能判断“项目骨架是否落后当前安装版本”
++
++2. 在 `doctor` 中增加构建运行时检查
++   - 识别 `pom.xml` / `Spring Boot` 对最低 Java 版本的要求
++   - 明确报告当前 `java -version`
++   - 若系统存在可用替代 JDK，也要提示如何切换
++
++3. 让 `SPEC-STATE` 的产物状态基于内容门禁，而不是仅基于文件存在
++   - 空模板不应显示 `done`
++   - 至少应检查 PRD 是否含验收标准、技术方案是否含已确认决策
++
++### P1
++
++4. 进一步收紧 `medium` 路由的默认文档集合
++   - planning 阶段只创建 `PRD / 技术方案 / 任务拆解 / SPEC-STATE`
++   - `测试计划 / 测试报告 / VERIFICATION` 延迟到 `tech:code` 首次进入验证时再生成
++
++5. 为 `VERIFICATION.md` 提供最小自动生成器
++   - 自动读取最近一次测试命令
++   - 汇总 surefire / junit 通过数
++   - 生成验收标准映射骨架，让用户只补结论与残留风险
++
++6. 给 `commit` 阶段定义本地仓库降级路径
++   - 无 remote 时，明确“完成 commit 且 SPEC-STATE=Done 即视为完成”
++   - 不再要求用户理解 PR 链接生成逻辑
++
++### P2
++
++7. 把 `learnings -> knowledge` 做成半自动升级
++   - 在 `tech:commit` 前扫描 `notepads/learnings.md`
++   - 给出 1-3 条推荐升级项
++   - 用户只需确认是否写入 `docs/knowledge.md`
++
++8. 重新设计 `DONE` 收口
++   - 可选方案 A：允许 `DONE` 与功能 commit 一起提交
++   - 可选方案 B：把 `DONE` 改成推导态，而不是 repo 内显式状态
++   - 可选方案 C：commit 成功后自动补写并自动追加 commit，不再让用户手动操心
++
++## 最终判断
++
++这次 dogfood 的结论很明确：
++
++```text
++当前流程已经不是“完全不可用”，
++而是“主链路能跑通，但仍有几处高频人工负担没有被产品化”。
++```
++
++其中最值得肯定的是：
++- `medium` 路由已经成为真实可用的中间档
++- `scaffold-feature.js` 与 `update-spec-state.js` 的主路径能支撑端到端试跑
++
++最值得优先优化的是：
++- `init` 升级感知与版本可见性
++- `doctor` 的 Java / toolchain 前置检查
++- 验证与知识沉淀的自动化
++- `DONE` 额外 commit 的收口成本
+Index: docs/workflow-review/archive/workflow-review.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/docs/workflow-review/archive/workflow-review.md b/docs/workflow-review/archive/workflow-review.md
+new file mode 100644
+--- /dev/null	(date 1775188166482)
++++ b/docs/workflow-review/archive/workflow-review.md	(date 1775188166482)
+@@ -0,0 +1,255 @@
++# Workflow 审查报告与优化方案
++
++> 生成时间: 2026-04-03
++> 测试工程: demo-order-service (Java Maven)
++> 测试分支: feature/demo-workflow-review
++> 测试选手: kilo+minimax-2.7
++
++---
++
++## 一、执行摘要
++
++| Skill | 步骤数 | 复杂度 | 主要问题 |
++|-------|--------|--------|----------|
++| /tech:init | 5 | 低 | 已初始化项目重复确认 |
++| /tech:feature | 4 | 高 | 文档冗长、审批点过多 |
++| /tech:code | 4 | 高 | 文档重复、任务粒度太细 |
++| /tech:commit | 4 | 中 | SPEC-STATE 独立提交多余 |
++
++**总体评估**: 流程完整但拖沓，文档工作量大，知识沉淀效率低。
++
++---
++
++## 二、详细问题分析
++
++### 2.1 /tech:init 问题
++
++**问题 1: 已初始化项目重复确认**
++- 现象：项目已初始化（init_version: "4.0"）时，仍要求用户选择 Update/Skip/Overwrite
++- 影响：每个新需求都要走一遍无意义的确认
++- 建议：**快速通道** - 如果 `.claude/settings.json` 和关键骨架存在，直接跳过
++
++**问题 2: 知识扫描 lazy mode 判断复杂**
++- 现象：需要判断"空项目"、"只有构建文件"等多种情况
++- 影响：预检逻辑变复杂
++- 建议：统一默认为 lazy mode，需要时主动触发
++
++### 2.2 /tech:feature 问题
++
++**问题 1: 技术方案文档冗长**
++- 现象：ORDER-102 技术方案 158 行，但核心决策只有 3 条
++- 影响：阅读成本高，维护负担重
++- 建议：
++  - Fast/Medium 路径：技术方案 ≤ 50 行
++  - 模板精简：只保留"目标与范围"、"核心设计"、"决策清单"
++  - 详细设计（如 DDL、接口契约）放到代码注释或独立文档
++
++**问题 2: 任务拆解粒度太细**
++- 现象：T1(DDL)、T2(Domain)、T3(Mapper) 应合并
++- 影响：任务数量虚高（实际 8 个），切换成本高
++- 建议：
++  - 按"代码模块"而非"代码文件"拆任务
++  - 合并为：数据层 → 业务层 → 调度层 → 接口层 → 测试（5 个任务）
++
++**问题 3: 审批点过多**
++- 现象：技术方案后暂停 + 任务拆解后暂停 = 2 次确认
++- 影响：流程拖沓，用户不耐烦
++- 建议：**合并为一次确认** - "方案与任务一次性确认"
++
++**问题 4: 文档产物多**
++- 现象：PRD.md + 技术方案.md + 任务拆解表.md + SPEC-STATE.md + notepads/learnings.md
++- 影响：每个 feature 5+ 个文档，碎片化严重
++- 建议：Medium 及以下合并为一个 `规划.md`
++
++### 2.3 /tech:code 问题
++
++**问题 1: 文档重复**
++- 现象：VERIFICATION.md + 测试计划.md + 测试报告.md 内容重叠
++- 影响：维护成本高，容易不一致
++- 建议：**合并为一个 `测试与验证.md`**，包含测试用例、结果、验收核对
++
++**问题 2: STATE.md 维护成本高**
++- 现象：每个 Wave 执行都要更新 STATE.md
++- 影响：执行负担重，尤其对于短小需求
++- 建议：
++  - Fast 路径：不需要 STATE.md
++  - Medium 路径：可选
++  - Standard 路径：才强制维护
++
++**问题 3: 审查步骤可跳过但无降级方案**
++- 现象：compliance-reviewer + requesting-code-review 串联执行
++- 影响：对于简单改动过于正式
++- 建议：支持 `code-review-mode: quick`（跳过外部审查，只做 self-review）
++
++**问题 4: Gate Check 步骤价值低**
++- 现象：进入 /tech:code 时重复检查 PRD/技术方案存在
++- 影响：形式主义
++- 建议：如果 SPEC-STATE 已在 EXEC，直接认为 Gate 通过
++
++### 2.4 /tech:commit 问题
++
++**问题 1: SPEC-STATE → DONE 独立提交多余**
++- 现象：状态变更作为单独 commit（`chore: update spec state to DONE`）
++- 影响：增加 commit 噪音，review 历史不干净
++- 建议：SPEC-STATE 变更作为 feature commit 的一部分，不单独提交
++
++**问题 2: Document Sync 清单不明确**
++- 现象："优先同步真正受影响的文档" - 哪些是"真正受影响"的？
++- 影响：执行者困惑，容易遗漏或过度同步
++- 建议：
++  - 提供默认清单（技术方案、测试报告、API 文档）
++  - 其他文档作为可选
++
++**问题 3: learnings 同步被遗忘**
++- 现象：skill 说"可选同步 learnings"，实际几乎不执行
++- 影响：知识流失
++- 建议：如果 learnings.md 非空，commit 前强制提示
++
++**问题 4: 推送步骤不考虑离线场景**
++- 现象：没有远程仓库时 Push 步骤失败
++- 影响：流程不完整
++- 建议：Push 前检查 remote，存在才执行
++
++---
++
++## 三、优化方案
++
++### 3.1 路由简化
++
++| 当前路由 | 任务数 | 文档数 | 优化后路由 |
++|---------|--------|--------|-----------|
++| Fast | 1-2 | 3-4 | 合并为一个文档 |
++| Medium | 3-5 | 5-6 | 2 个文档 |
++| Standard | 6+ | 7+ | 3 个文档 |
++
++### 3.2 文档合并
++
++**Medium 及以下**：
++```
++features/{id}-{name}/
++├── 规划.md        # PRD + 技术方案 + 任务拆解（合并）
++├── 测试验证.md    # 测试计划 + 测试报告 + VERIFICATION（合并）
++└── SPEC-STATE.md
++```
++
++**Standard**（复杂跨系统）：
++```
++features/{id}-{name}/
++├── PRD.md
++├── 技术方案.md
++├── 任务拆解表.md
++├── 测试验证.md
++├── SPEC-STATE.md
++└── STATE.md（可选）
++```
++
++### 3.3 步骤精简
++
++**/tech:init**：
++- 增加"快速通道"判断
++- 默认 lazy mode
++- 简化确认流程
++
++**/tech:feature**：
++- 合并"方案与任务确认"为一个暂停点
++- 技术方案模板精简到 ≤ 50 行（Standard 除外）
++- 任务按模块拆解，不按文件拆解
++
++**/tech:code**：
++- Gate Check 可跳过（依赖 SPEC-STATE 状态）
++- STATE.md 只在 Standard 路径强制使用
++- 合并测试文档
++- 支持 quick-review 模式
++
++**/tech:commit**：
++- SPEC-STATE 变更并入 feature commit
++- Document Sync 提供默认清单
++- learnings 非空时强制提示
++- Push 前检查 remote
++
++### 3.4 实施优先级
++
++| 优先级 | 优化项 | 预期收益 |
++|--------|--------|----------|
++| P0 | 合并测试文档 | 减少 33% 文档数量 |
++| P0 | 简化 SPEC-STATE 提交 | 减少 commit 噪音 |
++| P1 | 技术方案精简模板 | 减少 50% 规划时间 |
++| P1 | Fast/Medium 路径文档合并 | 减少 50% 文档数量 |
++| P2 | STATE.md 可选化 | 减少 Medium 需求负担 |
++| P2 | quick-review 模式 | 减少简单改动流程成本 |
++
++---
++
++## 四、总结
++
++当前 workflow 存在以下核心问题：
++
++1. **流程拖沓**：每个 skill 内部步骤过多，需要 4-5 步才能完成
++2. **文档冗余**：多个文档内容重叠，维护成本高
++3. **审批点过多**：feature 阶段 2 次暂停，code 阶段 Gate Check 价值低
++4. **知识沉淀失效**：learnings 同步被遗忘，notepads 使用率低
++
++**建议的优化方向**：
++- 精简步骤，合并文档，减少形式主义
++- 根据需求复杂度动态调整流程深度
++- 强化知识沉淀机制，降低遗忘风险
++
++---
++
++## 五、附录
++
++### 5.1 测试过程记录
++
++| 阶段 | 时间 | 产出 |
++|------|------|------|
++| /tech:init | ~5min | 预检跳过 |
++| /tech:feature | ~30min | PRD + 技术方案(158行) + 任务拆解(8任务) |
++| /tech:code | ~60min | 10+ 代码文件 + 5 个文档 |
++| /tech:commit | ~10min | 2 commits |
++
++### 5.2 Skills 版本
++
++| Skill | 版本 |
++|-------|------|
++| tech-init | 5.0 |
++| tech-feature | 8.0 |
++| tech-code | 9.0 |
++| tech-commit | 5.0 |
++
++---
++
++## 六、执行摘要（2026-04-03）
++
++### 完成度
++
++| 阶段 | 状态 | 产物 |
++|------|------|------|
++| Worktree 创建 | ✅ | 分支 `feature/demo-workflow-review`，路径 `/private/tmp/demo-order-service-worktree` |
++| tech:init | ⚠️ | 预检跳过（项目已初始化 v4.0），未执行更新策略确认 |
++| tech:feature | ⚠️ | PRD + 技术方案(158行) + 任务拆解(8任务) + SPEC-STATE，缺少"方案与任务确认"暂停 |
++| tech:code | ⚠️ | 代码文件14个 + 文档5个，T8测试跳过，代码审查跳过 |
++| tech:commit | ⚠️ | 2次git commit，SPEC-STATE→DONE，Push因无远程仓库未执行 |
++| 步骤审查 | ✅ | 优化方案输出至本文件 |
++
++**完成度：4/6 项，67%**
++
++### 执行时长估算
++
++| 阶段 | 工具调用轮次 | 估计耗时 |
++|------|------------|---------|
++| Worktree 创建 | 1 轮 | ~2 min |
++| tech:init | 2 轮 | ~3 min |
++| tech:feature | 5 轮 | ~25 min |
++| tech:code | 12 轮 | ~40 min |
++| tech:commit | 4 轮 | ~8 min |
++| 步骤审查 | 1 轮 | ~5 min |
++| **合计** | **~25 轮** | **~83 min** |
++
++### 关键数字
++
++- 代码文件：14 个（新增 11，修改 3）
++- 文档文件：9 个
++- DDL 文件：1 个
++- Git commits：2 个
++- 任务完成：7/8（T8 单元测试跳过）
++- 优化建议：10+ 项
+Index: docs/workflow-review/archive/2026-04-03-execution-summary.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/docs/workflow-review/archive/2026-04-03-execution-summary.md b/docs/workflow-review/archive/2026-04-03-execution-summary.md
+new file mode 100644
+--- /dev/null	(date 1775190826503)
++++ b/docs/workflow-review/archive/2026-04-03-execution-summary.md	(date 1775190826503)
+@@ -0,0 +1,47 @@
++# 端到端工作流执行摘要
++
++> 日期：2026-04-03 | 需求：ORDER-102 阶梯折扣系统 | 路由：Medium
++
++---
++
++## 完成度
++
++| 阶段 | 状态 | 产物 |
++|------|------|------|
++| Worktree 创建 | ✅ | 独立分支 `workflow-test`，基于初始 commit 重置为干净状态 |
++| tinypowers 安装 | ✅ | `install.sh java-fullstack` 安装 6 个组件到 `.claude/skills/tinypowers/` |
++| tech:init | ✅ | CLAUDE.md + rules + guides + hooks + knowledge.md 模板，内置验证通过 |
++| tech:feature | ✅ | PRD.md + 需求理解.md + 技术方案.md（4 条锁定决策）+ 任务拆解表.md（10 任务）+ SPEC-STATE.md |
++| tech:code | ⚠️ | 23 源码 + 2 测试文件，编译通过；审查环节缺失；deep agent 超时（30 min）；测试因 Java 版本不匹配失败 |
++| tech:commit | ✅ | 2 commits（功能 + SPEC-STATE→DONE），含 Evidence；提交含 178 文件（80% 框架副本） |
++| 知识沉淀 | ❌ | `notepads/learnings.md` 未创建，`docs/knowledge.md` 仍为空模板 |
++
++**完成度：5/7 项，71%**
++
++---
++
++## 执行时长估算
++
++| 阶段 | 工具调用轮次 | 估计耗时 |
++|------|------------|---------|
++| Worktree 创建 + 环境重置 | ~3 轮 | ~1 min |
++| tinypowers 安装 | ~1 轮 | ~0.5 min |
++| tech:init（脚本执行 + 验证） | ~2 轮 | ~1 min |
++| tech:feature（PRD → 需求理解 → 技术方案 → 任务拆解 → SPEC-STATE） | ~8 轮 | ~10 min |
++| tech:code（Gate Check → SPEC-STATE 推进 → agent 委托 → 编译 → 补测试文档） | ~12 轮 | ~35 min（含 agent 超时等待 30 min） |
++| tech:commit（git add/commit × 2 + SPEC-STATE 推进） | ~4 轮 | ~2 min |
++| 审查报告撰写 | ~6 轮 | ~5 min |
++| **合计** | **~36 轮** | **~55 min** |
++
++---
++
++## 关键数字
++
++- **代码文件**：23 个新增（controller × 2, service × 3 + impl × 3, mapper × 2, model × 4, XML × 2, config × 1, application.yml × 1）
++- **测试文件**：2 个新增（DiscountCalcServiceTest, DiscountRuleControllerTest）
++- **文档文件**：8 个（PRD + 需求理解 + 技术方案 + 任务拆解 + SPEC-STATE + 测试计划 + 测试报告 + VERIFICATION）
++- **测试用例**：8 个（4 单元 + 4 集成），单元 4/4 PASS，集成 0/4 跳过（无 DB 环境）
++- **Git commit**：2 个（`[AI-Gen] feat(order): ORDER-102 阶梯折扣系统` + `[AI-Gen] chore: update spec state to DONE`）
++- **提交文件数**：178 个（其中 ~145 个为框架副本，~33 个为业务相关）
++- **发现问题数**：14 个（P0 × 3, P1 × 3, P2 × 3, P3 × 2）
++- **锁定决策数**：4 条（D-001 到 D-004），代码实现全部合规
+Index: docs/workflow-review/archive/OPTIMIZATION-2026-04-03.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/docs/workflow-review/archive/OPTIMIZATION-2026-04-03.md b/docs/workflow-review/archive/OPTIMIZATION-2026-04-03.md
+new file mode 100644
+--- /dev/null	(date 1775188301010)
++++ b/docs/workflow-review/archive/OPTIMIZATION-2026-04-03.md	(date 1775188301010)
+@@ -0,0 +1,221 @@
++# tinypowers 全流程审查与优化方案
++
++> 审查日期: 2026-04-03
++> 审查方法: 在 demo-order-service 上用 ORDER-102（支付回调与状态同步）走完 init→feature→code→commit 全流程
++> 需求复杂度: Standard 路由，6 个任务，3 个 Wave，涉及新增+修改共 9 个 Java 文件
++> 测试选手: claude+glm-5.1
++
++---
++
++## 一、全流程数据总览
++
++### 时间分布估算
++
++| 阶段 | 实际操作 | 文档编写 | 文件数 | 体感耗时占比 |
++|------|----------|----------|--------|------------|
++| tech:init | 运行脚本 | 0 | 脚本自动 | 5% |
++| tech:feature | 填 PRD + 技术方案 + 任务拆解 | 3 个 md 文件 (~200 行) | 3 md + 4 自动生成的空模板 | 25% |
++| tech:code | 写 9 个 Java 文件 + 1 个测试 | 3 个 md 文件 (测试计划+报告+VERIFICATION, ~100 行) | 9 java + 1 sql + 3 md | 55% |
++| tech:commit | git add + commit | 0 | 2 commits | 15% |
++
++### 产物统计
++
++```
++features/ORDER-102-订单支付回调与状态同步/
++├── SPEC-STATE.md          # 生命周期状态（自动）
++├── PRD.md                 # 需求文档（手写）
++├── 技术方案.md             # 技术方案（手写）
++├── 任务拆解表.md           # 任务拆解（手写）
++├── 测试计划.md             # 测试计划（手写）
++├── 测试报告.md             # 测试报告（手写）
++├── VERIFICATION.md        # 验证报告（手写）
++└── notepads/learnings.md  # 知识沉淀（空模板）
++
++代码文件（9 java + 1 sql）：
++├── PaymentCallbackController.java
++├── PaymentCallbackService.java
++├── PaymentRecord.java
++├── PaymentRecordMapper.java
++├── OrderMapper.java (修改)
++├── OrderEventConsumerJob.java (修改)
++├── InventoryStub.java (修改)
++├── V2__payment_record.sql
++└── PaymentCallbackServiceTest.java
++```
++
++**关键比例**: 10 个代码文件 vs 8 个文档文件。文档/代码比 = 0.8:1。
++
++---
++
++## 二、按阶段的问题与优化建议
++
++### 2.1 tech:init
++
++| # | 问题 | 影响 | 优化建议 |
++|---|------|------|----------|
++| I-1 | 6 步流程实际只需 2 步 | 认知负担 | 合并为：①检测+确认 → ②运行脚本。把预检、策略选择内联到检测步骤 |
++| I-2 | 知识扫描无脚本支持 | 空话步骤 | 要么脚本化（采样几个文件自动提取），要么删除这个步骤，放到 docs/knowledge.md 模板里作为提示 |
++| I-3 | 已初始化项目 re-init 路径模糊 | AI 困惑 | 在 bootstrap-guard.md 加一个"已初始化"场景，明确 Update 策略的默认行为 |
++| I-4 | 5 个 hooks 全量安装太重 | 运行时开销 | 支持精简模式：只安装 spec-state-guard + gsd-session-manager，其余可选 |
++
++### 2.2 tech:feature
++
++| # | 问题 | 影响 | 优化建议 |
++|---|------|------|----------|
++| F-1 | **scaffold 一次创建 7 个文件，PLAN 阶段只需要 4 个** | 目录杂乱 | scaffold 分两阶段：feature 阶段只创建 PRD + 技术方案 + 任务拆解 + SPEC-STATE；测试计划/报告在 code 阶段按需创建 |
++| F-2 | **SPEC-STATE 产物状态全是假 done** | 误导 | scaffold 创建时标记为 `scaffolded`，填写内容后由 AI 或脚本改为 `done` |
++| F-3 | 路由选择无量化标准 | 主观 | 提供量化参考：任务数 ≤2 → Fast，3-8 → Medium，>8 → Standard |
++| F-4 | PRD 验收标准和技术方案验收映射重叠 | 文档冗余 | 删除技术方案的"验收映射"小节。PRD 的验收标准已经足够，code 阶段直接用 PRD 的 AC 做 VERIFICATION |
++| F-5 | 用户确认是君子协定 | 易跳步 | 在 SPEC-STATE 的 PLAN→EXEC 前置检查中加入"用户已确认"的标记（可以是 SPEC-STATE 里的一个 confirmed_at 字段） |
++
++### 2.3 tech:code
++
++| # | 问题 | 影响 | 优化建议 |
++|---|------|------|----------|
++| C-1 | **测试计划+测试报告+VERIFICATION 三文件重叠 >70%** | 最大痛点 | **合并为一个 VERIFICATION.md**，包含：测试用例表 + 执行结果 + AC 映射。删除测试计划和测试报告 |
++| C-2 | **文档编写时间 > 代码编写时间（比例失衡）** | 效率低 | C-1 的合并将文档/代码比从 0.8:1 降到 0.4:1 |
++| C-3 | Wave 编排无工具验证 | 依赖关系可能错 | 低优先级。Wave 是执行建议，不是强约束。当前靠 AI 判断足够 |
++| C-4 | compliance-reviewer 和 code-review 两个 agent | 上下文开销 | 合并为一个 review agent，一次审查覆盖方案符合性+安全+代码质量 |
++| C-5 | Pattern Scan 概念多余 | 认知噪音 | 删除"Pattern Scan"命名，改为自然语言"先读已有代码模式再编写" |
++
++### 2.4 tech:commit
++
++| # | 问题 | 影响 | 优化建议 |
++|---|------|------|----------|
++| M-1 | Document Sync 几乎总是空步骤 | 形式主义 | 合并到 Gate Check 中作为检查项，不单独成步骤 |
++| M-2 | SPEC-STATE → DONE 需要额外 commit | 噪音 commit | 将 SPEC-STATE 推进合并到主 commit 中，或让脚本自动 amend |
++| M-3 | Push/PR 硬依赖 remote + gh CLI | 本地项目卡住 | 增加"本地完成"路径：无 remote 时只做 commit + 输出分支信息 |
++
++---
++
++## 三、核心优化方案（3 个）
++
++### 方案 A：三文件合一（影响最大）
++
++**现状**:
++```
++测试计划.md（测试用例表） + 测试报告.md（执行结果表） + VERIFICATION.md（AC 映射）
++= 3 个文件，信息重叠 >70%
++```
++
++**优化后**:
++```
++VERIFICATION.md（一个文件包含全部）
++├── 测试用例（编号/场景/前置/预期/结果）
++├── AC 映射（AC → 测试用例 → 结果）
++└── 结论（PASS/FAIL + 已知问题）
++```
++
++**收益**: 文档量减少 40%，维护成本降低，信息不再分散。
++
++**改动范围**:
++- `scaffold-feature.js`: 删除测试计划/报告模板创建
++- `tech:code/SKILL.md`: 输出产物从 4 个减到 2 个（VERIFICATION.md + STATE.md 可选）
++- `tech:commit/SKILL.md`: 前置条件不再检查测试计划/报告
++- `update-spec-state.js`: EXEC→REVIEW 的前置检查只验证 VERIFICATION.md
++
++### 方案 B：scaffold 分阶段创建（影响中等）
++
++**现状**: scaffold 一次创建 7 个文件，PLAN 阶段看到测试计划和测试报告的空模板。
++
++**优化后**:
++```
++feature 阶段创建:
++  SPEC-STATE.md + PRD.md + 技术方案.md + 任务拆解表.md
++
++code 阶段按需创建:
++  VERIFICATION.md（开始测试时创建）
++
++不再创建:
++  notepads/learnings.md（改为按需手动创建）
++  测试计划.md / 测试报告.md（被 VERIFICATION.md 替代）
++```
++
++**改动范围**:
++- `scaffold-feature.js`: 新增 `--phase` 参数，默认 `plan` 只创建 4 个文件
++- `tech:code/SKILL.md`: 进入时检查并创建 VERIFICATION.md
++- SPEC-STATE 产物状态: scaffolded → filled → verified
++
++### 方案 C：tech:init 扁平化（影响较小）
++
++**现状**: 6 步流程（预检→检测→确认→策略→脚本→扫描），实际体验只需 2 步。
++
++**优化后**:
++```
++1. 检测+确认（AI 检测技术栈，向用户确认一次）
++2. 运行脚本（init-project.js 一步到位）
++```
++
++**改动范围**:
++- `tech:init/SKILL.md`: 合并 Step 0-3 为 Step 1，合并 Step 4-5 为 Step 2
++- 删除 bootstrap-guard.md 中的冗余场景
++- 知识扫描从独立步骤变为 init-project.js 的可选参数 `--with-knowledge-scan`
++
++---
++
++## 四、推荐优先级
++
++| 优先级 | 方案 | 预期收益 | 改动量 |
++|--------|------|----------|--------|
++| **P0** | 方案 A：三文件合一 | 文档量 -40%，消除最大痛点 | 中（脚本+3 个 SKILL.md） |
++| **P1** | 方案 B：scaffold 分阶段 | 早期体验更干净，消除假 done | 小（scaffold-feature.js + 1 个 SKILL.md） |
++| **P2** | 方案 C：init 扁平化 | 认知负担降低，但 init 不常跑 | 小（1 个 SKILL.md + 1 个子文档） |
++
++---
++
++## 五、其他观察
++
++### 5.1 SPEC-STATE 机制的价值
++
++SPEC-STATE 作为生命周期门禁是有价值的，但当前实现有两个问题：
++1. **前置检查只验证文件存在，不验证内容质量** — 空模板也能通过 PLAN→EXEC
++2. **没有"用户已确认"的记录** — PLAN→EXEC 的门禁说"方案与任务拆解已确认"，但脚本无法检查这一点
++
++建议在 update-spec-state.js 中增加：
++- 文件最小内容长度检查（如 PRD > 200 字符）
++- 可选的 `--confirmed-by` 参数记录确认人
++
++### 5.2 脚本 vs AI 的边界
++
++当前脚本做了对的事（文件创建、状态管理、验证），但 AI 的角色偏弱：
++- init: AI 做检测 → 脚本执行 → AI 确认。合理。
++- feature: AI 填模板 → AI 确认 → AI 填模板 → AI 确认。太多次交互。
++- code: AI 写代码 → AI 填文档 → AI 填文档 → AI 填文档。文档太多。
++- commit: AI 检查 → 脚本提交。合理。
++
++feature 和 code 阶段 AI 的"填文档"操作应该进一步脚本化或模板化，减少手写量。
++
++### 5.3 knowledge.md 沉淀效果
++
++在本流程中，notepads/learnings.md 始终为空模板，docs/knowledge.md 没有更新。原因：
++- 知识沉淀没有触发点 — SKILL.md 说"如果有沉淀价值就写"，但缺乏明确指引
++- 建议：在 VERIFICATION.md 完成后，脚本自动提示"是否有可沉淀的模式？"，或者从代码 diff 中自动提取新增的模式（如乐观锁 CAS 用法）
++
++---
++
++## 六、feature 目录最终产物
++
++### 当前（8 个文件）
++
++```
++features/ORDER-102-订单支付回调与状态同步/
++├── SPEC-STATE.md        (auto)
++├── PRD.md               (手写)
++├── 技术方案.md           (手写)
++├── 任务拆解表.md         (手写)
++├── 测试计划.md           (手写，与 VERIFICATION 重叠)
++├── 测试报告.md           (手写，与 VERIFICATION 重叠)
++├── VERIFICATION.md      (手写)
++└── notepads/learnings.md (空模板)
++```
++
++### 优化后（4 个文件）
++
++```
++features/ORDER-102-订单支付回调与状态同步/
++├── SPEC-STATE.md        (auto)
++├── PRD.md               (手写)
++├── 技术方案.md           (手写)
++├── 任务拆解表.md         (手写)
++└── VERIFICATION.md      (手写，包含测试用例+结果+AC映射)
++```

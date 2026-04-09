@@ -1,0 +1,26 @@
+Index: skills/tech-init/stack-detection.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+># stack-detection.md\n\n## 作用\n\n这份文档定义 `/tech:init` 如何推断目标项目的技术栈。\n\n检测结果的目的是给初始化提供默认值，不是替用户做最终决策。\n\n从 `v4` 开始，`/tech:init` 只支持 Java 项目初始化。\n\n原因很简单：\n- 当前规则集只有 Java / MySQL 是完整的\n- 非 Java 项目即使识别出来，也拿不到成体系的规则和 guide\n- 与其给出误导性的初始化产物，不如显式停止\n\n## 检测思路\n\n默认按三层信号判断：\n\n1. 构建文件\n2. 目录结构\n3. 依赖或包名特征\n\n## 第一层：构建文件\n\n这是最强信号。\n\n| 文件 | 默认判断 |\n|------|---------|\n| `pom.xml` | Java (Maven) |\n| `build.gradle` / `build.gradle.kts` | Java (Gradle) |\n\n## 第二层：目录结构\n\n当构建文件不明确时，再看目录：\n\n| 目录 | 倾向判断 |\n|------|---------|\n| `src/main/java` | Java |\n| `src/main/kotlin` | Kotlin / JVM 项目候选 |\n\n## 第三层：依赖与特征\n\n在确定主语言后，再看框架特征，例如：\n- `org.springframework.*` -> Spring Boot\n- MyBatis 相关依赖 -> MyBatis\n- `dubbo` / `apache-dubbo` -> Dubbo\n- `mysql` / `flyway` / `liquibase` -> 需要同时加载 MySQL 规则\n\n## 推荐输出\n\n检测结果应尽量结构化，至少包含：\n\n```json\n{\n  \"primary_stack\": \"Java\",\n  \"sub_stack\": \"Spring Boot\",\n  \"tech_stack\": \"Java (Maven)\",\n  \"tech_stack_short\": \"java\",\n  \"build_tool\": \"Maven\",\n  \"build_command\": \"mvn checkstyleMain testClasses\",\n  \"service_port\": \"8080\",\n  \"branch_pattern\": \"feature/{id}-{short-desc}\",\n  \"confidence\": 0.95,\n  \"detected_files\": [\"pom.xml\", \"src/main/java\"],\n  \"frameworks\": [\"Spring Boot\", \"MyBatis\"],\n  \"recommended_rules\": [\n    \"configs/rules/common/coding-style.md\",\n    \"configs/rules/common/security.md\",\n    \"configs/rules/common/testing.md\",\n    \"configs/rules/java/java-coding-style.md\",\n    \"configs/rules/mysql/*\"\n  ]\n}\n```\n\n## 默认值约定\n\n| 技术栈 | build_tool | build_command | service_port |\n|--------|------------|---------------|--------------|\n| Java (Maven) | Maven | `mvn checkstyleMain testClasses` | `8080` |\n| Java (Gradle) | Gradle | `./gradlew check` | `8080` |\n\n## 分支模式默认值\n\n| 场景 | branch_pattern |\n|------|----------------|\n| 通用 | `feature/{id}-{short-desc}` |\n| GitFlow | `feature/{id}/{short-desc}` |\n\n## 置信度建议\n\n| 置信度 | 含义 |\n|--------|------|\n| `0.95+` | 强确认，通常找到明确构建文件 |\n| `0.80-0.94` | 高置信，目录结构较明确 |\n| `0.60-0.79` | 中置信，需要用户确认 |\n| `< 0.60` | 低置信，不应自动决定 |\n\n## 低置信度处理\n\n当检测结果不够可靠时，应显式让用户确认，而不是直接初始化：\n\n```text\n检测到可能的项目类型，但置信度较低。\n请确认项目技术栈：\n1. Java (Maven)\n2. Java (Gradle)\n3. 暂不初始化\n```\n\n## 非支持技术栈处理\n\n如果检测到下面这些强信号：\n\n- `package.json`\n- `go.mod`\n- `Cargo.toml`\n- `pyproject.toml`\n- `setup.py`\n\n但没有 Java 信号，则不要继续初始化，而应明确输出：\n\n```text\n检测到当前项目不是 Java 项目。\n目前 /tech:init 只提供完整的 Java 初始化骨架，继续执行会生成不匹配的 guide 和规则。\n建议先跳过初始化，或等对应技术栈规则集补齐后再接入。\n```\n
+===================================================================
+diff --git a/skills/tech-init/stack-detection.md b/skills/tech-init/stack-detection.md
+--- a/skills/tech-init/stack-detection.md	(revision f06c3c0df9d621075e8727fc6ff9610dba0c9a96)
++++ b/skills/tech-init/stack-detection.md	(date 1775098022109)
+@@ -58,7 +58,7 @@
+   "tech_stack": "Java (Maven)",
+   "tech_stack_short": "java",
+   "build_tool": "Maven",
+-  "build_command": "mvn checkstyleMain testClasses",
++  "build_command": "mvn test",
+   "service_port": "8080",
+   "branch_pattern": "feature/{id}-{short-desc}",
+   "confidence": 0.95,
+@@ -78,7 +78,7 @@
+ 
+ | 技术栈 | build_tool | build_command | service_port |
+ |--------|------------|---------------|--------------|
+-| Java (Maven) | Maven | `mvn checkstyleMain testClasses` | `8080` |
++| Java (Maven) | Maven | `mvn test` | `8080` |
+ | Java (Gradle) | Gradle | `./gradlew check` | `8080` |
+ 
+ ## 分支模式默认值
