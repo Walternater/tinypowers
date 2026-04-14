@@ -172,6 +172,8 @@ test_skills_exist() {
     local skills=(
         "skills/tech-init/SKILL.md"
         "skills/tech-feature/SKILL.md"
+        "skills/tech-code/SKILL.md"
+        "skills/tech-commit/SKILL.md"
     )
 
     local all_pass=true

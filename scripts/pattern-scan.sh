@@ -45,7 +45,7 @@ fi
 
 # ========== Controller 扫描 ==========
 scan_controllers() {
-    local controllers=$(find "$PROJECT_PATH" -name "*Controller.java" -type f 2>/dev/null)
+    local controllers=$(find "$PROJECT_PATH" -name "*Controller.java" -type f 2>/dev/null || true)
     local controller_count=$(echo "$controllers" | grep -v "^$" | wc -l | tr -d ' ')
 
     if [ "$controller_count" -eq 0 ]; then
@@ -62,18 +62,18 @@ scan_controllers() {
 
     # 注解风格
     echo "### 注解风格"
-    local class_annotations=$(grep -h "^@RestController\|^@Controller" $controllers 2>/dev/null | sort | uniq -c | sort -rn | head -5 | awk '{print "- " $2 " (" $1 "次)"}')
+    local class_annotations=$(echo "$controllers" | tr '\n' '\0' | xargs -0 grep -hE "^@RestController|^@Controller" 2>/dev/null | sort | uniq -c | sort -rn | head -5 | awk '{print "- " $2 " (" $1 "次)"}')
     echo "类级别:"
     echo "$class_annotations" || echo "- 未检测到"
 
-    local method_annotations=$(grep -h "@GetMapping\|@PostMapping\|@PutMapping\|@DeleteMapping\|@RequestMapping" $controllers 2>/dev/null | sed 's/(.*//;s/ //g' | sort | uniq -c | sort -rn | head -5 | awk '{print "- " $2 " (" $1 "次)"}')
+    local method_annotations=$(echo "$controllers" | tr '\n' '\0' | xargs -0 grep -hE "@GetMapping|@PostMapping|@PutMapping|@DeleteMapping|@RequestMapping" 2>/dev/null | sed 's/(.*//;s/ //g' | sort | uniq -c | sort -rn | head -5 | awk '{print "- " $2 " (" $1 "次)"}')
     echo "方法级别:"
     echo "$method_annotations" || echo "- 未检测到"
     echo ""
 
     # 路径风格
     echo "### 路径风格"
-    local path_prefixes=$(grep -h "@RequestMapping" $controllers 2>/dev/null | grep -o '"[^"]*"' | head -5 | sort | uniq | awk '{print "- " $0}')
+    local path_prefixes=$(echo "$controllers" | tr '\n' '\0' | xargs -0 grep -h "@RequestMapping" 2>/dev/null | grep -o '"[^"]*"' | head -5 | sort | uniq | awk '{print "- " $0}')
     if [ -n "$path_prefixes" ]; then
         echo "常见路径前缀:"
         echo "$path_prefixes"
@@ -84,7 +84,7 @@ scan_controllers() {
 
     # 返回格式
     echo "### 返回格式"
-    local return_types=$(grep -h "public.*Result\|public.*ApiResponse\|public.*Response" $controllers 2>/dev/null | sed 's/.*public //;s/ .*//;s/<.*>//' | sort | uniq -c | sort -rn | head -3 | awk '{print "- " $2 " (" $1 "次)"}')
+    local return_types=$(echo "$controllers" | tr '\n' '\0' | xargs -0 grep -hE "public.*Result|public.*ApiResponse|public.*Response" 2>/dev/null | sed 's/.*public //;s/ .*//;s/<.*>//' | sort | uniq -c | sort -rn | head -3 | awk '{print "- " $2 " (" $1 "次)"}')
     if [ -n "$return_types" ]; then
         echo "统一返回包装类型:"
         echo "$return_types"
@@ -95,7 +95,7 @@ scan_controllers() {
 
     # 参数绑定
     echo "### 参数绑定"
-    local param_bindings=$(grep -h "@PathVariable\|@RequestParam\|@RequestBody\|@ModelAttribute" $controllers 2>/dev/null | sed 's/(.*//;s/ //g' | sort | uniq -c | sort -rn | awk '{print "- " $2 " (" $1 "次)"}')
+    local param_bindings=$(echo "$controllers" | tr '\n' '\0' | xargs -0 grep -hE "@PathVariable|@RequestParam|@RequestBody|@ModelAttribute" 2>/dev/null | sed 's/(.*//;s/ //g' | sort | uniq -c | sort -rn | awk '{print "- " $2 " (" $1 "次)"}')
     if [ -n "$param_bindings" ]; then
         echo "$param_bindings"
     else
@@ -116,7 +116,7 @@ scan_controllers() {
 
 # ========== Service 扫描 ==========
 scan_services() {
-    local services=$(find "$PROJECT_PATH" -name "*Service*.java" -type f 2>/dev/null)
+    local services=$(find "$PROJECT_PATH" -name "*Service*.java" -type f 2>/dev/null || true)
     local service_count=$(echo "$services" | grep -v "^$" | wc -l | tr -d ' ')
 
     if [ "$service_count" -eq 0 ]; then
@@ -144,17 +144,17 @@ scan_services() {
 
     # 事务模式
     echo "### 事务模式"
-    local transactional_classes=$(grep -l "@Transactional" $services 2>/dev/null | wc -l | tr -d ' ')
+    local transactional_classes=$(echo "$services" | tr '\n' '\0' | xargs -0 grep -l "@Transactional" 2>/dev/null | wc -l | tr -d ' ')
     echo "- 使用 @Transactional 的类: ${transactional_classes} 个"
     if [ "$transactional_classes" -gt 0 ]; then
-        local transactional_readonly=$(grep -h "@Transactional(readOnly = true)" $services 2>/dev/null | wc -l | tr -d ' ')
+        local transactional_readonly=$(echo "$services" | tr '\n' '\0' | xargs -0 grep -h "@Transactional(readOnly = true)" 2>/dev/null | wc -l | tr -d ' ')
         echo "- readOnly=true 配置: ${transactional_readonly} 处"
     fi
     echo ""
 
     # 注解风格
     echo "### 注解风格"
-    local service_annotations=$(grep -h "^@Service" $services 2>/dev/null | sort | uniq -c | sort -rn | head -3 | awk '{print "- " $2 " (" $1 "次)"}')
+    local service_annotations=$(echo "$services" | tr '\n' '\0' | xargs -0 grep -h "^@Service" 2>/dev/null | sort | uniq -c | sort -rn | head -3 | awk '{print "- " $2 " (" $1 "次)"}')
     if [ -n "$service_annotations" ]; then
         echo "$service_annotations"
     else
@@ -175,7 +175,7 @@ scan_services() {
 
 # ========== Repository 扫描 ==========
 scan_repositories() {
-    local repositories=$(find "$PROJECT_PATH" -name "*Repository.java" -type f 2>/dev/null)
+    local repositories=$(find "$PROJECT_PATH" -name "*Repository.java" -type f 2>/dev/null || true)
     local repo_count=$(echo "$repositories" | grep -v "^$" | wc -l | tr -d ' ')
 
     if [ "$repo_count" -eq 0 ]; then
@@ -192,16 +192,16 @@ scan_repositories() {
 
     # 继承关系
     echo "### 继承关系"
-    local jpa_repos=$(grep -l "extends JpaRepository" $repositories 2>/dev/null | wc -l | tr -d ' ')
-    local crud_repos=$(grep -l "extends CrudRepository" $repositories 2>/dev/null | wc -l | tr -d ' ')
+    local jpa_repos=$(echo "$repositories" | tr '\n' '\0' | xargs -0 grep -l "extends JpaRepository" 2>/dev/null | wc -l | tr -d ' ')
+    local crud_repos=$(echo "$repositories" | tr '\n' '\0' | xargs -0 grep -l "extends CrudRepository" 2>/dev/null | wc -l | tr -d ' ')
     echo "- 继承 JpaRepository: ${jpa_repos} 个"
     echo "- 继承 CrudRepository: ${crud_repos} 个"
     echo ""
 
     # 查询方式
     echo "### 查询方式"
-    local query_methods=$(grep -h "^\s*\(List\|Optional\|Page\)\|findBy\|countBy\|existsBy" $repositories 2>/dev/null | wc -l | tr -d ' ')
-    local query_annotations=$(grep -h "@Query" $repositories 2>/dev/null | wc -l | tr -d ' ')
+    local query_methods=$(echo "$repositories" | tr '\n' '\0' | xargs -0 grep -hE "^[[:space:]]*(List|Optional|Page)|findBy|countBy|existsBy" 2>/dev/null | wc -l | tr -d ' ')
+    local query_annotations=$(echo "$repositories" | tr '\n' '\0' | xargs -0 grep -h "@Query" 2>/dev/null | wc -l | tr -d ' ')
     echo "- 命名查询方法 (findBy*/countBy*): 约 ${query_methods} 个"
     echo "- @Query 注解: ${query_annotations} 个"
     if [ "$query_annotations" -gt 0 ] && [ "$query_methods" -gt 0 ]; then
@@ -215,7 +215,7 @@ scan_repositories() {
 
     # 自定义方法模式
     echo "### 自定义方法模式"
-    local method_patterns=$(grep -h "findBy.*And\|findBy.*Or\|findBy.*Like" $repositories 2>/dev/null | sed 's/.* //;s/(.*//' | sort | uniq -c | sort -rn | head -3 | awk '{print "- " $2 " (" $1 "次)"}')
+    local method_patterns=$(echo "$repositories" | tr '\n' '\0' | xargs -0 grep -hE "findBy.*And|findBy.*Or|findBy.*Like" 2>/dev/null | sed 's/.* //;s/(.*//' | sort | uniq -c | sort -rn | head -3 | awk '{print "- " $2 " (" $1 "次)"}')
     if [ -n "$method_patterns" ]; then
         echo "常见方法模式:"
         echo "$method_patterns"
@@ -237,7 +237,7 @@ scan_repositories() {
 
 # ========== Entity 扫描 ==========
 scan_entities() {
-    local entities=$(find "$PROJECT_PATH" -name "*.java" -type f -exec grep -l "@Entity" {} \; 2>/dev/null)
+    local entities=$(find "$PROJECT_PATH" -name "*.java" -type f -exec grep -l "@Entity" {} \; 2>/dev/null || true)
     local entity_count=$(echo "$entities" | grep -v "^$" | wc -l | tr -d ' ')
 
     if [ "$entity_count" -eq 0 ]; then
@@ -254,9 +254,9 @@ scan_entities() {
 
     # ID 生成策略
     echo "### ID 生成策略"
-    local identity=$(grep -h "@GeneratedValue.*IDENTITY\|strategy = GenerationType.IDENTITY" $entities 2>/dev/null | wc -l | tr -d ' ')
-    local auto=$(grep -h "@GeneratedValue.*AUTO\|strategy = GenerationType.AUTO" $entities 2>/dev/null | wc -l | tr -d ' ')
-    local sequence=$(grep -h "@GeneratedValue.*SEQUENCE\|strategy = GenerationType.SEQUENCE" $entities 2>/dev/null | wc -l | tr -d ' ')
+    local identity=$(echo "$entities" | tr '\n' '\0' | xargs -0 grep -hE "@GeneratedValue.*IDENTITY|strategy = GenerationType.IDENTITY" 2>/dev/null | wc -l | tr -d ' ')
+    local auto=$(echo "$entities" | tr '\n' '\0' | xargs -0 grep -hE "@GeneratedValue.*AUTO|strategy = GenerationType.AUTO" 2>/dev/null | wc -l | tr -d ' ')
+    local sequence=$(echo "$entities" | tr '\n' '\0' | xargs -0 grep -hE "@GeneratedValue.*SEQUENCE|strategy = GenerationType.SEQUENCE" 2>/dev/null | wc -l | tr -d ' ')
     echo "- IDENTITY: ${identity} 个实体"
     echo "- AUTO: ${auto} 个实体"
     echo "- SEQUENCE: ${sequence} 个实体"
@@ -264,9 +264,9 @@ scan_entities() {
 
     # 字段注解
     echo "### 字段注解"
-    local column=$(grep -h "@Column" $entities 2>/dev/null | wc -l | tr -d ' ')
-    local notnull=$(grep -h "@NotNull" $entities 2>/dev/null | wc -l | tr -d ' ')
-    local id=$(grep -h "@Id" $entities 2>/dev/null | wc -l | tr -d ' ')
+    local column=$(echo "$entities" | tr '\n' '\0' | xargs -0 grep -h "@Column" 2>/dev/null | wc -l | tr -d ' ')
+    local notnull=$(echo "$entities" | tr '\n' '\0' | xargs -0 grep -h "@NotNull" 2>/dev/null | wc -l | tr -d ' ')
+    local id=$(echo "$entities" | tr '\n' '\0' | xargs -0 grep -h "@Id" 2>/dev/null | wc -l | tr -d ' ')
     echo "- @Column: ${column} 次"
     echo "- @NotNull: ${notnull} 次"
     echo "- @Id: ${id} 次"
@@ -274,8 +274,8 @@ scan_entities() {
 
     # 审计字段
     echo "### 审计字段"
-    local created_at=$(grep -h "createdAt\|created_at\|createTime\|create_time" $entities 2>/dev/null | wc -l | tr -d ' ')
-    local updated_at=$(grep -h "updatedAt\|updated_at\|updateTime\|update_time" $entities 2>/dev/null | wc -l | tr -d ' ')
+    local created_at=$(echo "$entities" | tr '\n' '\0' | xargs -0 grep -hE "^\s+(private|public|protected).*\b(createdAt|created_at|createTime|create_time)\b\s*;" 2>/dev/null | wc -l | tr -d ' ')
+    local updated_at=$(echo "$entities" | tr '\n' '\0' | xargs -0 grep -hE "^\s+(private|public|protected).*\b(updatedAt|updated_at|updateTime|update_time)\b\s*;" 2>/dev/null | wc -l | tr -d ' ')
     if [ "$created_at" -gt 0 ] || [ "$updated_at" -gt 0 ]; then
         echo "- 创建时间字段 (createdAt/createTime): ${created_at} 个实体"
         echo "- 更新时间字段 (updatedAt/updateTime): ${updated_at} 个实体"
@@ -286,10 +286,10 @@ scan_entities() {
 
     # 关系映射
     echo "### 关系映射"
-    local manytoone=$(grep -h "@ManyToOne" $entities 2>/dev/null | wc -l | tr -d ' ')
-    local onetomany=$(grep -h "@OneToMany" $entities 2>/dev/null | wc -l | tr -d ' ')
-    local onetoone=$(grep -h "@OneToOne" $entities 2>/dev/null | wc -l | tr -d ' ')
-    local manytomany=$(grep -h "@ManyToMany" $entities 2>/dev/null | wc -l | tr -d ' ')
+    local manytoone=$(echo "$entities" | tr '\n' '\0' | xargs -0 grep -h "@ManyToOne" 2>/dev/null | wc -l | tr -d ' ')
+    local onetomany=$(echo "$entities" | tr '\n' '\0' | xargs -0 grep -h "@OneToMany" 2>/dev/null | wc -l | tr -d ' ')
+    local onetoone=$(echo "$entities" | tr '\n' '\0' | xargs -0 grep -h "@OneToOne" 2>/dev/null | wc -l | tr -d ' ')
+    local manytomany=$(echo "$entities" | tr '\n' '\0' | xargs -0 grep -h "@ManyToMany" 2>/dev/null | wc -l | tr -d ' ')
     echo "- @ManyToOne: ${manytoone} 处"
     echo "- @OneToMany: ${onetomany} 处"
     echo "- @OneToOne: ${onetoone} 处"
@@ -309,11 +309,11 @@ scan_entities() {
 
 # ========== Config 扫描 ==========
 scan_configs() {
-    local configs=$(find "$PROJECT_PATH" -name "*Config.java" -type f 2>/dev/null)
+    local configs=$(find "$PROJECT_PATH" -name "*Config.java" -type f 2>/dev/null || true)
     local config_count=$(echo "$configs" | grep -v "^$" | wc -l | tr -d ' ')
 
     # 也查找其他可能的配置类
-    local all_configs=$(find "$PROJECT_PATH" -name "*.java" -type f -exec grep -l "@Configuration" {} \; 2>/dev/null)
+    local all_configs=$(find "$PROJECT_PATH" -name "*.java" -type f -exec grep -l "@Configuration" {} \; 2>/dev/null || true)
     local all_config_count=$(echo "$all_configs" | grep -v "^$" | wc -l | tr -d ' ')
 
     if [ "$all_config_count" -eq 0 ]; then
@@ -330,23 +330,23 @@ scan_configs() {
 
     # 配置方式
     echo "### 配置方式"
-    local configuration=$(grep -h "@Configuration" $all_configs 2>/dev/null | wc -l | tr -d ' ')
-    local component=$(grep -h "^@Component" $all_configs 2>/dev/null | wc -l | tr -d ' ')
+    local configuration=$(echo "$all_configs" | tr '\n' '\0' | xargs -0 grep -h "@Configuration" 2>/dev/null | wc -l | tr -d ' ')
+    local component=$(echo "$all_configs" | tr '\n' '\0' | xargs -0 grep -h "^@Component" 2>/dev/null | wc -l | tr -d ' ')
     echo "- @Configuration: ${configuration} 个"
     echo "- @Component: ${component} 个"
     echo ""
 
     # 配置属性绑定
     echo "### 配置属性绑定"
-    local config_props=$(grep -h "@ConfigurationProperties" $all_configs 2>/dev/null | wc -l | tr -d ' ')
-    local value=$(grep -h "@Value" $all_configs 2>/dev/null | wc -l | tr -d ' ')
+    local config_props=$(echo "$all_configs" | tr '\n' '\0' | xargs -0 grep -h "@ConfigurationProperties" 2>/dev/null | wc -l | tr -d ' ')
+    local value=$(echo "$all_configs" | tr '\n' '\0' | xargs -0 grep -h "@Value" 2>/dev/null | wc -l | tr -d ' ')
     echo "- @ConfigurationProperties: ${config_props} 处"
     echo "- @Value: ${value} 处"
     echo ""
 
     # Profile 使用
     echo "### Profile 使用"
-    local profiles=$(grep -h "@Profile" $all_configs 2>/dev/null | grep -o '"[^"]*"' | sort | uniq | tr '\n' ',' | sed 's/,$//')
+    local profiles=$(echo "$all_configs" | tr '\n' '\0' | xargs -0 grep -h "@Profile" 2>/dev/null | grep -o '"[^"]*"' | sort | uniq | tr '\n' ',' | sed 's/,$//')
     if [ -n "$profiles" ]; then
         echo "- 检测到的 Profile: ${profiles}"
     else
@@ -367,14 +367,14 @@ scan_configs() {
 
 # ========== Exception 处理扫描 ==========
 scan_exceptions() {
-    local all_java=$(find "$PROJECT_PATH" -name "*.java" -type f 2>/dev/null)
+    local all_java=$(find "$PROJECT_PATH" -name "*.java" -type f 2>/dev/null || true)
 
     # 全局异常处理
-    local global_handlers=$(echo "$all_java" | xargs grep -l "@ControllerAdvice\|@RestControllerAdvice" 2>/dev/null || true)
+    local global_handlers=$(echo "$all_java" | tr '\n' '\0' | xargs -0 grep -lE "@ControllerAdvice|@RestControllerAdvice" 2>/dev/null || true)
     local handler_count=$(echo "$global_handlers" | grep -v "^$" | wc -l | tr -d ' ')
 
     # 业务异常
-    local business_exceptions=$(find "$PROJECT_PATH" -name "*Exception.java" -type f 2>/dev/null)
+    local business_exceptions=$(find "$PROJECT_PATH" -name "*Exception.java" -type f 2>/dev/null || true)
     local exception_count=$(echo "$business_exceptions" | grep -v "^$" | wc -l | tr -d ' ')
 
     if [ "$handler_count" -eq 0 ] && [ "$exception_count" -eq 0 ]; then

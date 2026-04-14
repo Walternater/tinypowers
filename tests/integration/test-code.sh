@@ -298,9 +298,15 @@ $output
     rm -rf "$fail_dir"
 
     # 测试通过场景 (使用 sample-feature)
-    local pass_dir="$PROJECT_ROOT/tests/fixtures/sample-feature"
+    local fixture_dir="$PROJECT_ROOT/tests/fixtures/sample-feature"
+    local pass_dir="$TEST_BASE_DIR/sample-feature-pass"
 
-    if [ -d "$pass_dir" ]; then
+    if [ -d "$fixture_dir" ]; then
+        # 复制 fixture 到临时目录，避免污染 git-tracked 文件
+        rm -rf "$pass_dir"
+        mkdir -p "$pass_dir"
+        cp -r "$fixture_dir"/* "$pass_dir/"
+
         # 创建 SPEC-STATE.md
         cat > "$pass_dir/SPEC-STATE.md" << 'EOF'
 # SPEC-STATE
@@ -340,8 +346,8 @@ $output
 "
         fi
 
-        # 清理 SPEC-STATE.md
-        rm -f "$pass_dir/SPEC-STATE.md"
+        # 清理临时目录
+        rm -rf "$pass_dir"
     else
         log_test "CHECK-2 进入通过场景" "FAIL" "
 **输入**: sample-feature 目录
@@ -422,182 +428,6 @@ test_code_skill() {
     fi
 }
 
-# 创建最小 Java 项目 fixture
-create_java_project_fixture() {
-    local fixture_dir="$PROJECT_ROOT/tests/fixtures/sample-java-project"
-    mkdir -p "$fixture_dir/src/main/java/com/example/demo/controller"
-    mkdir -p "$fixture_dir/src/main/java/com/example/demo/service"
-    mkdir -p "$fixture_dir/src/main/java/com/example/demo/repository"
-    mkdir -p "$fixture_dir/src/main/java/com/example/demo/entity"
-    mkdir -p "$fixture_dir/src/main/resources"
-
-    # 创建 pom.xml
-    cat > "$fixture_dir/pom.xml" << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-         http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-
-    <groupId>com.example</groupId>
-    <artifactId>demo</artifactId>
-    <version>1.0.0</version>
-    <packaging>jar</packaging>
-
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.0</version>
-    </parent>
-
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
-    </dependencies>
-</project>
-EOF
-
-    # 创建 UserController.java
-    cat > "$fixture_dir/src/main/java/com/example/demo/controller/UserController.java" << 'EOF'
-package com.example.demo.controller;
-
-import com.example.demo.entity.User;
-import com.example.demo.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-
-@RestController
-@RequestMapping("/api/users")
-public class UserController {
-
-    @Autowired
-    private UserService userService;
-
-    @GetMapping("/{id}")
-    public User getUser(@PathVariable Long id) {
-        return userService.findById(id);
-    }
-
-    @GetMapping
-    public List<User> getAllUsers() {
-        return userService.findAll();
-    }
-
-    @PostMapping
-    public User createUser(@RequestBody User user) {
-        return userService.save(user);
-    }
-}
-EOF
-
-    # 创建 UserService.java
-    cat > "$fixture_dir/src/main/java/com/example/demo/service/UserService.java" << 'EOF'
-package com.example.demo.service;
-
-import com.example.demo.entity.User;
-import com.example.demo.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-
-@Service
-@Transactional(readOnly = true)
-public class UserService {
-
-    @Autowired
-    private UserRepository userRepository;
-
-    public User findById(Long id) {
-        return userRepository.findById(id).orElse(null);
-    }
-
-    public List<User> findAll() {
-        return userRepository.findAll();
-    }
-
-    @Transactional
-    public User save(User user) {
-        return userRepository.save(user);
-    }
-}
-EOF
-
-    # 创建 UserRepository.java
-    cat > "$fixture_dir/src/main/java/com/example/demo/repository/UserRepository.java" << 'EOF'
-package com.example.demo.repository;
-
-import com.example.demo.entity.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.Optional;
-
-@Repository
-public interface UserRepository extends JpaRepository<User, Long> {
-    Optional<User> findByUsername(String username);
-    boolean existsByEmail(String email);
-}
-EOF
-
-    # 创建 User.java (Entity)
-    cat > "$fixture_dir/src/main/java/com/example/demo/entity/User.java" << 'EOF'
-package com.example.demo.entity;
-
-import jakarta.persistence.*;
-import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "users")
-public class User {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false, unique = true)
-    private String username;
-
-    @Column(nullable = false)
-    private String email;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    // Getters and setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
-
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-}
-EOF
-
-    echo -e "${GREEN}[INFO]${NC} 示例 Java 项目 fixture 已创建: $fixture_dir"
-}
-
 # 测试 Java 项目 Pattern Scan
 test_java_project_pattern_scan() {
     echo "Testing Java project Pattern Scan..."
@@ -675,12 +505,7 @@ main() {
     test_check_gate_2_exit
     test_code_skill
 
-    # 创建 Java 项目 fixture
-    echo ""
-    echo "Creating Java project fixture..."
-    create_java_project_fixture
-
-    # 测试 Java 项目 Pattern Scan
+    # 测试 Java 项目 Pattern Scan (使用已存在的 fixture)
     test_java_project_pattern_scan
 
     # 总结

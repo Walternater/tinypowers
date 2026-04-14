@@ -35,6 +35,31 @@ echo ""
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# 交互式确认辅助函数
+# 优先级: 1) 环境变量 2) 非 TTY 默认 yes 3) 交互式 read
+confirm_prompt() {
+    local prompt_text="$1"
+    local var_name="$2"
+    local env_val
+    env_val=$(eval "echo \$$var_name" 2>/dev/null || true)
+
+    if [ -n "$env_val" ]; then
+        echo "$prompt_text -> $env_val (环境变量)"
+        eval "$var_name=\"$env_val\""
+        return 0
+    fi
+
+    if [ ! -t 0 ]; then
+        echo "$prompt_text -> yes (非交互模式)"
+        eval "$var_name=\"yes\""
+        return 0
+    fi
+
+    local reply
+    read -r -p "$prompt_text (yes/no): " reply 2>/dev/null || reply="no"
+    eval "$var_name=\"$reply\""
+}
+
 # 1. 检查代码编译通过 (人工确认点)
 echo "□ 代码编译通过 ..."
 echo ""
@@ -54,7 +79,7 @@ elif [ -f "$WORKTREE_DIR/build.gradle" ] || [ -f "$WORKTREE_DIR/build.gradle.kts
 fi
 
 echo ""
-read -r -p "代码是否已编译通过? (yes/no): " COMPILE_CONFIRM 2>/dev/null || COMPILE_CONFIRM="no"
+confirm_prompt "代码是否已编译通过?" COMPILE_CONFIRM
 if [ "$COMPILE_CONFIRM" = "yes" ] || [ "$COMPILE_CONFIRM" = "y" ]; then
     echo -e "${GREEN}PASS${NC} 代码编译通过 (人工确认)"
 else
@@ -65,8 +90,19 @@ echo ""
 
 # 2. 检查 compliance-reviewer 通过 (无 BLOCK)
 echo "□ compliance-reviewer 通过 ..."
-COMPLIANCE_FILE="$PROJECT_DIR/compliance-review-report.md"
+COMPLIANCE_FILE=""
+if [ -f "$WORKTREE_DIR/compliance-review-report.md" ]; then
+    COMPLIANCE_FILE="$WORKTREE_DIR/compliance-review-report.md"
+elif [ -f "$PROJECT_DIR/compliance-review-report.md" ]; then
+    COMPLIANCE_FILE="$PROJECT_DIR/compliance-review-report.md"
+fi
+
 if [ -f "$COMPLIANCE_FILE" ]; then
+    # 检查报告是否可能过期
+    if [ -f "$SPEC_FILE" ] && [ "$SPEC_FILE" -nt "$COMPLIANCE_FILE" ]; then
+        echo -e "${YELLOW}WARN${NC} compliance-review-report.md 可能比当前 spec.md 旧，请确认报告是否针对当前代码"
+    fi
+
     # 解析 BLOCK 和 WARN 数量（优先从 YAML front matter 读取）
     COMPLIANCE_BLOCK=0
     COMPLIANCE_WARN=0
@@ -78,9 +114,9 @@ if [ -f "$COMPLIANCE_FILE" ]; then
         COMPLIANCE_BLOCK="${TOTAL_BLOCK:-0}"
         COMPLIANCE_WARN="${TOTAL_WARN:-0}"
     else
-        # 回退：从摘要表格解析
-        COMPLIANCE_BLOCK_RAW=$(grep -oE "BLOCK.*[0-9]+" "$COMPLIANCE_FILE" | grep -oE "[0-9]+$" | head -1 || true)
-        COMPLIANCE_WARN_RAW=$(grep -oE "WARN.*[0-9]+" "$COMPLIANCE_FILE" | grep -oE "[0-9]+$" | head -1 || true)
+        # 回退：从 Markdown 表格行解析（更严格的模式）
+        COMPLIANCE_BLOCK_RAW=$(grep -E "^\|.*BLOCK" "$COMPLIANCE_FILE" | grep -oE "[0-9]+" | tail -1 || true)
+        COMPLIANCE_WARN_RAW=$(grep -E "^\|.*WARN" "$COMPLIANCE_FILE" | grep -oE "[0-9]+" | tail -1 || true)
         COMPLIANCE_BLOCK="${COMPLIANCE_BLOCK_RAW:-0}"
         COMPLIANCE_WARN="${COMPLIANCE_WARN_RAW:-0}"
     fi
@@ -108,7 +144,7 @@ if [ -f "$COMPLIANCE_FILE" ]; then
 else
     echo -e "${YELLOW}WARN${NC} compliance-review-report.md 不存在"
     echo "       建议运行 compliance-reviewer 审查后再检查"
-    read -r -p "是否继续? (yes/no): " CONTINUE 2>/dev/null || CONTINUE="no"
+    confirm_prompt "是否继续?" CONTINUE
     if [ "$CONTINUE" != "yes" ] && [ "$CONTINUE" != "y" ]; then
         EXIT_CODE=1
     fi
@@ -125,7 +161,7 @@ echo "  - 已创建 Pull Request / Merge Request"
 echo "  - 代码审查已完成"
 echo "  - 审查意见已处理"
 echo ""
-read -r -p "代码审查是否已完成? (yes/no): " REVIEW_CONFIRM 2>/dev/null || REVIEW_CONFIRM="no"
+confirm_prompt "代码审查是否已完成?" REVIEW_CONFIRM
 if [ "$REVIEW_CONFIRM" = "yes" ] || [ "$REVIEW_CONFIRM" = "y" ]; then
     echo -e "${GREEN}PASS${NC} requesting-code-review 通过 (人工确认)"
 else
@@ -144,7 +180,7 @@ echo "  - 单元测试通过"
 echo "  - 集成测试通过"
 echo "  - 验收标准已验证"
 echo ""
-read -r -p "验证是否已完成? (yes/no): " VERIFY_CONFIRM 2>/dev/null || VERIFY_CONFIRM="no"
+confirm_prompt "验证是否已完成?" VERIFY_CONFIRM
 if [ "$VERIFY_CONFIRM" = "yes" ] || [ "$VERIFY_CONFIRM" = "y" ]; then
     echo -e "${GREEN}PASS${NC} verification-before-completion 通过 (人工确认)"
 else
@@ -210,7 +246,7 @@ fi
 ACCEPTANCE_CRITERIA=""
 if [ -f "$PROJECT_DIR/PRD.md" ]; then
     # 尝试提取 EARS 格式的验收标准
-    ACCEPTANCE_CRITERIA=$(grep -E "^- \[.*\] AC-[0-9]+:" "$PROJECT_DIR/PRD.md" 2>/dev/null | sed 's/^- /- [x] /' | sed 's/$/ → PASS/' || echo "")
+    ACCEPTANCE_CRITERIA=$(grep -E "^### AC-[0-9]+:" "$PROJECT_DIR/PRD.md" 2>/dev/null | sed 's/^### /- [x] /' | sed 's/$/ → PASS/' || echo "")
 fi
 
 if [ -z "$ACCEPTANCE_CRITERIA" ]; then
@@ -235,44 +271,44 @@ if [ -z "$DECISION_IMPLEMENTATION" ]; then
 - [x] D-002: 决策描述 → 代码位置"
 fi
 
-# 生成 VERIFICATION.md 内容
-cat > "$PROJECT_DIR/VERIFICATION.md" << EOF
-# 验证报告: $FEATURE_NAME
+# 生成 VERIFICATION.md 内容 (使用安全模板避免命令注入)
+cat > "$PROJECT_DIR/VERIFICATION.md" << 'TMPL'
+# 验证报告: __FEATURE_NAME__
 
-**时间**: $CURRENT_DATE
+**时间**: __CURRENT_DATE__
 **验证人**: tinypowers /tech:code
-**关联需求**: $(basename "$PROJECT_DIR")
-**Tasks**: $TASK_IDS
+**关联需求**: __BASENAME__
+**Tasks**: __TASK_IDS__
 **Commit**: 待提交
 
 ---
 
 ## 验证结果
 
-$ACCEPTANCE_CRITERIA
+__ACCEPTANCE_CRITERIA__
 
 ---
 
 ## 决策落地检查
 
-$DECISION_IMPLEMENTATION
+__DECISION_IMPLEMENTATION__
 
 ---
 
 ## 审查结果
 
 ### compliance-reviewer
-- BLOCK: $COMPLIANCE_BLOCK
-- WARN: $COMPLIANCE_WARN
-- 结论: $(if [ $COMPLIANCE_BLOCK -eq 0 ]; then echo "通过"; else echo "需修复"; fi)
+- BLOCK: __COMPLIANCE_BLOCK__
+- WARN: __COMPLIANCE_WARN__
+- 结论: __COMPLIANCE_CONCLUSION__
 
 ### 代码审查
-- 状态: $(if [ "$REVIEW_CONFIRM" = "yes" ] || [ "$REVIEW_CONFIRM" = "y" ]; then echo "已完成"; else echo "待确认"; fi)
+- 状态: __REVIEW_STATUS__
 - 审查人: \[填写审查人\]
 
 ### 编译检查
-- 状态: $(if [ "$COMPILE_CONFIRM" = "yes" ] || [ "$COMPILE_CONFIRM" = "y" ]; then echo "通过"; else echo "待确认"; fi)
-- 构建工具: $(if [ -f "$WORKTREE_DIR/pom.xml" ]; then echo "Maven"; elif [ -f "$WORKTREE_DIR/build.gradle" ]; then echo "Gradle"; else echo "未知"; fi)
+- 状态: __COMPILE_STATUS__
+- 构建工具: __BUILD_TOOL__
 
 ---
 
@@ -288,15 +324,11 @@ $DECISION_IMPLEMENTATION
 
 ## 结论
 
-结论: $(if [ $EXIT_CODE -eq 0 ]; then echo "PASS"; else echo "FAIL"; fi)
+结论: __FINAL_CONCLUSION__
 
-**$(if [ $EXIT_CODE -eq 0 ]; then echo "PASS"; else echo "FAIL"; fi)**
+**__FINAL_CONCLUSION__**
 
-$(if [ $EXIT_CODE -eq 0 ]; then
-    echo "所有检查项通过，可以提交代码。"
-else
-    echo "存在未通过的检查项，请修复后重新验证。"
-fi)
+__FINAL_MESSAGE__
 
 ---
 
@@ -311,7 +343,58 @@ fi)
 ---
 
 *本报告由 tinypowers CHECK-2 离开门禁自动生成*
-EOF
+TMPL
+
+# 计算替换值
+COMPLIANCE_CONCLUSION=$(if [ "$COMPLIANCE_BLOCK" -eq 0 ]; then echo "通过"; else echo "需修复"; fi)
+REVIEW_STATUS=$(if [ "$REVIEW_CONFIRM" = "yes" ] || [ "$REVIEW_CONFIRM" = "y" ]; then echo "已完成"; else echo "待确认"; fi)
+COMPILE_STATUS=$(if [ "$COMPILE_CONFIRM" = "yes" ] || [ "$COMPILE_CONFIRM" = "y" ]; then echo "通过"; else echo "待确认"; fi)
+BUILD_TOOL=$(if [ -f "$WORKTREE_DIR/pom.xml" ]; then echo "Maven"; elif [ -f "$WORKTREE_DIR/build.gradle" ] || [ -f "$WORKTREE_DIR/build.gradle.kts" ]; then echo "Gradle"; else echo "未知"; fi)
+FINAL_CONCLUSION=$(if [ $EXIT_CODE -eq 0 ]; then echo "PASS"; else echo "FAIL"; fi)
+if [ $EXIT_CODE -eq 0 ]; then
+    FINAL_MESSAGE="所有检查项通过，可以提交代码。"
+else
+    FINAL_MESSAGE="存在未通过的检查项，请修复后重新验证。"
+fi
+
+# 安全替换模板占位符 (通过环境变量传递给 Python，避免 shell 注入)
+FEATURE_NAME="$FEATURE_NAME" \
+CURRENT_DATE="$CURRENT_DATE" \
+BASENAME="$(basename "$PROJECT_DIR")" \
+TASK_IDS="$TASK_IDS" \
+ACCEPTANCE_CRITERIA="$ACCEPTANCE_CRITERIA" \
+DECISION_IMPLEMENTATION="$DECISION_IMPLEMENTATION" \
+COMPLIANCE_BLOCK="$COMPLIANCE_BLOCK" \
+COMPLIANCE_WARN="$COMPLIANCE_WARN" \
+COMPLIANCE_CONCLUSION="$COMPLIANCE_CONCLUSION" \
+REVIEW_STATUS="$REVIEW_STATUS" \
+COMPILE_STATUS="$COMPILE_STATUS" \
+BUILD_TOOL="$BUILD_TOOL" \
+FINAL_CONCLUSION="$FINAL_CONCLUSION" \
+FINAL_MESSAGE="$FINAL_MESSAGE" \
+python3 -c "
+import os
+content = open('$PROJECT_DIR/VERIFICATION.md').read()
+replacements = {
+    '__FEATURE_NAME__': os.environ['FEATURE_NAME'],
+    '__CURRENT_DATE__': os.environ['CURRENT_DATE'],
+    '__BASENAME__': os.environ['BASENAME'],
+    '__TASK_IDS__': os.environ['TASK_IDS'],
+    '__ACCEPTANCE_CRITERIA__': os.environ['ACCEPTANCE_CRITERIA'],
+    '__DECISION_IMPLEMENTATION__': os.environ['DECISION_IMPLEMENTATION'],
+    '__COMPLIANCE_BLOCK__': os.environ['COMPLIANCE_BLOCK'],
+    '__COMPLIANCE_WARN__': os.environ['COMPLIANCE_WARN'],
+    '__COMPLIANCE_CONCLUSION__': os.environ['COMPLIANCE_CONCLUSION'],
+    '__REVIEW_STATUS__': os.environ['REVIEW_STATUS'],
+    '__COMPILE_STATUS__': os.environ['COMPILE_STATUS'],
+    '__BUILD_TOOL__': os.environ['BUILD_TOOL'],
+    '__FINAL_CONCLUSION__': os.environ['FINAL_CONCLUSION'],
+    '__FINAL_MESSAGE__': os.environ['FINAL_MESSAGE'],
+}
+for k, v in replacements.items():
+    content = content.replace(k, v)
+open('$PROJECT_DIR/VERIFICATION.md', 'w').write(content)
+"
 
 # 校验 VERIFICATION.md 中的决策记录
 if [ -n "$DECISION_IDS" ]; then
