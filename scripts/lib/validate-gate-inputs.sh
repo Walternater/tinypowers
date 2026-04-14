@@ -20,7 +20,7 @@ validate_spec_decisions() {
                 echo "$pass_prefix spec.md 存在且有 $decision_count 条锁定决策"
             else
                 echo "$fail_prefix spec.md 中未找到有效的决策条目 (D-XXX 格式)"
-                eval "$exit_code_var=1"
+                printf -v "$exit_code_var" '%s' 1
             fi
         else
             echo "$fail_prefix spec.md 中未找到 '## 锁定决策' 章节"

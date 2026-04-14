@@ -9,9 +9,9 @@
 ### 1.1 决策落地检查
 | 检查项 | 检查方法 | 通过标准 |
 |--------|----------|----------|
-| 锁定决策存在性 | `grep -E "^\| D-[0-9]+" docs/spec.md` | 至少存在 1 条决策记录 |
+| 锁定决策存在性 | `grep -E "^\| D-[0-9]+" spec.md` | 至少存在 1 条决策记录 |
 | 决策实现追踪 | 对比代码中是否有对应实现注释 `# D-XXX` | 每条决策有代码位置标记 |
-| 决策变更检查 | `git diff HEAD~1 docs/spec.md` | 无未经评审的决策变更 |
+| 决策变更检查 | `git diff HEAD~1 spec.md` | 无未经评审的决策变更 |
 
 ### 1.2 接口定义检查
 | 检查项 | 检查方法 | 通过标准 |
@@ -138,14 +138,14 @@ echo "=== 文档同步检查 ==="
 
 # 1. 技术方案同步检查
 echo "[1/3] 技术方案同步检查..."
-if [ -f docs/spec.md ]; then
-    DECISION_COUNT=$(grep -cE "^\| D-[0-9]+" docs/spec.md 2>/dev/null || echo 0)
+if [ -f spec.md ]; then
+    DECISION_COUNT=$(grep -cE "^\| D-[0-9]+" spec.md 2>/dev/null || echo 0)
     echo "  - 锁定决策数量: $DECISION_COUNT"
     if [ "$DECISION_COUNT" -eq 0 ]; then
         echo "  ⚠️ WARN: 无锁定决策记录"
     fi
 else
-    echo "  ❌ FAIL: docs/spec.md 不存在"
+    echo "  ❌ FAIL: spec.md 不存在"
     EXIT_CODE=1
 fi
 

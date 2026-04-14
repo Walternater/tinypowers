@@ -41,23 +41,23 @@ confirm_prompt() {
     local prompt_text="$1"
     local var_name="$2"
     local env_val
-    env_val=$(eval "echo \$$var_name" 2>/dev/null || true)
+    env_val="${!var_name}"
 
     if [ -n "$env_val" ]; then
         echo "$prompt_text -> $env_val (环境变量)"
-        eval "$var_name=\"$env_val\""
+        printf -v "$var_name" '%s' "$env_val"
         return 0
     fi
 
     if [ ! -t 0 ]; then
         echo "$prompt_text -> yes (非交互模式)"
-        eval "$var_name=\"yes\""
+        printf -v "$var_name" '%s' "yes"
         return 0
     fi
 
     local reply
     read -r -p "$prompt_text (yes/no): " reply 2>/dev/null || reply="no"
-    eval "$var_name=\"$reply\""
+    printf -v "$var_name" '%s' "$reply"
 }
 
 # 1. 检查代码编译通过 (人工确认点)
@@ -73,9 +73,9 @@ echo ""
 
 # 尝试自动检测构建工具并检查
 if [ -f "$WORKTREE_DIR/pom.xml" ]; then
-    echo "检测到 Maven 项目，建议运行: cd $WORKTREE_DIR && mvn compile"
+    echo "检测到 Maven 项目，建议运行: cd \"$WORKTREE_DIR\" && mvn compile"
 elif [ -f "$WORKTREE_DIR/build.gradle" ] || [ -f "$WORKTREE_DIR/build.gradle.kts" ]; then
-    echo "检测到 Gradle 项目，建议运行: cd $WORKTREE_DIR && gradle compileJava"
+    echo "检测到 Gradle 项目，建议运行: cd \"$WORKTREE_DIR\" && gradle compileJava"
 fi
 
 echo ""
@@ -114,9 +114,19 @@ if [ -f "$COMPLIANCE_FILE" ]; then
         COMPLIANCE_BLOCK="${TOTAL_BLOCK:-0}"
         COMPLIANCE_WARN="${TOTAL_WARN:-0}"
     else
-        # 回退：从 Markdown 表格行解析（更严格的模式）
-        COMPLIANCE_BLOCK_RAW=$(grep -E "^\|.*BLOCK" "$COMPLIANCE_FILE" | grep -oE "[0-9]+" | tail -1 || true)
-        COMPLIANCE_WARN_RAW=$(grep -E "^\|.*WARN" "$COMPLIANCE_FILE" | grep -oE "[0-9]+" | tail -1 || true)
+        # 回退：从 Markdown 表格行解析（支持 5 列和 3 列两种格式）
+        if grep -q "| 维度 | 状态 | PASS | WARN | BLOCK |" "$COMPLIANCE_FILE" 2>/dev/null; then
+            # 5 列格式：最后两列为数字（test-full-flow.sh 使用的格式）
+            COMPLIANCE_BLOCK_RAW=$(grep -E "^\|" "$COMPLIANCE_FILE" | tail -n +3 | awk -F'|' '{s+=$NF} END {print s+0}')
+            COMPLIANCE_WARN_RAW=$(grep -E "^\|" "$COMPLIANCE_FILE" | tail -n +3 | awk -F'|' '{s+=$(NF-1)} END {print s+0}')
+        elif grep -q "| 维度 | 状态 | 详情 |" "$COMPLIANCE_FILE" 2>/dev/null; then
+            # 3 列格式：详情列包含文本（compliance-reviewer-spec.md 示例格式）
+            COMPLIANCE_BLOCK_RAW=$(grep -E "^\|.*[0-9]+ BLOCK" "$COMPLIANCE_FILE" | grep -oE "[0-9]+ BLOCK" | grep -oE "[0-9]+" | awk '{s+=$1} END {print s+0}')
+            COMPLIANCE_WARN_RAW=$(grep -E "^\|.*[0-9]+ WARN" "$COMPLIANCE_FILE" | grep -oE "[0-9]+ WARN" | grep -oE "[0-9]+" | awk '{s+=$1} END {print s+0}')
+        else
+            COMPLIANCE_BLOCK_RAW=""
+            COMPLIANCE_WARN_RAW=""
+        fi
         COMPLIANCE_BLOCK="${COMPLIANCE_BLOCK_RAW:-0}"
         COMPLIANCE_WARN="${COMPLIANCE_WARN_RAW:-0}"
     fi
@@ -189,9 +199,11 @@ else
 fi
 echo ""
 
+# 预定义 spec 文件路径 (供前面 compliance 过期检查使用)
+SPEC_FILE="$PROJECT_DIR/spec.md"
+
 # 5. 预提取决策信息，生成报告后再校验
 echo "□ 决策自查准备 ..."
-SPEC_FILE="$PROJECT_DIR/spec.md"
 DECISION_IDS=""
 if [ -f "$SPEC_FILE" ]; then
     DECISION_IDS=$(grep -oE "\| D-[0-9]{3}" "$SPEC_FILE" | sed 's/| //' | sort -u || true)
@@ -372,9 +384,11 @@ COMPILE_STATUS="$COMPILE_STATUS" \
 BUILD_TOOL="$BUILD_TOOL" \
 FINAL_CONCLUSION="$FINAL_CONCLUSION" \
 FINAL_MESSAGE="$FINAL_MESSAGE" \
+PROJECT_DIR="$PROJECT_DIR" \
 python3 -c "
 import os
-content = open('$PROJECT_DIR/VERIFICATION.md').read()
+_verification_path = os.environ['PROJECT_DIR'] + '/VERIFICATION.md'
+content = open(_verification_path).read()
 replacements = {
     '__FEATURE_NAME__': os.environ['FEATURE_NAME'],
     '__CURRENT_DATE__': os.environ['CURRENT_DATE'],
@@ -393,14 +407,14 @@ replacements = {
 }
 for k, v in replacements.items():
     content = content.replace(k, v)
-open('$PROJECT_DIR/VERIFICATION.md', 'w').write(content)
+open(_verification_path, 'w').write(content)
 "
 
 # 校验 VERIFICATION.md 中的决策记录
 if [ -n "$DECISION_IDS" ]; then
     MISSING_DECISIONS=""
     for DECISION_ID in $DECISION_IDS; do
-        if ! grep -q "$DECISION_ID" "$PROJECT_DIR/VERIFICATION.md" 2>/dev/null; then
+        if ! grep -qF "$DECISION_ID" "$PROJECT_DIR/VERIFICATION.md" 2>/dev/null; then
             MISSING_DECISIONS="$MISSING_DECISIONS $DECISION_ID"
         fi
     done

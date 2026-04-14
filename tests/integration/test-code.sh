@@ -305,7 +305,7 @@ $output
         # 复制 fixture 到临时目录，避免污染 git-tracked 文件
         rm -rf "$pass_dir"
         mkdir -p "$pass_dir"
-        cp -r "$fixture_dir"/* "$pass_dir/"
+        cp -r "$fixture_dir"/. "$pass_dir/"
 
         # 创建 SPEC-STATE.md
         cat > "$pass_dir/SPEC-STATE.md" << 'EOF'
