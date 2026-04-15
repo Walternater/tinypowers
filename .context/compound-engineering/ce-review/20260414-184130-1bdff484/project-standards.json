@@ -1,0 +1,9 @@
+{
+  "reviewer": "project-standards",
+  "findings": [],
+  "residual_risks": [
+    "The v1.0 rebuild removes the root CLAUDE.md entirely. While the old standards are gone, there is no active project-level standards file left to govern future SKILL.md or script changes. Consider whether the project wants a lightweight tinypowers-internal CLAUDE.md or AGENTS.md to preserve rules like 'all skills must have name + description' and 'scripts should prefer native tools over shell pipelines where applicable'.",
+    "pattern-scan.sh and the gate scripts rely heavily on shell pipelines (find, grep, wc, xargs, sed, awk). This is acceptable for the declared macOS/Linux + Bash/Zsh environment, but if cross-platform support (e.g., Windows/Git Bash) is ever desired, these scripts will need portability review."
+  ],
+  "testing_gaps": []
+}

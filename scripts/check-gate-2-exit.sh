@@ -36,7 +36,7 @@ echo ""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 交互式确认辅助函数
-# 优先级: 1) 环境变量 2) 非 TTY 默认 yes 3) 交互式 read
+# 优先级: 1) 环境变量 2) 交互式 read 3) 非 TTY → FAIL (要求显式 env var)
 confirm_prompt() {
     local prompt_text="$1"
     local var_name="$2"
@@ -50,14 +50,17 @@ confirm_prompt() {
     fi
 
     if [ ! -t 0 ]; then
-        echo "$prompt_text -> yes (非交互模式)"
-        printf -v "$var_name" '%s' "yes"
-        return 0
+        # 非 TTY 环境：无法交互，且无环境变量时必须失败
+        echo "$prompt_text -> FAIL (非交互模式且未设置环境变量)"
+        echo "       请设置 ${var_name}=yes 环境变量或使用交互式终端"
+        printf -v "$var_name" '%s' "no"
+        return 1
     fi
 
     local reply
     read -r -p "$prompt_text (yes/no): " reply 2>/dev/null || reply="no"
     printf -v "$var_name" '%s' "$reply"
+    return 0
 }
 
 # 1. 检查代码编译通过 (人工确认点)
@@ -175,8 +178,8 @@ confirm_prompt "代码审查是否已完成?" REVIEW_CONFIRM
 if [ "$REVIEW_CONFIRM" = "yes" ] || [ "$REVIEW_CONFIRM" = "y" ]; then
     echo -e "${GREEN}PASS${NC} requesting-code-review 通过 (人工确认)"
 else
-    echo -e "${YELLOW}WARN${NC} requesting-code-review 未确认"
-    echo "       建议完成代码审查后再提交"
+    echo -e "${RED}FAIL${NC} 代码审查未完成"
+    EXIT_CODE=1
 fi
 echo ""
 
@@ -194,8 +197,8 @@ confirm_prompt "验证是否已完成?" VERIFY_CONFIRM
 if [ "$VERIFY_CONFIRM" = "yes" ] || [ "$VERIFY_CONFIRM" = "y" ]; then
     echo -e "${GREEN}PASS${NC} verification-before-completion 通过 (人工确认)"
 else
-    echo -e "${YELLOW}WARN${NC} verification-before-completion 未确认"
-    echo "       建议完成验证后再提交"
+    echo -e "${RED}FAIL${NC} 验证未完成"
+    EXIT_CODE=1
 fi
 echo ""
 

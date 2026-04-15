@@ -1,0 +1,13 @@
+{
+  "reviewer": "project-standards",
+  "findings": [],
+  "residual_risks": [],
+  "testing_gaps": [
+    {
+      "title": "test-full-flow.sh 仅检查 2/4 个 SKILL.md 文件",
+      "description": "tests/integration/test-full-flow.sh 中的 test_skills_exist() 只验证 skills/tech-init/SKILL.md 和 skills/tech-feature/SKILL.md 的存在性，未包含 skills/tech-code/SKILL.md 和 skills/tech-commit/SKILL.md。作为四技能集成测试，应覆盖全部四个核心技能的 SKILL.md 存在性检查。",
+      "file": "tests/integration/test-full-flow.sh",
+      "line": "8466-8469"
+    }
+  ]
+}

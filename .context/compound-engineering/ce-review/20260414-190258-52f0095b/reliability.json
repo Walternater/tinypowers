@@ -1,0 +1,75 @@
+{
+  "reviewer": "reliability",
+  "findings": [
+    {
+      "title": "pattern-scan.sh aborts on find permission errors due to set -e",
+      "severity": "P2",
+      "file": "/Users/wcf/personal/tinypowers-v1-clean/scripts/pattern-scan.sh",
+      "line": 48,
+      "confidence": 0.72,
+      "autofix_class": "safe_auto",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Append '|| true' to each bare find command substitution to prevent set -e from aborting on permission errors. Affected lines: 48, 119, 178, 240, 312, 316, 370, 377.",
+      "evidence": [
+        {
+          "type": "code",
+          "snippet": "local controllers=$(find \"$PROJECT_PATH\" -name \"*Controller.java\" -type f 2>/dev/null)",
+          "line": 48,
+          "message": "Bare find in command substitution without || true; set -e will abort if find exits non-zero on permission errors"
+        },
+        {
+          "type": "code",
+          "snippet": "local services=$(find \"$PROJECT_PATH\" -name \"*Service*.java\" -type f 2>/dev/null)",
+          "line": 119,
+          "message": "Same issue: no error suppression on find command substitution"
+        },
+        {
+          "type": "code",
+          "snippet": "local repositories=$(find \"$PROJECT_PATH\" -name \"*Repository.java\" -type f 2>/dev/null)",
+          "line": 178,
+          "message": "Same issue: no error suppression on find command substitution"
+        },
+        {
+          "type": "code",
+          "snippet": "local entities=$(find \"$PROJECT_PATH\" -name \"*.java\" -type f -exec grep -l \"@Entity\" {} \; 2>/dev/null)",
+          "line": 240,
+          "message": "Same issue: no error suppression on find command substitution"
+        },
+        {
+          "type": "code",
+          "snippet": "local configs=$(find \"$PROJECT_PATH\" -name \"*Config.java\" -type f 2>/dev/null)",
+          "line": 312,
+          "message": "Same issue: no error suppression on find command substitution"
+        },
+        {
+          "type": "code",
+          "snippet": "local all_configs=$(find \"$PROJECT_PATH\" -name \"*.java\" -type f -exec grep -l \"@Configuration\" {} \; 2>/dev/null)",
+          "line": 316,
+          "message": "Same issue: no error suppression on find command substitution"
+        },
+        {
+          "type": "code",
+          "snippet": "local all_java=$(find \"$PROJECT_PATH\" -name \"*.java\" -type f 2>/dev/null)",
+          "line": 370,
+          "message": "Same issue: no error suppression on find command substitution"
+        },
+        {
+          "type": "code",
+          "snippet": "local business_exceptions=$(find \"$PROJECT_PATH\" -name \"*Exception.java\" -type f 2>/dev/null)",
+          "line": 377,
+          "message": "Same issue: no error suppression on find command substitution"
+        },
+        {
+          "type": "code",
+          "snippet": "set -e",
+          "line": 10,
+          "message": "Script enables set -e, so any find non-zero exit will abort the entire scan"
+        }
+      ]
+    }
+  ],
+  "residual_risks": [],
+  "testing_gaps": []
+}

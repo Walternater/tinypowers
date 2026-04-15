@@ -1,0 +1,121 @@
+{
+  "reviewer": "adversarial",
+  "findings": [
+    {
+      "title": "Command injection via unchecked PRD/spec content in VERIFICATION.md generation",
+      "severity": "P0",
+      "file": "scripts/check-gate-2-exit.sh",
+      "line": 239,
+      "confidence": 0.92,
+      "autofix_class": "gated_auto",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Change the heredoc from << EOF to << 'EOF' so variable and command substitution are disabled, or write the file via a here-document with escaped content using printf.",
+      "evidence": [
+        "Line 213 extracts ACCEPTANCE_CRITERIA from PRD.md using grep/sed without sanitization.",
+        "Line 227 extracts DECISION_DESC from spec.md using awk without sanitization.",
+        "Line 239 uses cat << EOF (unquoted heredoc), which performs both variable expansion and command substitution on $ACCEPTANCE_CRITERIA and $DECISION_IMPLEMENTATION.",
+        "If PRD.md or spec.md contain lines like '- [ ] AC-001: $(rm -rf /) test', the shell executes rm -rf / during heredoc expansion."
+      ]
+    },
+    {
+      "title": "CHECK-2 exit gate hard-fails in non-interactive environments due to read prompts",
+      "severity": "P1",
+      "file": "scripts/check-gate-2-exit.sh",
+      "line": 57,
+      "confidence": 0.88,
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Add a --non-interactive / --ci flag (or environment variable overrides like COMPILE_CONFIRM=yes) so the script can run in CI pipelines without stdin. Alternatively, attempt automatic compilation instead of prompting.",
+      "evidence": [
+        "Line 57: read -r -p '代码是否已编译通过? (yes/no): ' COMPILE_CONFIRM 2>/dev/null || COMPILE_CONFIRM='no'.",
+        "When stdin is closed (e.g., CI, ssh, piped execution), read returns non-zero and COMPILE_CONFIRM defaults to 'no'.",
+        "Line 61-62: COMPILE_CONFIRM='no' sets EXIT_CODE=1 and the script exits 1 at line 198 before generating VERIFICATION.md.",
+        "Line 111: similar read prompt for missing compliance report also defaults to 'no' and sets EXIT_CODE=1, making the gate unusable in automation."
+      ]
+    },
+    {
+      "title": "Compliance report location mismatch between worktree and project directory",
+      "severity": "P1",
+      "file": "scripts/check-gate-2-exit.sh",
+      "line": 68,
+      "confidence": 0.85,
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Search for compliance-review-report.md in both PROJECT_DIR and WORKTREE_DIR, or explicitly document that the report must be copied/symlinked to PROJECT_DIR before running the exit gate.",
+      "evidence": [
+        "skills/tech-code/SKILL.md Phase 3.1 says coding happens in a superpowers-created worktree.",
+        "agents/compliance-reviewer.md runs during Phase 4 (in the worktree context) and writes compliance-review-report.md.",
+        "Line 68: COMPLIANCE_FILE='$PROJECT_DIR/compliance-review-report.md' only looks in the project directory, ignoring WORKTREE_DIR.",
+        "If the compliance report is generated inside the worktree and not manually copied back, check-gate-2-exit.sh warns 'compliance-review-report.md 不存在' and defaults to failing in non-interactive mode."
+      ]
+    },
+    {
+      "title": "Stale compliance report from previous run can bypass CHECK-2 exit gate",
+      "severity": "P1",
+      "file": "scripts/check-gate-2-exit.sh",
+      "line": 68,
+      "confidence": 0.82,
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Validate the compliance report age (e.g., check mtime is newer than the latest code change) or embed a git commit hash / checksum in the report and verify it matches the current worktree.",
+      "evidence": [
+        "Line 68-86: If compliance-review-report.md exists in PROJECT_DIR, the script parses BLOCK/WARN counts without checking whether the report corresponds to the current code changes.",
+        "A stale report from a previous feature (or an earlier iteration of the current feature) with total_block: 0 would cause the gate to pass even if the current code has compliance issues.",
+        "The front-matter parsing at line 82-85 is particularly fragile: a user can prepend 'total_block: 0' to any report to force a pass."
+      ]
+    },
+    {
+      "title": "pattern-scan.sh silently loses data when Java filenames contain spaces",
+      "severity": "P2",
+      "file": "scripts/pattern-scan.sh",
+      "line": 65,
+      "confidence": 0.85,
+      "autofix_class": "gated_auto",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Quote all variable expansions passed to grep/wc/xargs, or refactor to use find -print0 | xargs -0 grep.",
+      "evidence": [
+        "Line 47: controllers=$(find ... -name '*Controller.java' ...).",
+        "Line 65: grep -h '^@RestController|^@Controller' $controllers 2>/dev/null — $controllers is unquoted, causing word splitting on spaces.",
+        "If a file is named 'My Controller.java', grep receives two paths: 'path/to/My' and 'Controller.java', neither of which exists, so annotations for that file are silently omitted.",
+        "Same issue affects scan_services (line ~567), scan_repositories (line ~605), scan_entities (line ~3678), scan_configs (line ~3743), and scan_exceptions (line ~3783 uses xargs without -0)."
+      ]
+    },
+    {
+      "title": "Test race condition on shared fixture directory leaves stale SPEC-STATE.md",
+      "severity": "P2",
+      "file": "tests/integration/test-code.sh",
+      "line": 305,
+      "confidence": 0.82,
+      "autofix_class": "safe_auto",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Create a temporary copy of the sample-feature fixture in TEST_BASE_DIR, write SPEC-STATE.md there, run the gate, and clean up the temporary copy.",
+      "evidence": [
+        "Line 305: cat > '$pass_dir/SPEC-STATE.md' writes to $PROJECT_ROOT/tests/fixtures/sample-feature/SPEC-STATE.md.",
+        "Line 344: rm -f '$pass_dir/SPEC-STATE.md' cleans up only if the test reaches that point.",
+        "If the test is interrupted (Ctrl+C, timeout, signal), the cleanup does not run and SPEC-STATE.md remains in the git-tracked fixture directory.",
+        "Concurrent test runs on the same machine would race on this shared file, potentially causing flaky test results."
+      ]
+    }
+  ],
+  "residual_risks": [
+    "check-gate-2-exit.sh parses compliance reports with regex heuristics rather than a strict schema validator; future format changes could silently break gate behavior.",
+    "pattern-scan.sh has no timeout on find/grep operations; running against a large monorepo could block the code phase indefinitely."
+  ],
+  "testing_gaps": [
+    "No test exercises check-gate-2-exit.sh with a non-interactive stdin (CI scenario).",
+    "No test verifies pattern-scan.sh behavior when source filenames contain spaces or special characters.",
+    "No test validates that check-gate-2-exit.sh rejects a stale or manually crafted compliance-review-report.md."
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "reviewer": "testing",
+  "findings": [
+    {
+      "title": "check-gate-2-exit.sh has no behavioral test coverage",
+      "severity": "P0",
+      "file": "tests/integration/test-code.sh",
+      "line": 38972,
+      "why_it_matters": "CHECK-2 is the critical exit gate from code to commit. The only test runs --help (or no args) and merely asserts the script produces non-empty output. None of the compliance parsing, BLOCK/WARN counting, VERIFICATION.md generation, or interactive prompt branches are exercised. A regression in gate logic would not be caught.",
+      "autofix_class": "manual",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "confidence": 0.92,
+      "evidence": [
+        "test_check_gate_2_exit runs: output=$(\$PROJECT_ROOT/scripts/check-gate-2-exit.sh --help 2>&1) || output=$(\$PROJECT_ROOT/scripts/check-gate-2-exit.sh 2>&1 | head -20)",
+        "Assertion is only: if [ -n \"\$output\" ]; then PASS",
+        "No tests for BLOCK>0, missing compliance-review-report.md, compile confirm no, or VERIFICATION.md decision validation"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "No CI workflow runs the new shell integration tests",
+      "severity": "P0",
+      "file": ".github/workflows/validate.yml",
+      "line": 1,
+      "why_it_matters": "The old validate.yml (which ran npm test) was deleted, and no replacement workflow was added to execute tests/integration/*.sh. The new integration tests exist on disk but have no automated execution path, so regressions will only be discovered manually.",
+      "autofix_class": "safe_auto",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "confidence": 0.95,
+      "evidence": [
+        "diff shows validate.yml deleted with no replacement workflow added",
+        "package.json deleted; no npm test runner remains",
+        "New tests are shell scripts (test-init.sh, test-feature.sh, test-code.sh, test-full-flow.sh) with no CI invocation"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "test-full-flow.sh omits tech-code and tech-commit SKILL.md checks",
+      "severity": "P1",
+      "file": "tests/integration/test-full-flow.sh",
+      "line": 40235,
+      "why_it_matters": "The test claims to validate the full init -> feature -> code -> commit flow, but test_skills_exist only asserts tech-init and tech-feature SKILL.md exist. Missing assertions for tech-code and tech-commit mean broken or missing skill files in the code/commit phases would pass the full-flow test.",
+      "autofix_class": "safe_auto",
+      "owner": "review-fixer",
+      "requires_verification": false,
+      "confidence": 0.9,
+      "evidence": [
+        "local skills=( \"skills/tech-init/SKILL.md\" \"skills/tech-feature/SKILL.md\" )",
+        "skills/tech-code/SKILL.md and skills/tech-commit/SKILL.md are not in the array"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "check-gate-2-enter.sh missing SPEC-STATE and malformed-doc edge cases",
+      "severity": "P1",
+      "file": "tests/integration/test-code.sh",
+      "line": 38862,
+      "why_it_matters": "The gate script has branches for SPEC-STATE != PLAN, spec.md with 0 decisions, and tasks.md with 0 tasks. Only the 'empty directory fail' and 'complete docs pass' cases are tested. A regression in the SPEC-STATE branch or decision/task counting logic would go unnoticed.",
+      "autofix_class": "manual",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "confidence": 0.85,
+      "evidence": [
+        "check-gate-2-enter.sh lines 29876-29892: checks CURRENT_STATE = PLAN with WARN fallback",
+        "test-code.sh test_check_gate_2_enter only tests empty dir fail and sample-feature pass",
+        "No test for spec.md present but with 0 D-XXX decisions or tasks.md present but with 0 T-XXX tasks"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "pattern-scan.sh 'not found' branches are untested",
+      "severity": "P2",
+      "file": "tests/integration/test-code.sh",
+      "line": 39219,
+      "why_it_matters": "pattern-scan.sh has early-return branches for when no Controller, Service, Repository, Entity, Config, or Exception patterns are found. The fixture always has these patterns, so only the 'found' paths are exercised. A refactor breaking the empty-project handling would not be caught.",
+      "autofix_class": "manual",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "confidence": 0.82,
+      "evidence": [
+        "scan_controllers: if [ \"\$controller_count\" -eq 0 ]; then echo '未检测到 Controller 类'; return; fi",
+        "sample-java-project fixture contains UserController, UserService, UserRepository, User entity",
+        "No test runs pattern-scan.sh against an empty or non-Java project directory"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "detect-stack.sh missing dual-build-tool and FORCE_BUILD_TOOL tests",
+      "severity": "P2",
+      "file": "tests/integration/test-init.sh",
+      "line": 40917,
+      "why_it_matters": "The script documents Maven priority when both pom.xml and build.gradle exist, and mentions a FORCE_BUILD_TOOL override. These branches are not exercised. A regression in priority logic or environment handling would silently change stack detection results.",
+      "autofix_class": "manual",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "confidence": 0.78,
+      "evidence": [
+        "detect-stack.sh comment: '检测优先级：Maven > Gradle' and '如需强制指定，可设置 FORCE_BUILD_TOOL 环境变量覆盖'",
+        "test-init.sh tests Maven-only, Gradle-only, Kotlin-DSL-only, and no-build-tool cases",
+        "No test creates both pom.xml and build.gradle in the same directory"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "The deleted JS tests covered state-machine transitions (update-spec-state.js), document sync (commit-docs.js), and hook behavior. These scripts were deleted, but their behavioral contracts were not migrated into equivalent shell-script tests. If similar logic is reintroduced later, there is no test baseline to port.",
+    "check-gate-2-exit.sh uses interactive read prompts, making it inherently difficult to test in CI. The fallback defaults (|| COMPILE_CONFIRM=\"no\") provide a non-interactive path, but the actual yes/no branching logic remains unexercised in automation.",
+    "All four integration test scripts write to /tmp and to tests/reports/*.md. If executed concurrently (e.g., in a CI matrix or parallel test runner), they may collide on report files or fixture mutations (sample-feature/SPEC-STATE.md is written and deleted by test-code.sh)."
+  ],
+  "testing_gaps": [
+    "No automated CI invocation for tests/integration/*.sh",
+    "No test for check-gate-2-exit.sh compliance report parsing (YAML front matter vs table fallback)",
+    "No test for check-gate-2-exit.sh VERIFICATION.md generation with missing or malformed PRD.md/spec.md/tasks.md",
+    "No test for check-gate-2-exit.sh when compliance-reviewer finds BLOCK > 0",
+    "No test for check-gate-2-enter.sh when SPEC-STATE exists but is not PLAN",
+    "No test for pattern-scan.sh against an empty project directory or a directory with no Java files",
+    "test-full-flow.sh does not assert existence of skills/tech-code/SKILL.md or skills/tech-commit/SKILL.md",
+    "No test for detect-stack.sh with both pom.xml and build.gradle present (Maven priority branch)",
+    "No test for detect-stack.sh FORCE_BUILD_TOOL environment variable override"
+  ]
+}

@@ -1,0 +1,129 @@
+{
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "title": "pattern-scan.sh unquoted expansions cause word-splitting",
+      "severity": "P1",
+      "file": "scripts/pattern-scan.sh",
+      "line": 65,
+      "why_it_matters": "When Java filenames or directory paths contain spaces, unquoted variable expansions in grep commands cause 'No such file or directory' errors. This silently produces incomplete or empty scan results (e.g., missing class-level annotations, path prefixes, or entity statistics), misleading downstream compliance review and code generation that relies on patterns.md.",
+      "autofix_class": "safe_auto",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "suggested_fix": "Quote all file-list variables passed to grep/xargs: change '$controllers' to '\"$controllers\"', '$services' to '\"$services\"', '$repositories' to '\"$repositories\"', '$entities' to '\"$entities\"', '$all_configs' to '\"$all_configs\"', and use 'echo -n' or 'printf '%s\\n'' with xargs -d '\\n' where needed.",
+      "confidence": 0.92,
+      "evidence": [
+        "Line 65: grep -h \"^@RestController\\|^@Controller\" $controllers 2>/dev/null",
+        "Line 147: grep -l \"@Transactional\" $services 2>/dev/null | wc -l",
+        "Line 195: grep -l \"extends JpaRepository\" $repositories 2>/dev/null | wc -l",
+        "Line 257: grep -h \"@GeneratedValue.*IDENTITY\" $entities 2>/dev/null | wc -l",
+        "Line 333: grep -h \"@Configuration\" $all_configs 2>/dev/null | wc -l",
+        "Reproduced: 'grep -h \"^@RestController\" $controllers' with a space-containing path emits 'grep: /tmp/test: No such file or directory'"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "check-gate-2-exit.sh AC extraction regex mismatches PRD template",
+      "severity": "P2",
+      "file": "scripts/check-gate-2-exit.sh",
+      "line": 213,
+      "why_it_matters": "The script tries to extract acceptance criteria using '^- \\[.*\\] AC-[0-9]+:', but the PRD.md template and all fixtures use '### AC-001: title' format. This causes ACCEPTANCE_CRITERIA to always be empty for correctly formatted PRDs, so VERIFICATION.md falls back to generic placeholder ACs instead of the real acceptance criteria, producing an inaccurate verification report.",
+      "autofix_class": "safe_auto",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "suggested_fix": "Change the grep pattern to match the actual PRD format: grep -E '^### AC-[0-9]+:' instead of '^- \\[.*\\] AC-[0-9]+:', and adjust the sed pipeline to produce '- [x] AC-XXX: description → PASS' from the heading text.",
+      "confidence": 0.88,
+      "evidence": [
+        "scripts/check-gate-2-exit.sh line 213: ACCEPTANCE_CRITERIA=$(grep -E '^- \\[.*\\] AC-[0-9]+:' \"$PROJECT_DIR/PRD.md\" ...)",
+        "templates/PRD.md line 30: '### AC-001: {{AC_TITLE_1}}'",
+        "tests/fixtures/sample-feature/PRD.md line 24: '### AC-001: 按状态筛选'",
+        "tests/integration/test-full-flow.sh manually writes '- [x] AC-001: ...' inside VERIFICATION.md because the script cannot extract it from PRD.md"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "check-gate-2-exit.sh fallback compliance parsing extracts wrong WARN count",
+      "severity": "P2",
+      "file": "scripts/check-gate-2-exit.sh",
+      "line": 83,
+      "why_it_matters": "When compliance-review-report.md lacks the machine-readable YAML front matter, the fallback regex 'grep -oE \"WARN.*[0-9]+\"' matches the entire table row (e.g., 'WARN | 4 | 1 | 0'), and the subsequent extraction of the last number returns the BLOCK column value (0) instead of the WARN count (1). This can falsely report WARN=0 and suppress warnings that should be surfaced to the user.",
+      "autofix_class": "safe_auto",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "suggested_fix": "Replace the fragile fallback regex with a column-aware extraction, e.g., 'awk -F \"|\" \"/WARN/{print \$5}\"' to read the WARN column directly, or require front-matter parsing and reject reports that lack it.",
+      "confidence": 0.85,
+      "evidence": [
+        "scripts/check-gate-2-exit.sh lines 82-85: COMPLIANCE_WARN_RAW=$(grep -oE \"WARN.*[0-9]+\" ... | grep -oE \"[0-9]+$\" | head -1 || true)",
+        "Reproduced with table row '| 决策落地 | WARN | 4 | 1 | 0 |' → extracted WARN_RAW=0 instead of 1"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "test-full-flow.sh never exercises check-gate-2-exit.sh",
+      "severity": "P2",
+      "file": "tests/integration/test-full-flow.sh",
+      "line": 197,
+      "why_it_matters": "The 'full flow' integration test manually creates a VERIFICATION.md stub and never invokes check-gate-2-exit.sh. This means the exit gate's parsing logic, interactive prompt handling, compliance report validation, and VERIFICATION.md generation are untested in the end-to-end suite. Bugs in the exit gate (like the AC extraction and WARN parsing issues) will not be caught by CI.",
+      "autofix_class": "gated_auto",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "suggested_fix": "Add a Step 3.5 to test-full-flow.sh that actually runs check-gate-2-exit.sh with piped 'yes' input and a valid compliance-review-report.md, then asserts exit code 0 and verifies the generated VERIFICATION.md contains the correct decisions and ACs.",
+      "confidence": 0.82,
+      "evidence": [
+        "tests/integration/test-full-flow.sh line 478-509: manually cats VERIFICATION.md instead of generating it via the gate script",
+        "grep -n 'check-gate-2-exit' tests/integration/test-full-flow.sh shows only one reference: the executable check in test_scripts_executable()",
+        "The test deliverables check includes VERIFICATION.md but it was never produced by the script under test"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "test-full-flow.sh captures but ignores pattern-scan exit code",
+      "severity": "P2",
+      "file": "tests/integration/test-full-flow.sh",
+      "line": 434,
+      "why_it_matters": "The test stores pattern_exit_code after running pattern-scan.sh but never asserts it equals 0. If pattern-scan.sh fails (e.g., due to word-splitting on spaces, permission issues, or malformed output path), the test would still pass as long as the output file somehow exists. This masks regressions in the pattern scanning script.",
+      "autofix_class": "safe_auto",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "suggested_fix": "Add an assertion: 'if [ $pattern_exit_code -ne 0 ]; then log_test ... FAIL; rm -rf \"$test_project\"; return; fi' immediately after pattern-scan.sh execution.",
+      "confidence": 0.84,
+      "evidence": [
+        "tests/integration/test-full-flow.sh line 433-434: pattern_output=($PROJECT_ROOT/scripts/pattern-scan.sh ...); pattern_exit_code=$?",
+        "No subsequent reference to pattern_exit_code in the file"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "CHECK-1 passes unfilled template placeholders as valid decisions/tasks",
+      "severity": "P2",
+      "file": "scripts/check-gate-1.sh",
+      "line": 32,
+      "why_it_matters": "The gate scripts validate format (D-XXX/T-XXX presence) but not content. A user can copy the raw templates (which contain D-001/D-002/D-003 and T-001 through T-008 placeholders) directly into a feature directory without filling in any placeholders, and CHECK-1 will pass. This allows empty, unactionable planning documents to advance into the code phase, defeating the purpose of the gate.",
+      "autofix_class": "gated_auto",
+      "owner": "review-fixer",
+      "requires_verification": true,
+      "suggested_fix": "Add a placeholder check in check-gate-1.sh: grep for '{{[A-Z_]+}}' patterns in spec.md and tasks.md, and fail if any unfilled template placeholders remain.",
+      "confidence": 0.78,
+      "evidence": [
+        "scripts/check-gate-1.sh line 32: DECISION_COUNT=$(grep -cE \"| D-[0-9]{3}\" \"$SPEC_FILE\" ...)",
+        "templates/spec.md lines 90-92 contain '| D-001 | {{DECISION_1}} | {{REASON_1}} | ✅ 已锁定 |'",
+        "templates/tasks.md lines 16-23 contain T-001 through T-008 with {{TASK_XXX_DESC}} placeholders",
+        "Verified: grep -cE '| D-[0-9]{3}' templates/spec.md returns 3; grep -cE '| T-[0-9]{3}' templates/tasks.md returns 8"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "check-gate-2-exit.sh uses interactive 'read' prompts for compilation and review confirmation. In non-interactive/CI environments these always fall back to 'no', causing the gate to fail unless the script is invoked with piped input. This is by design but creates friction for automation.",
+    "pattern-scan.sh runs 'find \"$PROJECT_PATH\" -type f | wc -l' which counts all files including hidden directories (e.g., .git, node_modules). On very large repositories this could be slow, though it does not affect correctness.",
+    "Integration tests create fixture directories under tests/fixtures/ and do not clean them up on success. While the creation is idempotent, stale extra files from interrupted runs could theoretically pollute future test executions.",
+    "The compliance-reviewer agent spec references .planning/current/ paths, but tinypowers v1.0 uses feature/ directories. The spec includes '或项目根目录' fallback, so this is a minor documentation drift rather than a runtime bug."
+  ],
+  "testing_gaps": [
+    "No end-to-end test actually executes check-gate-2-exit.sh with a realistic project directory, compliance report, and piped confirmations.",
+    "No test verifies that pattern-scan.sh produces accurate annotation counts, path prefixes, or entity statistics; tests only check that the output file exists and contains expected markdown headers.",
+    "No test covers pattern-scan.sh behavior when filenames or paths contain spaces, which would expose the word-splitting bug.",
+    "No test verifies that VERIFICATION.md generated by check-gate-2-exit.sh contains the actual acceptance criteria from PRD.md or the actual decisions from spec.md.",
+    "No negative test exists for CHECK-1 with unfilled template placeholders (e.g., raw templates copied without rendering)."
+  ]
+}
