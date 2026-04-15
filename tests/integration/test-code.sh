@@ -87,7 +87,7 @@ finalize_report() {
 
 # 清理测试目录
 cleanup() {
-    cleanup_test_paths
+    cleanup_test_paths "${1:-success}"
 }
 
 # 测试 pattern-scan-spec.md 存在性
@@ -845,12 +845,12 @@ main() {
     if [ $TESTS_FAILED -eq 0 ]; then
         finalize_report "PASS"
         echo -e "\n结果: ${GREEN}ALL PASS${NC}"
-        cleanup
+        cleanup "success"
         exit 0
     else
         finalize_report "FAIL"
         echo -e "\n结果: ${RED}FAIL${NC}"
-        cleanup
+        cleanup "fail"
         exit 1
     fi
 }

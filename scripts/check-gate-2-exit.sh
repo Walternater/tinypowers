@@ -314,11 +314,11 @@ done
 cat > "$PROJECT_DIR/VERIFICATION.md" << 'TMPL'
 # 验证报告: __FEATURE_NAME__
 
-**时间**: __CURRENT_DATE__
-**验证人**: tinypowers /tech:code
-**关联需求**: __BASENAME__
-**Tasks**: __TASK_IDS__
-**Commit**: 待提交
+时间: __CURRENT_DATE__
+验证人: tinypowers /tech:code
+关联需求: __BASENAME__
+Tasks: __TASK_IDS__
+Commit: 待提交
 
 ---
 

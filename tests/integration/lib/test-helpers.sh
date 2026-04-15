@@ -19,12 +19,18 @@ setup_test_paths() {
 }
 
 cleanup_test_paths() {
+    local test_status="${1:-success}"
+
     if [ -n "${TEST_BASE_DIR:-}" ]; then
         rm -rf "$TEST_BASE_DIR"
     fi
 
     if [ "${REPORT_DIR_IS_TEMP:-0}" = "1" ] && [ -n "${REPORT_DIR:-}" ]; then
-        rm -rf "$REPORT_DIR"
+        if [ "$test_status" = "success" ]; then
+            rm -rf "$REPORT_DIR"
+        else
+            echo "测试报告保留在: $REPORT_DIR"
+        fi
     fi
 }
 

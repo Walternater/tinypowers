@@ -98,7 +98,7 @@ finalize_report() {
 
 # 清理测试目录
 cleanup() {
-    cleanup_test_paths
+    cleanup_test_paths "${1:-success}"
 }
 
 # 测试所有脚本存在且可执行
@@ -476,41 +476,29 @@ EOF
 无。
 EOF
 
-    # 创建 VERIFICATION.md (模拟验证完成)
-    cat > "$feature_dir/VERIFICATION.md" << 'EOF'
-# 验证报告: 用户管理功能
-
-**生成日期**: 2026-04-09
-**验证人**: tinypowers /tech:code
-
-## 验证结果
-
-- [x] AC-001: 用户列表查询 → PASS
-- [x] AC-002: 用户详情查看 → PASS
-- [x] AC-003: 用户创建 → PASS
-
-## 决策落地检查
-
-- [x] D-001: 使用 RESTful API 设计 → 已实现
-- [x] D-002: 使用 JPA 进行数据访问 → 已实现
-
-## 审查结果
-
-### compliance-reviewer
-- BLOCK: 0
-- WARN: 0
-- 结论: 通过
-
-### 编译检查
-- 状态: 通过
-
-## 结论
-
-**PASS**
-EOF
+    local check2_exit_output
+    check2_exit_output=$(COMPILE_CONFIRM=yes REVIEW_CONFIRM=yes VERIFY_CONFIRM=yes \
+        "$PROJECT_ROOT/scripts/check-gate-2-exit.sh" "$feature_dir" "$test_project" 2>&1)
+    local check2_exit_code=$?
 
     # ========== Step 4: commit ==========
     echo -e "${BLUE}[Step 4]${NC} Testing /tech:commit phase..."
+
+    local verification_file="$feature_dir/VERIFICATION.md"
+    local commit_ready=true
+
+    if [ $check2_exit_code -ne 0 ]; then
+        commit_ready=false
+    fi
+
+    if [ ! -f "$verification_file" ] || \
+        ! grep -q "结论: PASS" "$verification_file" || \
+        ! grep -q "Tasks:" "$verification_file" || \
+        ! grep -q "Commit:" "$verification_file" || \
+        ! grep -q "AC-001: 用户列表查询" "$verification_file" || \
+        ! grep -q "D-001: 使用 RESTful API 设计" "$verification_file"; then
+        commit_ready=false
+    fi
 
     # 验证交付物完整性
     local deliverables=(
@@ -537,7 +525,7 @@ EOF
         fi
     done
 
-    if [ "$all_deliverables_exist" = true ]; then
+    if [ "$all_deliverables_exist" = true ] && [ "$commit_ready" = true ]; then
         log_test "完整流程 - 所有阶段" "PASS" "
 **流程**: init → feature → code → commit
 
@@ -558,9 +546,15 @@ $deliverables_details
 | code | CHECK-2 进入门禁 | PASS |
 | code | Pattern Scan | PASS |
 | code | compliance-reviewer | PASS |
-| commit | 交付物完整 | PASS |
+| code | CHECK-2 离开门禁 | PASS |
+| commit | 结论: PASS / Tasks: / Commit: 前置条件 | PASS |
 
-**验证**: 四技能完整流程跑通，所有交付物生成完毕
+**CHECK-2 输出**:
+\`\`\`
+$check2_exit_output
+\`\`\`
+
+**验证**: 四技能完整流程跑通，且 VERIFICATION.md 满足当前 /tech:commit 契约
 "
     else
         log_test "完整流程 - 所有阶段" "FAIL" "
@@ -568,7 +562,14 @@ $deliverables_details
 
 $deliverables_details
 
-**验证**: 部分交付物缺失
+**CHECK-2 输出**:
+\`\`\`
+$check2_exit_output
+\`\`\`
+
+**验证文件**: $verification_file
+
+**验证**: 真实 CHECK-2 或 /tech:commit 前置条件未满足
 "
     fi
 
@@ -753,12 +754,12 @@ main() {
         echo -e "\n结果: ${GREEN}ALL PASS${NC}"
         echo ""
         echo "四技能框架集成测试全部通过！"
-        cleanup
+        cleanup "success"
         exit 0
     else
         finalize_report "FAIL"
         echo -e "\n结果: ${RED}FAIL${NC}"
-        cleanup
+        cleanup "fail"
         exit 1
     fi
 }
