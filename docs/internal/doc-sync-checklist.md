@@ -36,7 +36,7 @@
 |--------|----------|----------|
 | 文件存在性 | `test -f VERIFICATION.md` | 文件必须存在 |
 | 必填章节 | `grep -E "^## (验证结果|决策落地检查|审查结果|结论)" VERIFICATION.md` | 包含所有必填章节 |
-| 决策覆盖率 | `grep -c "D-" VERIFICATION.md` vs `grep -c "D-" docs/spec.md` | 覆盖率 = 100% |
+| 决策覆盖率 | `grep -c "D-" VERIFICATION.md` vs `grep -c "D-" spec.md` | 覆盖率 = 100% |
 
 ### 2.2 测试结果有效性
 | 检查项 | 检查方法 | 通过标准 |

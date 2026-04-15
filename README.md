@@ -314,12 +314,6 @@ tinypowers/
 │       ├── compliance-reviewer-spec.md # compliance-reviewer 规范
 │       ├── doc-sync-checklist.md   # 文档同步检查清单
 │       └── knowledge-capture-spec.md # Knowledge Capture 规范
-└── docs/plans/               # 版本规划文档
-    ├── contracts/            # 接口契约
-    │   ├── v1.0-interface.md
-    │   └── data-formats.md
-    └── v1.0/                 # v1.0 规划
-        └── ...
 ```
 
 ---
@@ -337,7 +331,7 @@ tinypowers/
 - [x] /tech:code - Pattern Scan + compliance-reviewer + CHECK-2 门禁
 - [x] /tech:commit - Knowledge Capture + Git 提交
 - [x] 5 个门禁脚本
-- [x] 7 个文档模板
+- [x] 6 个文档模板
 - [x] compliance-reviewer Agent
 
 ---
@@ -356,8 +350,8 @@ tinypowers/
 ### 文档更新
 
 - SKILL.md 更新需同步更新本 README 对应章节
-- 脚本变更需更新 `docs/plans/contracts/v1.0-interface.md`
-- 模板变更需更新 `docs/plans/contracts/data-formats.md`
+- 脚本变更需同步更新对应的 `docs/internal/*.md` 设计文档
+- 模板变更需同步更新本 README、相关 SKILL.md 和测试说明
 
 ---
 
@@ -371,5 +365,5 @@ MIT License
 
 - [Claude Code](https://claude.ai/code)
 - [superpowers 插件](https://github.com/...)
-- [v1.0 接口契约](docs/plans/contracts/v1.0-interface.md)
-- [数据格式契约](docs/plans/contracts/data-formats.md)
+- [文档同步清单](docs/internal/doc-sync-checklist.md)
+- [Knowledge Capture 规范](docs/internal/knowledge-capture-spec.md)
