@@ -34,6 +34,7 @@ temp/
 # Claude Code / tinypowers specific
 .claude/worktrees/
 .opencode/
+.tinypowers/
 
 # Test fixtures output (keep input, ignore output)
 tests/fixtures/*/output/

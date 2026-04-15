@@ -56,18 +56,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.1] - 2026-04-09
 
+### Changed
+
+- Rebuilt tinypowers from `main` as a clean, shell-first v1.0 baseline instead of layering new workflow logic onto the old runtime-heavy framework
+- Removed the old hook/config/context/JavaScript runtime stack and kept the core four-skill workflow surface
+- Restored the minimal v1.0 assets only: shell gate/helper scripts, templates, internal specs, compliance reviewer, and shell integration fixtures/tests
+- Aligned `CHECK-2` verification output with `/tech:commit` expectations so `VERIFICATION.md` can be consumed consistently downstream
+
 ### Fixed
 
-- Cross-platform compatibility for test scripts - Changed macOS-specific `sed -i ''` to `sed -i.bak` in all integration test scripts
-
-### Added
-
-- Complete v1.0 implementation with full documentation
-- `.planning/v1.0/` with detailed PLAN.md, CONTEXT.md, and END-TO-END-REVIEW.md
-- All SKILL.md files for four core skills (tech-init, tech-feature, tech-code, tech-commit)
-- All gate scripts (CHECK-1, CHECK-2 enter/exit)
-- compliance-reviewer Agent with 5-dimension review
-- Full integration test suite (35 test cases, all passing)
-- End-to-end review report with 9.0/10 score
+- Integration tests now create `tests/reports/` automatically in clean environments
+- `CHECK-2` now blocks stale or BLOCK-level compliance reports and only generates `VERIFICATION.md` on real success
+- CI now validates both test step outcomes and expected reports so silent test crashes cannot pass green
 
 [1.0.1]: https://github.com/wcf/tinypowers/releases/tag/v1.0.1
