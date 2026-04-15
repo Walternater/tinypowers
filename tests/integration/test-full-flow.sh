@@ -583,8 +583,24 @@ test_state_transition() {
     local test_dir="$TEST_BASE_DIR/state-test"
     mkdir -p "$test_dir"
 
-    # 创建必要的文档
-    echo "# PRD" > "$test_dir/PRD.md"
+    # 创建必要的文档（内容需 ≥100 字符以通过 validate_prd_content）
+    cat > "$test_dir/PRD.md" << 'EOF'
+# PRD
+
+## 背景
+
+这是 test-full-flow 集成测试使用的最小 PRD fixture。
+
+## 范围
+
+测试状态流转和门禁检查的基本功能。
+
+## 验收标准
+
+- 单元测试通过
+- 集成测试通过
+- 门禁检查通过
+EOF
 
     cat > "$test_dir/spec.md" << 'EOF'
 # Spec
