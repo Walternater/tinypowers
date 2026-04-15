@@ -36,10 +36,9 @@ temp/
 .opencode/
 .tinypowers/
 
-# Test fixtures output (keep input, ignore output)
-tests/fixtures/*/output/
-tests/reports/*.md
-!tests/reports/.gitkeep
+# Generated test artifacts
+tests/fixtures/
+tests/reports/
 .context/compound-engineering/ce-review/
 
 # Environment

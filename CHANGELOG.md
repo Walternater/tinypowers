@@ -64,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Integration tests now create `tests/reports/` automatically in clean environments
+- Integration tests now generate fixtures and reports at runtime, with `TEST_REPORT_DIR` available for CI artifact collection
 - `CHECK-2` now blocks stale or BLOCK-level compliance reports and only generates `VERIFICATION.md` on real success
 - CI now validates both test step outcomes and expected reports so silent test crashes cannot pass green
 

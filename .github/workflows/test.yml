@@ -9,6 +9,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      TEST_REPORT_DIR: ${{ runner.temp }}/tinypowers-test-reports
 
     steps:
       - name: Checkout
@@ -42,7 +44,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-reports
-          path: tests/reports/
+          path: ${{ env.TEST_REPORT_DIR }}
           if-no-files-found: ignore
 
       - name: Final gate (fail if any test failed)
@@ -54,10 +56,10 @@ jobs:
           TEST_FULL_FLOW_OUTCOME: ${{ steps.test_full_flow.outcome }}
         run: |
           required_reports=(
-            tests/reports/init-test-report.md
-            tests/reports/feature-test-report.md
-            tests/reports/code-test-report.md
-            tests/reports/full-flow-test-report.md
+            "$TEST_REPORT_DIR/init-test-report.md"
+            "$TEST_REPORT_DIR/feature-test-report.md"
+            "$TEST_REPORT_DIR/code-test-report.md"
+            "$TEST_REPORT_DIR/full-flow-test-report.md"
           )
 
           outcomes=(
@@ -81,7 +83,7 @@ jobs:
             fi
           done
 
-          if grep -l "^| 结果 | FAIL" tests/reports/*.md >/dev/null 2>&1; then
+          if grep -l "^| 结果 | FAIL" "$TEST_REPORT_DIR"/*.md >/dev/null 2>&1; then
             echo "One or more test suites reported FAIL"
             exit 1
           fi

@@ -13,9 +13,8 @@ NC='\033[0m'
 # 测试配置
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TEST_BASE_DIR="/tmp/tinypowers-test-feature-$$"
-REPORT_FILE="$PROJECT_ROOT/tests/reports/feature-test-report.md"
-mkdir -p "$(dirname "$REPORT_FILE")"
+source "$SCRIPT_DIR/lib/test-helpers.sh"
+setup_test_paths "feature"
 
 # 测试计数器
 TESTS_TOTAL=0
@@ -88,7 +87,7 @@ finalize_report() {
 
 # 清理测试目录
 cleanup() {
-    rm -rf "$TEST_BASE_DIR"
+    cleanup_test_paths
 }
 
 # 测试 feature-questions.md 存在性
@@ -433,11 +432,12 @@ test_feature_skill() {
     fi
 }
 
-# 测试示例 feature 有效性 (使用已存在的 fixture)
+# 测试示例 feature 有效性 (运行时生成 fixture)
 test_sample_feature() {
     echo "Testing sample feature..."
 
-    local fixture_dir="$PROJECT_ROOT/tests/fixtures/sample-feature"
+    local fixture_dir="$TEST_BASE_DIR/sample-feature-fixture"
+    create_sample_feature_fixture "$fixture_dir"
 
     if [ -f "$fixture_dir/PRD.md" ] && [ -f "$fixture_dir/spec.md" ] && [ -f "$fixture_dir/tasks.md" ]; then
         # 验证 CHECK-1 能通过
@@ -447,7 +447,7 @@ test_sample_feature() {
 
         if [ $exit_code -eq 0 ]; then
             log_test "示例 feature 有效性" "PASS" "
-**目录**: tests/fixtures/sample-feature
+**目录**: 运行时生成的 sample-feature fixture
 
 **文件**:
 - PRD.md (包含背景、范围、验收标准)
@@ -457,10 +457,10 @@ test_sample_feature() {
 **CHECK-1 结果**: PASS
 
 **验证**: 示例 feature 完整且通过门禁检查
-"
+            "
         else
             log_test "示例 feature 有效性" "FAIL" "
-**目录**: tests/fixtures/sample-feature
+**目录**: 运行时生成的 sample-feature fixture
 
 **CHECK-1 输出**:
 \`\`\`
@@ -468,11 +468,11 @@ $output
 \`\`\`
 
 **验证**: 示例 feature 未通过 CHECK-1
-"
+            "
         fi
     else
         log_test "示例 feature 有效性" "FAIL" "
-**目录**: tests/fixtures/sample-feature
+**目录**: 运行时生成的 sample-feature fixture
 
 **验证**: 示例 feature 文件不完整
 "

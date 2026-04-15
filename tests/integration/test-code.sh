@@ -13,9 +13,8 @@ NC='\033[0m'
 # 测试配置
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TEST_BASE_DIR="/tmp/tinypowers-test-code-$$"
-REPORT_FILE="$PROJECT_ROOT/tests/reports/code-test-report.md"
-mkdir -p "$(dirname "$REPORT_FILE")"
+source "$SCRIPT_DIR/lib/test-helpers.sh"
+setup_test_paths "code"
 
 # 测试计数器
 TESTS_TOTAL=0
@@ -88,7 +87,7 @@ finalize_report() {
 
 # 清理测试目录
 cleanup() {
-    rm -rf "$TEST_BASE_DIR"
+    cleanup_test_paths
 }
 
 # 测试 pattern-scan-spec.md 存在性
@@ -297,9 +296,11 @@ $output
 
     rm -rf "$fail_dir"
 
-    # 测试通过场景 (使用 sample-feature)
-    local fixture_dir="$PROJECT_ROOT/tests/fixtures/sample-feature"
+    # 测试通过场景 (运行时生成 sample-feature fixture)
+    local fixture_dir="$TEST_BASE_DIR/sample-feature-fixture"
     local pass_dir="$TEST_BASE_DIR/sample-feature-pass"
+
+    create_sample_feature_fixture "$fixture_dir"
 
     if [ -d "$fixture_dir" ]; then
         # 复制 fixture 到临时目录，避免污染 git-tracked 文件
@@ -322,7 +323,7 @@ EOF
 
         if [ $exit_code -eq 0 ] && echo "$output" | grep -q "PASS"; then
             log_test "CHECK-2 进入通过场景" "PASS" "
-**输入**: sample-feature 目录 (完整文档 + SPEC-STATE=PLAN)
+**输入**: 运行时生成的 sample-feature 目录 (完整文档 + SPEC-STATE=PLAN)
 
 **输出**:
 \`\`\`
@@ -330,10 +331,10 @@ $output
 \`\`\`
 
 **验证**: CHECK-2 进入门禁正确返回 PASS (exit code 0)
-"
+            "
         else
             log_test "CHECK-2 进入通过场景" "FAIL" "
-**输入**: sample-feature 目录 (完整文档 + SPEC-STATE=PLAN)
+**输入**: 运行时生成的 sample-feature 目录 (完整文档 + SPEC-STATE=PLAN)
 
 **输出**:
 \`\`\`
@@ -350,9 +351,9 @@ $output
         rm -rf "$pass_dir"
     else
         log_test "CHECK-2 进入通过场景" "FAIL" "
-**输入**: sample-feature 目录
+**输入**: 运行时生成的 sample-feature 目录
 
-**验证**: sample-feature fixture 不存在
+**验证**: sample-feature fixture 生成失败
 "
     fi
 }
@@ -754,13 +755,14 @@ test_code_skill() {
 test_java_project_pattern_scan() {
     echo "Testing Java project Pattern Scan..."
 
-    local fixture_dir="$PROJECT_ROOT/tests/fixtures/sample-java-project"
+    local fixture_dir="$TEST_BASE_DIR/sample-java-project"
+    create_sample_java_project_fixture "$fixture_dir"
 
     if [ ! -d "$fixture_dir" ]; then
         log_test "Java 项目 Pattern Scan" "FAIL" "
-**目录**: tests/fixtures/sample-java-project
+**目录**: 运行时生成的 sample-java-project fixture
 
-**验证**: Java 项目 fixture 不存在
+**验证**: Java 项目 fixture 生成失败
 "
         return
     fi
@@ -778,7 +780,7 @@ test_java_project_pattern_scan() {
         local has_entity=$(grep -q "User" "$output_file" && echo "是" || echo "否")
 
         log_test "Java 项目 Pattern Scan" "PASS" "
-**输入**: sample-java-project 目录
+**输入**: 运行时生成的 sample-java-project 目录
 
 **输出**: patterns.md
 
@@ -791,10 +793,10 @@ test_java_project_pattern_scan() {
 **检测到 User Entity**: $has_entity
 
 **验证**: Pattern Scan 正确识别 Java 项目中的 Controller/Service/Repository/Entity
-"
+        "
     else
         log_test "Java 项目 Pattern Scan" "FAIL" "
-**输入**: sample-java-project 目录
+**输入**: 运行时生成的 sample-java-project 目录
 
 **exit_code**: $exit_code
 
@@ -804,7 +806,7 @@ test_java_project_pattern_scan() {
 "
     fi
 
-    rm -rf "$TEST_BASE_DIR"
+    rm -rf "$fixture_dir"
 }
 
 # 主函数

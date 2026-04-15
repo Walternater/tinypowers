@@ -13,9 +13,8 @@ NC='\033[0m'
 # 测试配置
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TEST_BASE_DIR="/tmp/tinypowers-test-init-$$"
-REPORT_FILE="$PROJECT_ROOT/tests/reports/init-test-report.md"
-mkdir -p "$(dirname "$REPORT_FILE")"
+source "$SCRIPT_DIR/lib/test-helpers.sh"
+setup_test_paths "init"
 
 # 测试计数器
 TESTS_TOTAL=0
@@ -88,7 +87,7 @@ finalize_report() {
 
 # 清理测试目录
 cleanup() {
-    rm -rf "$TEST_BASE_DIR"
+    cleanup_test_paths
 }
 
 # 测试 Maven 项目检测
