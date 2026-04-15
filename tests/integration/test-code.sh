@@ -538,6 +538,96 @@ $output
 
     rm -rf "$stale_dir"
 
+    local block_dir="$TEST_BASE_DIR/check2-exit-block-report"
+    mkdir -p "$block_dir"
+
+    cat > "$block_dir/PRD.md" << 'EOF'
+# Test PRD
+
+## 验收标准
+
+### AC-001: BLOCK 场景
+
+**Given** compliance report 存在阻断问题
+**When** 运行离开门禁
+**Then** 直接失败
+EOF
+
+    cat > "$block_dir/spec.md" << 'EOF'
+# Test Spec
+
+## 锁定决策
+
+| ID | 决策 | 理由 |
+|----|------|------|
+| D-001 | 必须阻断 BLOCK 报告 | 保证门禁可信 |
+EOF
+
+    cat > "$block_dir/tasks.md" << 'EOF'
+# Test Tasks
+
+| ID | 任务 | 验收标准 | 依赖 |
+|----|------|----------|------|
+| T-001 | 阻断 BLOCK 报告 | 报告包含 BLOCK 时失败 | - |
+EOF
+
+    cat > "$block_dir/compliance-review-report.md" << 'EOF'
+# Compliance Review 报告
+
+## 摘要
+
+| 维度 | 状态 | PASS | WARN | BLOCK |
+|------|------|------|------|-------|
+| 决策落地 | BLOCK | 0 | 0 | 1 |
+| 接口符合 | PASS | 1 | 0 | 0 |
+EOF
+
+    output=$(COMPILE_CONFIRM=yes REVIEW_CONFIRM=yes VERIFY_CONFIRM=yes \
+        "$PROJECT_ROOT/scripts/check-gate-2-exit.sh" "$block_dir" 2>&1)
+    exit_code=$?
+
+    if [ $exit_code -eq 1 ] && echo "$output" | grep -q "发现 1 个 BLOCK"; then
+        log_test "CHECK-2 离开阻断 BLOCK compliance report" "PASS" "
+**输入**: compliance-review-report.md 包含 BLOCK=1
+
+**输出**:
+\`\`\`
+$output
+\`\`\`
+
+**验证**: CHECK-2 离开门禁正确阻断 BLOCK 级别问题
+"
+    else
+        log_test "CHECK-2 离开阻断 BLOCK compliance report" "FAIL" "
+**输入**: compliance-review-report.md 包含 BLOCK=1
+
+**输出**:
+\`\`\`
+$output
+\`\`\`
+
+**期望**: exit_code=1 且输出包含 发现 1 个 BLOCK
+
+**实际**: exit_code=$exit_code
+"
+    fi
+
+    if [ ! -f "$block_dir/VERIFICATION.md" ]; then
+        log_test "CHECK-2 BLOCK 场景不生成验证报告" "PASS" "
+**输入**: compliance-review-report.md 包含 BLOCK=1
+
+**验证**: BLOCK 场景不会生成 VERIFICATION.md
+"
+    else
+        log_test "CHECK-2 BLOCK 场景不生成验证报告" "FAIL" "
+**输入**: compliance-review-report.md 包含 BLOCK=1
+
+**验证**: BLOCK 场景仍生成了 VERIFICATION.md，不应出现
+"
+    fi
+
+    rm -rf "$block_dir"
+
     local pass_dir="$TEST_BASE_DIR/check2-exit-pass"
     mkdir -p "$pass_dir"
 

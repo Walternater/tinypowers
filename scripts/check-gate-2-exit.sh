@@ -168,9 +168,9 @@ if [ -f "$COMPLIANCE_FILE" ]; then
     else
         # 回退：从 Markdown 表格行解析（支持 5 列和 3 列两种格式）
         if grep -q "| 维度 | 状态 | PASS | WARN | BLOCK |" "$COMPLIANCE_FILE" 2>/dev/null; then
-            # 5 列格式：最后两列为数字（test-full-flow.sh 使用的格式）
-            COMPLIANCE_BLOCK_RAW=$(grep -E "^\|" "$COMPLIANCE_FILE" | tail -n +3 | awk -F'|' '{s+=$NF} END {print s+0}')
-            COMPLIANCE_WARN_RAW=$(grep -E "^\|" "$COMPLIANCE_FILE" | tail -n +3 | awk -F'|' '{s+=$(NF-1)} END {print s+0}')
+            # 5 列格式：Markdown 行末存在分隔符，需要跳过最后的空字段
+            COMPLIANCE_BLOCK_RAW=$(grep -E "^\|" "$COMPLIANCE_FILE" | tail -n +3 | awk -F'|' '{s+=$(NF-1)} END {print s+0}')
+            COMPLIANCE_WARN_RAW=$(grep -E "^\|" "$COMPLIANCE_FILE" | tail -n +3 | awk -F'|' '{s+=$(NF-2)} END {print s+0}')
         elif grep -q "| 维度 | 状态 | 详情 |" "$COMPLIANCE_FILE" 2>/dev/null; then
             # 3 列格式：详情列包含文本（compliance-reviewer-spec.md 示例格式）
             COMPLIANCE_BLOCK_RAW=$(grep -E "^\|.*[0-9]+ BLOCK" "$COMPLIANCE_FILE" | grep -oE "[0-9]+ BLOCK" | grep -oE "[0-9]+" | awk '{s+=$1} END {print s+0}')
