@@ -5,6 +5,7 @@
 #
 
 set -e
+set -u
 
 PROJECT_DIR="${1:-.}"
 EXIT_CODE=0
@@ -18,14 +19,9 @@ echo ""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/validate-gate-inputs.sh"
 
-# 检查 PRD.md
+# 检查 PRD.md（使用内容质量检查，防止伪造）
 PRD_FILE="$PROJECT_DIR/PRD.md"
-if [ -f "$PRD_FILE" ] && [ -s "$PRD_FILE" ]; then
-    echo "[PASS] PRD.md 存在且非空"
-else
-    echo "[FAIL] PRD.md 不存在或为空"
-    EXIT_CODE=1
-fi
+validate_prd_content "$PRD_FILE" EXIT_CODE
 
 # 检查 spec.md 并验证有决策
 SPEC_FILE="$PROJECT_DIR/spec.md"

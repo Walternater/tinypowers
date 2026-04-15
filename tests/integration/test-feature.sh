@@ -269,7 +269,13 @@ $output
     mkdir -p "$pass_dir"
 
     # 创建 PRD.md
-    echo "# Test PRD" > "$pass_dir/PRD.md"
+    cat > "$pass_dir/PRD.md" << 'EOF'
+# Test PRD
+
+这是用于测试 CHECK-1 通过场景的 PRD 文件。
+包含足够的内容以通过 validate_prd_content 的最小长度检查。
+真实项目中的 PRD 应包含详细的功能需求和验收标准。
+EOF
 
     # 创建 spec.md (包含锁定决策)
     cat > "$pass_dir/spec.md" << 'EOF'

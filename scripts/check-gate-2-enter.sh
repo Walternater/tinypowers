@@ -5,6 +5,7 @@
 #
 
 set -e
+set -u
 
 PROJECT_DIR="${1:-.}"
 EXIT_CODE=0

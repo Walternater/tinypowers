@@ -1,0 +1,51 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main, master, "codex/**"]
+  pull_request:
+    branches: [main, master, "codex/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh scripts/lib/*.sh
+
+      - name: Run test-init
+        run: bash tests/integration/test-init.sh
+        continue-on-error: true
+
+      - name: Run test-feature
+        run: bash tests/integration/test-feature.sh
+        continue-on-error: true
+
+      - name: Run test-code
+        run: bash tests/integration/test-code.sh
+        continue-on-error: true
+
+      - name: Run test-full-flow
+        run: bash tests/integration/test-full-flow.sh
+        continue-on-error: true
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: tests/reports/
+          if-no-files-found: ignore
+
+      - name: Final gate (fail if any test failed)
+        if: always()
+        run: |
+          if ls tests/reports/*.md 2>/dev/null | xargs grep -l "^| 结果 | FAIL" 2>/dev/null | grep -q .; then
+            echo "One or more test suites reported FAIL"
+            exit 1
+          fi
+          echo "All test suites passed"
