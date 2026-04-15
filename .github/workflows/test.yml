@@ -1,0 +1,91 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main, master, "codex/**"]
+  pull_request:
+    branches: [main, master, "codex/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      TEST_REPORT_DIR: ${{ runner.temp }}/tinypowers-test-reports
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh scripts/lib/*.sh
+
+      - name: Run test-init
+        id: test_init
+        run: bash tests/integration/test-init.sh
+        continue-on-error: true
+
+      - name: Run test-feature
+        id: test_feature
+        run: bash tests/integration/test-feature.sh
+        continue-on-error: true
+
+      - name: Run test-code
+        id: test_code
+        run: bash tests/integration/test-code.sh
+        continue-on-error: true
+
+      - name: Run test-full-flow
+        id: test_full_flow
+        run: bash tests/integration/test-full-flow.sh
+        continue-on-error: true
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: ${{ env.TEST_REPORT_DIR }}
+          if-no-files-found: ignore
+
+      - name: Final gate (fail if any test failed)
+        if: always()
+        env:
+          TEST_INIT_OUTCOME: ${{ steps.test_init.outcome }}
+          TEST_FEATURE_OUTCOME: ${{ steps.test_feature.outcome }}
+          TEST_CODE_OUTCOME: ${{ steps.test_code.outcome }}
+          TEST_FULL_FLOW_OUTCOME: ${{ steps.test_full_flow.outcome }}
+        run: |
+          required_reports=(
+            "$TEST_REPORT_DIR/init-test-report.md"
+            "$TEST_REPORT_DIR/feature-test-report.md"
+            "$TEST_REPORT_DIR/code-test-report.md"
+            "$TEST_REPORT_DIR/full-flow-test-report.md"
+          )
+
+          outcomes=(
+            "$TEST_INIT_OUTCOME"
+            "$TEST_FEATURE_OUTCOME"
+            "$TEST_CODE_OUTCOME"
+            "$TEST_FULL_FLOW_OUTCOME"
+          )
+
+          for outcome in "${outcomes[@]}"; do
+            if [ "$outcome" != "success" ]; then
+              echo "One or more test steps exited unsuccessfully"
+              exit 1
+            fi
+          done
+
+          for report in "${required_reports[@]}"; do
+            if [ ! -f "$report" ]; then
+              echo "Missing expected test report: $report"
+              exit 1
+            fi
+          done
+
+          if grep -l "^| 结果 | FAIL" "$TEST_REPORT_DIR"/*.md >/dev/null 2>&1; then
+            echo "One or more test suites reported FAIL"
+            exit 1
+          fi
+
+          echo "All test suites passed"
