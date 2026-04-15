@@ -11,6 +11,9 @@ WORKTREE_DIR="${2:-$PROJECT_DIR}"
 EXIT_CODE=0
 COMPLIANCE_BLOCK=0
 COMPLIANCE_WARN=0
+SPEC_FILE="$PROJECT_DIR/spec.md"
+PRD_FILE="$PROJECT_DIR/PRD.md"
+TASKS_FILE="$PROJECT_DIR/tasks.md"
 
 # 颜色定义 (如果终端支持)
 if [ -t 1 ]; then
@@ -34,6 +37,27 @@ echo ""
 
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+extract_acceptance_criteria() {
+    local prd_file="$1"
+
+    if [ ! -f "$prd_file" ] || [ ! -s "$prd_file" ]; then
+        return 1
+    fi
+
+    grep -E "^### AC-[0-9]+:" "$prd_file" 2>/dev/null | \
+        sed 's/^### /- [x] /' | sed 's/$/ → PASS/' || true
+}
+
+extract_decision_ids() {
+    local spec_file="$1"
+
+    if [ ! -f "$spec_file" ] || [ ! -s "$spec_file" ]; then
+        return 1
+    fi
+
+    grep -oE "\| D-[0-9]{3}" "$spec_file" 2>/dev/null | sed 's/| //' | sort -u || true
+}
 
 # 交互式确认辅助函数
 # 优先级: 1) 环境变量 2) 交互式 read 3) 非 TTY → FAIL (要求显式 env var)
@@ -91,7 +115,31 @@ else
 fi
 echo ""
 
-# 2. 检查 compliance-reviewer 通过 (无 BLOCK)
+# 2. 检查关键输入文档存在
+echo "□ 关键输入文档存在 ..."
+if [ -f "$PRD_FILE" ] && [ -s "$PRD_FILE" ]; then
+    echo -e "${GREEN}PASS${NC} PRD.md 存在且非空"
+else
+    echo -e "${RED}FAIL${NC} PRD.md 不存在或为空"
+    EXIT_CODE=1
+fi
+
+if [ -f "$SPEC_FILE" ] && [ -s "$SPEC_FILE" ]; then
+    echo -e "${GREEN}PASS${NC} spec.md 存在且非空"
+else
+    echo -e "${RED}FAIL${NC} spec.md 不存在或为空"
+    EXIT_CODE=1
+fi
+
+if [ -f "$TASKS_FILE" ] && [ -s "$TASKS_FILE" ]; then
+    echo -e "${GREEN}PASS${NC} tasks.md 存在且非空"
+else
+    echo -e "${RED}FAIL${NC} tasks.md 不存在或为空"
+    EXIT_CODE=1
+fi
+echo ""
+
+# 3. 检查 compliance-reviewer 通过 (无 BLOCK)
 echo "□ compliance-reviewer 通过 ..."
 COMPLIANCE_FILE=""
 if [ -f "$WORKTREE_DIR/compliance-review-report.md" ]; then
@@ -102,8 +150,9 @@ fi
 
 if [ -f "$COMPLIANCE_FILE" ]; then
     # 检查报告是否可能过期
-    if [ -f "$SPEC_FILE" ] && [ "$SPEC_FILE" -nt "$COMPLIANCE_FILE" ]; then
-        echo -e "${YELLOW}WARN${NC} compliance-review-report.md 可能比当前 spec.md 旧，请确认报告是否针对当前代码"
+    if [ "$SPEC_FILE" -nt "$COMPLIANCE_FILE" ] || [ "$PRD_FILE" -nt "$COMPLIANCE_FILE" ] || [ "$TASKS_FILE" -nt "$COMPLIANCE_FILE" ]; then
+        echo -e "${RED}FAIL${NC} compliance-review-report.md 比当前需求文档旧，请重新执行 compliance-reviewer"
+        EXIT_CODE=1
     fi
 
     # 解析 BLOCK 和 WARN 数量（优先从 YAML front matter 读取）
@@ -155,16 +204,13 @@ if [ -f "$COMPLIANCE_FILE" ]; then
         EXIT_CODE=1
     fi
 else
-    echo -e "${YELLOW}WARN${NC} compliance-review-report.md 不存在"
-    echo "       建议运行 compliance-reviewer 审查后再检查"
-    confirm_prompt "是否继续?" CONTINUE
-    if [ "$CONTINUE" != "yes" ] && [ "$CONTINUE" != "y" ]; then
-        EXIT_CODE=1
-    fi
+    echo -e "${RED}FAIL${NC} compliance-review-report.md 不存在"
+    echo "       请先运行 compliance-reviewer 审查后再检查"
+    EXIT_CODE=1
 fi
 echo ""
 
-# 3. 检查 requesting-code-review 通过
+# 4. 检查 requesting-code-review 通过
 echo "□ requesting-code-review 通过 ..."
 echo ""
 echo "${YELLOW}注意: 此检查需要人工确认${NC}"
@@ -183,7 +229,7 @@ else
 fi
 echo ""
 
-# 4. 检查 verification-before-completion 通过
+# 5. 检查 verification-before-completion 通过
 echo "□ verification-before-completion 通过 ..."
 echo ""
 echo "${YELLOW}注意: 此检查需要人工确认${NC}"
@@ -202,22 +248,25 @@ else
 fi
 echo ""
 
-# 预定义 spec 文件路径 (供前面 compliance 过期检查使用)
-SPEC_FILE="$PROJECT_DIR/spec.md"
-
-# 5. 预提取决策信息，生成报告后再校验
-echo "□ 决策自查准备 ..."
-DECISION_IDS=""
-if [ -f "$SPEC_FILE" ]; then
-    DECISION_IDS=$(grep -oE "\| D-[0-9]{3}" "$SPEC_FILE" | sed 's/| //' | sort -u || true)
-    DECISION_COUNT=$(printf "%s\n" "$DECISION_IDS" | grep -c '^D-' 2>/dev/null || echo "0")
-    if [ "$DECISION_COUNT" -gt 0 ]; then
-        echo -e "${GREEN}PASS${NC} 已识别 $DECISION_COUNT 条锁定决策，将写入 VERIFICATION.md"
-    else
-        echo -e "${YELLOW}WARN${NC} spec.md 中未识别到有效的锁定决策"
-    fi
+# 6. 预提取验证证据，生成报告后再校验
+echo "□ 验证证据提取 ..."
+ACCEPTANCE_CRITERIA="$(extract_acceptance_criteria "$PRD_FILE")"
+if [ -n "$ACCEPTANCE_CRITERIA" ]; then
+    AC_COUNT=$(printf "%s\n" "$ACCEPTANCE_CRITERIA" | grep -c '^- \[x\] AC-' 2>/dev/null || echo "0")
+    echo -e "${GREEN}PASS${NC} 已识别 $AC_COUNT 条验收标准，将写入 VERIFICATION.md"
 else
-    echo -e "${YELLOW}WARN${NC} spec.md 不存在，无法检查决策"
+    echo -e "${RED}FAIL${NC} PRD.md 中未识别到有效的验收标准 (AC-XXX)"
+    EXIT_CODE=1
+fi
+
+echo "□ 决策自查准备 ..."
+DECISION_IDS="$(extract_decision_ids "$SPEC_FILE")"
+if [ -n "$DECISION_IDS" ]; then
+    DECISION_COUNT=$(printf "%s\n" "$DECISION_IDS" | grep -c '^D-' 2>/dev/null || echo "0")
+    echo -e "${GREEN}PASS${NC} 已识别 $DECISION_COUNT 条锁定决策，将写入 VERIFICATION.md"
+else
+    echo -e "${RED}FAIL${NC} spec.md 中未识别到有效的锁定决策 (D-XXX)"
+    EXIT_CODE=1
 fi
 echo ""
 
@@ -249,42 +298,17 @@ CURRENT_DATE=$(date +"%Y-%m-%d")
 
 # 提取任务列表
 TASK_IDS=""
-if [ -f "$PROJECT_DIR/tasks.md" ]; then
-    TASK_IDS=$(grep -oE "T-[0-9]{3}" "$PROJECT_DIR/tasks.md" 2>/dev/null | sort -u | tr '\n' ',' | sed 's/,$//' || true)
-fi
-
-if [ -z "$TASK_IDS" ]; then
-    TASK_IDS="未记录"
-fi
-
-# 提取验收标准 (从 PRD.md)
-ACCEPTANCE_CRITERIA=""
-if [ -f "$PROJECT_DIR/PRD.md" ]; then
-    # 尝试提取 EARS 格式的验收标准
-    ACCEPTANCE_CRITERIA=$(grep -E "^### AC-[0-9]+:" "$PROJECT_DIR/PRD.md" 2>/dev/null | sed 's/^### /- [x] /' | sed 's/$/ → PASS/' || echo "")
-fi
-
-if [ -z "$ACCEPTANCE_CRITERIA" ]; then
-    ACCEPTANCE_CRITERIA="- [ ] AC-001: 验收标准1 → PASS
-- [ ] AC-002: 验收标准2 → PASS
-- [ ] AC-003: 验收标准3 → PASS"
+if [ -f "$TASKS_FILE" ]; then
+    TASK_IDS=$(grep -oE "T-[0-9]{3}" "$TASKS_FILE" 2>/dev/null | sort -u | tr '\n' ',' | sed 's/,$//' || true)
 fi
 
 # 提取决策落地情况
 DECISION_IMPLEMENTATION=""
-if [ -f "$SPEC_FILE" ]; then
-    DECISION_IDS=$(grep -oE "\| D-[0-9]{3}" "$SPEC_FILE" | sed 's/| //' | sort -u || true)
-    for DECISION_ID in $DECISION_IDS; do
-        DECISION_DESC=$(grep -E "\| $DECISION_ID \|" "$SPEC_FILE" | awk -F '|' '{print $3}' | sed 's/^ *//;s/ *$//' || echo "未知决策")
-        DECISION_IMPLEMENTATION="${DECISION_IMPLEMENTATION}- [x] $DECISION_ID: $DECISION_DESC → 已实现
+for DECISION_ID in $DECISION_IDS; do
+    DECISION_DESC=$(grep -E "\| $DECISION_ID \|" "$SPEC_FILE" | awk -F '|' '{print $3}' | sed 's/^ *//;s/ *$//' || echo "未知决策")
+    DECISION_IMPLEMENTATION="${DECISION_IMPLEMENTATION}- [x] $DECISION_ID: $DECISION_DESC
 "
-    done
-fi
-
-if [ -z "$DECISION_IMPLEMENTATION" ]; then
-    DECISION_IMPLEMENTATION="- [x] D-001: 决策描述 → 代码位置
-- [x] D-002: 决策描述 → 代码位置"
-fi
+done
 
 # 生成 VERIFICATION.md 内容 (使用安全模板避免命令注入)
 cat > "$PROJECT_DIR/VERIFICATION.md" << 'TMPL'

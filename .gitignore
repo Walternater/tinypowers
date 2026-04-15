@@ -39,6 +39,7 @@ temp/
 tests/fixtures/*/output/
 tests/reports/*.md
 !tests/reports/.gitkeep
+.context/compound-engineering/ce-review/
 
 # Environment
 .env

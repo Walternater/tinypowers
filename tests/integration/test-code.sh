@@ -376,28 +376,260 @@ test_check_gate_2_exit() {
         return
     fi
 
-    # 测试帮助/基本执行
+    local fail_dir="$TEST_BASE_DIR/check2-exit-missing-compliance"
+    mkdir -p "$fail_dir"
+
+    cat > "$fail_dir/PRD.md" << 'EOF'
+# Test PRD
+
+## 验收标准
+
+### AC-001: 测试验收标准
+
+**Given** 前置条件
+**When** 执行动作
+**Then** 得到结果
+EOF
+
+    cat > "$fail_dir/spec.md" << 'EOF'
+# Test Spec
+
+## 锁定决策
+
+| ID | 决策 | 理由 |
+|----|------|------|
+| D-001 | 使用 shell 门禁 | 保持轻量 |
+EOF
+
+    cat > "$fail_dir/tasks.md" << 'EOF'
+# Test Tasks
+
+| ID | 任务 | 验收标准 | 依赖 |
+|----|------|----------|------|
+| T-001 | 测试任务 | 满足标准 | - |
+EOF
+
     local output
-    output=$($PROJECT_ROOT/scripts/check-gate-2-exit.sh --help 2>&1) || output=$($PROJECT_ROOT/scripts/check-gate-2-exit.sh 2>&1 | head -20)
+    output=$(COMPILE_CONFIRM=yes REVIEW_CONFIRM=yes VERIFY_CONFIRM=yes \
+        "$PROJECT_ROOT/scripts/check-gate-2-exit.sh" "$fail_dir" 2>&1)
+    local exit_code=$?
 
-    if [ -n "$output" ]; then
-        log_test "CHECK-2 离开脚本执行" "PASS" "
-**文件**: scripts/check-gate-2-exit.sh
+    if [ $exit_code -eq 1 ] && echo "$output" | grep -q "compliance-review-report.md 不存在"; then
+        log_test "CHECK-2 离开缺少 compliance report" "PASS" "
+**输入**: 完整 PRD/spec/tasks，但缺少 compliance-review-report.md
 
-**输出预览**:
+**输出**:
 \`\`\`
 $output
 \`\`\`
 
-**验证**: CHECK-2 离开脚本可以执行并产生输出
+**验证**: CHECK-2 离开门禁正确阻断缺少 compliance report 的场景
 "
     else
-        log_test "CHECK-2 离开脚本执行" "FAIL" "
-**文件**: scripts/check-gate-2-exit.sh
+        log_test "CHECK-2 离开缺少 compliance report" "FAIL" "
+**输入**: 完整 PRD/spec/tasks，但缺少 compliance-review-report.md
 
-**验证**: 脚本执行无输出
+**输出**:
+\`\`\`
+$output
+\`\`\`
+
+**期望**: exit_code=1 且输出包含 compliance-review-report.md 不存在
+
+**实际**: exit_code=$exit_code
 "
     fi
+
+    if [ ! -f "$fail_dir/VERIFICATION.md" ]; then
+        log_test "CHECK-2 离开失败时不生成验证报告" "PASS" "
+**输入**: 缺少 compliance-review-report.md 的失败场景
+
+**验证**: 失败时不会生成 VERIFICATION.md
+"
+    else
+        log_test "CHECK-2 离开失败时不生成验证报告" "FAIL" "
+**输入**: 缺少 compliance-review-report.md 的失败场景
+
+**验证**: 失败时仍生成了 VERIFICATION.md，不应出现
+"
+    fi
+
+    rm -rf "$fail_dir"
+
+    local stale_dir="$TEST_BASE_DIR/check2-exit-stale-report"
+    mkdir -p "$stale_dir"
+
+    cat > "$stale_dir/PRD.md" << 'EOF'
+# Test PRD
+
+## 验收标准
+
+### AC-001: 旧报告检测
+
+**Given** 当前文档更新
+**When** 运行门禁
+**Then** 拒绝旧报告
+EOF
+
+    cat > "$stale_dir/spec.md" << 'EOF'
+# Test Spec
+
+## 锁定决策
+
+| ID | 决策 | 理由 |
+|----|------|------|
+| D-001 | 重新执行审查 | 防止使用旧报告 |
+EOF
+
+    cat > "$stale_dir/tasks.md" << 'EOF'
+# Test Tasks
+
+| ID | 任务 | 验收标准 | 依赖 |
+|----|------|----------|------|
+| T-001 | 检查旧报告 | 阻断旧报告 | - |
+EOF
+
+    cat > "$stale_dir/compliance-review-report.md" << 'EOF'
+# Compliance Review 报告
+
+## 摘要
+
+| 维度 | 状态 | PASS | WARN | BLOCK |
+|------|------|------|------|-------|
+| 决策落地 | PASS | 1 | 0 | 0 |
+| 接口符合 | PASS | 1 | 0 | 0 |
+| 数据符合 | PASS | 1 | 0 | 0 |
+| 范围符合 | PASS | 1 | 0 | 0 |
+| 安全符合 | PASS | 1 | 0 | 0 |
+EOF
+
+    touch -t 202604140101 "$stale_dir/compliance-review-report.md"
+    touch -t 202604150101 "$stale_dir/spec.md"
+
+    output=$(COMPILE_CONFIRM=yes REVIEW_CONFIRM=yes VERIFY_CONFIRM=yes \
+        "$PROJECT_ROOT/scripts/check-gate-2-exit.sh" "$stale_dir" 2>&1)
+    exit_code=$?
+
+    if [ $exit_code -eq 1 ] && echo "$output" | grep -q "比当前需求文档旧"; then
+        log_test "CHECK-2 离开阻断旧 compliance report" "PASS" "
+**输入**: spec.md 比 compliance-review-report.md 新
+
+**输出**:
+\`\`\`
+$output
+\`\`\`
+
+**验证**: CHECK-2 离开门禁正确阻断旧的 compliance report
+"
+    else
+        log_test "CHECK-2 离开阻断旧 compliance report" "FAIL" "
+**输入**: spec.md 比 compliance-review-report.md 新
+
+**输出**:
+\`\`\`
+$output
+\`\`\`
+
+**期望**: exit_code=1 且输出包含 比当前需求文档旧
+
+**实际**: exit_code=$exit_code
+"
+    fi
+
+    rm -rf "$stale_dir"
+
+    local pass_dir="$TEST_BASE_DIR/check2-exit-pass"
+    mkdir -p "$pass_dir"
+
+    cat > "$pass_dir/PRD.md" << 'EOF'
+# 用户管理需求
+
+## 验收标准
+
+### AC-001: 用户列表查询
+
+**Given** 管理员进入列表页
+**When** 请求用户列表接口
+**Then** 返回分页用户列表
+EOF
+
+    cat > "$pass_dir/spec.md" << 'EOF'
+# 技术方案: 用户管理
+
+## 锁定决策
+
+| ID | 决策 | 理由 |
+|----|------|------|
+| D-001 | 使用 RESTful API 设计 | 团队标准 |
+EOF
+
+    cat > "$pass_dir/tasks.md" << 'EOF'
+# Test Tasks
+
+| ID | 任务 | 验收标准 | 依赖 |
+|----|------|----------|------|
+| T-001 | 实现用户列表 | 返回分页结果 | - |
+EOF
+
+    cat > "$pass_dir/compliance-review-report.md" << 'EOF'
+# Compliance Review 报告
+
+## 摘要
+
+| 维度 | 状态 | PASS | WARN | BLOCK |
+|------|------|------|------|-------|
+| 决策落地 | PASS | 1 | 0 | 0 |
+| 接口符合 | PASS | 1 | 0 | 0 |
+| 数据符合 | PASS | 1 | 0 | 0 |
+| 范围符合 | PASS | 1 | 0 | 0 |
+| 安全符合 | PASS | 1 | 0 | 0 |
+EOF
+
+    output=$(COMPILE_CONFIRM=yes REVIEW_CONFIRM=yes VERIFY_CONFIRM=yes \
+        "$PROJECT_ROOT/scripts/check-gate-2-exit.sh" "$pass_dir" 2>&1)
+    exit_code=$?
+
+    local verification_file="$pass_dir/VERIFICATION.md"
+    if [ $exit_code -eq 0 ] && [ -f "$verification_file" ] && \
+        grep -q "AC-001: 用户列表查询" "$verification_file" && \
+        grep -q "D-001: 使用 RESTful API 设计" "$verification_file" && \
+        ! grep -q "验收标准1" "$verification_file" && \
+        ! grep -q "决策描述" "$verification_file"; then
+        log_test "CHECK-2 离开生成真实验证报告" "PASS" "
+**输入**: 完整 PRD/spec/tasks/compliance-report
+
+**输出**:
+\`\`\`
+$output
+\`\`\`
+
+**验证**:
+- exit_code=0
+- 生成 VERIFICATION.md
+- 包含真实 AC/D 证据
+- 不包含占位验收标准或占位决策
+"
+    else
+        log_test "CHECK-2 离开生成真实验证报告" "FAIL" "
+**输入**: 完整 PRD/spec/tasks/compliance-report
+
+**输出**:
+\`\`\`
+$output
+\`\`\`
+
+**验证文件**: $verification_file
+
+**期望**:
+- exit_code=0
+- VERIFICATION.md 包含真实 AC-001 与 D-001
+- 不包含 验收标准1 / 决策描述 占位文本
+
+**实际**: exit_code=$exit_code
+"
+    fi
+
+    rm -rf "$pass_dir"
 }
 
 # 测试 code SKILL.md
