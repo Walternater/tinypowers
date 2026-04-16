@@ -4,9 +4,11 @@ set -euo pipefail
 REPO_URL="${TINYPOWERS_REPO_URL:-https://github.com/Walternater/tinypowers.git}"
 INSTALL_DIR="${TINYPOWERS_HOME:-$HOME/.tinypowers}"
 CLAUDE_SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
+TARGET_VERSION="${TINYPOWERS_VERSION:-latest}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FORCE=false
 SKIP_LINKS=false
+INSTALLED_VERSION_DISPLAY=""
 
 usage() {
   cat <<EOF
@@ -18,6 +20,7 @@ usage() {
   --dir DIR         指定安装目录，默认: $HOME/.tinypowers
   --skills-dir DIR  指定 Claude Code skills 目录，默认: $HOME/.claude/skills
   --repo URL        指定仓库地址，默认: $REPO_URL
+  --version REF     安装指定版本，默认: latest（最新稳定 tag）
   --force           覆盖已存在的非 git 安装目录
   --skip-links      仅准备安装目录，不创建 skill symlink
   --help            显示帮助
@@ -36,6 +39,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --repo)
       REPO_URL="$2"
+      shift 2
+      ;;
+    --version)
+      TARGET_VERSION="$2"
       shift 2
       ;;
     --force)
@@ -63,6 +70,83 @@ need_cmd() {
     echo "缺少依赖命令: $1" >&2
     exit 1
   fi
+}
+
+resolve_version() {
+  local repo_url="$1"
+  local requested="$2"
+  local latest_tag
+
+  if [[ "$requested" != "latest" ]]; then
+    printf '%s\n' "$requested"
+    return 0
+  fi
+
+  latest_tag="$(
+    git ls-remote --tags --refs "$repo_url" 'v*' \
+      | sed 's#^.*refs/tags/##' \
+      | sort -V \
+      | tail -n 1
+  )"
+
+  if [[ -z "$latest_tag" ]]; then
+    echo "未找到可用的版本 tag，请改用 --version main 或检查仓库 tags" >&2
+    exit 1
+  fi
+
+  printf '%s\n' "$latest_tag"
+}
+
+checkout_ref() {
+  local repo_dir="$1"
+  local ref="$2"
+
+  if git -C "$repo_dir" show-ref --verify --quiet "refs/remotes/origin/$ref"; then
+    git -C "$repo_dir" checkout --force "$ref"
+    git -C "$repo_dir" pull --ff-only origin "$ref"
+    return 0
+  fi
+
+  if git -C "$repo_dir" rev-parse --verify --quiet "refs/tags/$ref" >/dev/null; then
+    git -C "$repo_dir" -c advice.detachedHead=false checkout --force "tags/$ref"
+    return 0
+  fi
+
+  if git -C "$repo_dir" rev-parse --verify --quiet "$ref^{commit}" >/dev/null; then
+    git -C "$repo_dir" checkout --force "$ref"
+    return 0
+  fi
+
+  echo "无法解析版本: $ref" >&2
+  exit 1
+}
+
+installed_version() {
+  local repo_dir="$1"
+  local exact_tag
+  local branch_name
+  local commit_short
+
+  exact_tag="$(git -C "$repo_dir" describe --tags --exact-match 2>/dev/null || true)"
+  if [[ -n "$exact_tag" ]]; then
+    printf '%s\n' "$exact_tag"
+    return 0
+  fi
+
+  branch_name="$(git -C "$repo_dir" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+  commit_short="$(git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null || true)"
+
+  if [[ -n "$branch_name" && -n "$commit_short" ]]; then
+    printf '%s (%s)\n' "$branch_name" "$commit_short"
+    return 0
+  fi
+
+  if [[ -n "$commit_short" ]]; then
+    printf '%s\n' "$commit_short"
+    return 0
+  fi
+
+  echo "unknown"
 }
 
 copy_local_checkout() {
@@ -119,6 +203,7 @@ echo "tinypowers 一键安装"
 echo "===================="
 echo "安装目录: $INSTALL_DIR"
 echo "Claude Skills: $CLAUDE_SKILLS_DIR"
+echo "目标版本: $TARGET_VERSION"
 echo ""
 
 if [[ "$LOCAL_CHECKOUT" == true ]]; then
@@ -130,17 +215,21 @@ if [[ "$LOCAL_CHECKOUT" == true ]]; then
   fi
 
   echo "来源: 当前本地仓库"
+  echo "版本策略: 本地仓库模式使用当前工作区内容"
+  INSTALLED_VERSION_DISPLAY="$(installed_version "$SCRIPT_DIR")"
 
   if [[ "$INSTALL_DIR_REAL" != "$SCRIPT_DIR_REAL" ]]; then
     copy_local_checkout "$SCRIPT_DIR" "$INSTALL_DIR"
   fi
 else
+  RESOLVED_VERSION="$(resolve_version "$REPO_URL" "$TARGET_VERSION")"
+
   echo "来源: $REPO_URL"
+  echo "解析版本: $RESOLVED_VERSION"
 
   if [[ -d "$INSTALL_DIR/.git" ]]; then
-    git -C "$INSTALL_DIR" fetch --prune origin
-    git -C "$INSTALL_DIR" checkout --force main
-    git -C "$INSTALL_DIR" pull --ff-only origin main
+    git -C "$INSTALL_DIR" fetch --prune --tags origin
+    checkout_ref "$INSTALL_DIR" "$RESOLVED_VERSION"
   else
     if [[ -e "$INSTALL_DIR" ]]; then
       if [[ "$FORCE" == true ]]; then
@@ -151,8 +240,12 @@ else
       fi
     fi
 
-    git clone --depth 1 "$REPO_URL" "$INSTALL_DIR"
+    git clone "$REPO_URL" "$INSTALL_DIR"
+    git -C "$INSTALL_DIR" fetch --prune --tags origin
+    checkout_ref "$INSTALL_DIR" "$RESOLVED_VERSION"
   fi
+
+  INSTALLED_VERSION_DISPLAY="$(installed_version "$INSTALL_DIR")"
 fi
 
 if [[ "$SKIP_LINKS" == false ]]; then
@@ -172,6 +265,7 @@ echo ""
 echo "安装完成"
 echo "--------"
 echo "tinypowers: $INSTALL_DIR"
+echo "当前版本: ${INSTALLED_VERSION_DISPLAY:-unknown}"
 if [[ "$SKIP_LINKS" == false ]]; then
   echo "skills 目录: $CLAUDE_SKILLS_DIR"
 fi
