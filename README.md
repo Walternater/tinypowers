@@ -54,9 +54,11 @@ curl -fsSL https://raw.githubusercontent.com/Walternater/tinypowers/main/install
 # 安装或升级到最新开发版（main）
 curl -fsSL https://raw.githubusercontent.com/Walternater/tinypowers/main/install.sh | bash -s -- --version main
 
-# 如果本地已经有同名 skill 目录，显式允许替换
+# 如果本地已经有同名 skill 目录，无交互场景下显式允许替换
 curl -fsSL https://raw.githubusercontent.com/Walternater/tinypowers/main/install.sh | bash -s -- --force
 ```
+
+如果检测到 `~/.claude/skills/` 下已有同名目录，安装脚本会在交互终端里提示你选择“保留原内容并退出”还是“替换为 tinypowers 链接”；只有在无交互场景下，才需要显式传 `--force`。
 
 ### 本地仓库安装
 

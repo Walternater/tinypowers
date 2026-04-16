@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FORCE=false
 SKIP_LINKS=false
 INSTALLED_VERSION_DISPLAY=""
+INTERACTIVE_TTY=false
 
 usage() {
   cat <<EOF
@@ -208,11 +209,45 @@ ensure_link_path_safe() {
   fi
 }
 
+prompt_for_link_conflicts() {
+  local conflicts=("$@")
+  local choice
+
+  echo "检测到以下同名本地目录，直接覆盖可能会丢失原内容:" >&2
+  for path in "${conflicts[@]}"; do
+    echo "  - $path" >&2
+  done
+  echo "" >&2
+
+  while true; do
+    printf "请选择: [k] 保留原内容并退出 / [r] 替换为 tinypowers 链接: " >&2
+    IFS= read -r choice </dev/tty || true
+
+    case "${choice:-}" in
+      k|K|"")
+        echo "已保留原内容，安装停止。" >&2
+        exit 1
+        ;;
+      r|R)
+        FORCE=true
+        return 0
+        ;;
+      *)
+        echo "请输入 k 或 r。" >&2
+        ;;
+    esac
+  done
+}
+
 need_cmd git
 
 LOCAL_CHECKOUT=false
 if [[ -e "$SCRIPT_DIR/.git" && -d "$SCRIPT_DIR/skills" && -f "$SCRIPT_DIR/README.md" ]]; then
   LOCAL_CHECKOUT=true
+fi
+
+if [[ -t 1 && -r /dev/tty ]]; then
+  INTERACTIVE_TTY=true
 fi
 
 echo "tinypowers 一键安装"
@@ -265,16 +300,32 @@ else
 fi
 
 if [[ "$SKIP_LINKS" == false ]]; then
+  conflict_paths=()
+
   mkdir -p "$CLAUDE_SKILLS_DIR"
 
   if [[ "$FORCE" == false ]]; then
-    ensure_link_path_safe "$CLAUDE_SKILLS_DIR/tinypowers"
+    if [[ -e "$CLAUDE_SKILLS_DIR/tinypowers" && ! -L "$CLAUDE_SKILLS_DIR/tinypowers" ]]; then
+      conflict_paths+=("$CLAUDE_SKILLS_DIR/tinypowers")
+    fi
 
     for skill_dir in "$INSTALL_DIR"/skills/*; do
       [[ -d "$skill_dir" ]] || continue
       skill_name="$(basename "$skill_dir")"
-      ensure_link_path_safe "$CLAUDE_SKILLS_DIR/$skill_name"
+      if [[ -e "$CLAUDE_SKILLS_DIR/$skill_name" && ! -L "$CLAUDE_SKILLS_DIR/$skill_name" ]]; then
+        conflict_paths+=("$CLAUDE_SKILLS_DIR/$skill_name")
+      fi
     done
+
+    if [[ ${#conflict_paths[@]} -gt 0 ]]; then
+      if [[ "$INTERACTIVE_TTY" == true ]]; then
+        prompt_for_link_conflicts "${conflict_paths[@]}"
+      else
+        for conflict_path in "${conflict_paths[@]}"; do
+          ensure_link_path_safe "$conflict_path"
+        done
+      fi
+    fi
   fi
 
   safe_symlink "$INSTALL_DIR" "$CLAUDE_SKILLS_DIR/tinypowers"
