@@ -68,4 +68,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CHECK-2` now blocks stale or BLOCK-level compliance reports and only generates `VERIFICATION.md` on real success
 - CI now validates both test step outcomes and expected reports so silent test crashes cannot pass green
 
+## [1.0.2] - 2026-04-16
+
+### Added
+
+- Added a one-click `install.sh` for Claude Code users, with remote install and local checkout install flows
+
+### Changed
+
+- Installer now defaults to the latest stable tag and supports upgrading to a specific ref with `--version`
+- README now documents one-click installation, local installation, and Claude Code skill linking more clearly
+
+### Fixed
+
+- Installer no longer silently replaces conflicting local skill directories in non-interactive runs
+- Interactive installs now prompt the user to choose whether to keep local skill content or replace it with tinypowers symlinks
+
 [1.0.1]: https://github.com/wcf/tinypowers/releases/tag/v1.0.1
+[1.0.2]: https://github.com/Walternater/tinypowers/releases/tag/v1.0.2
