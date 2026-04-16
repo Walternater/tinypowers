@@ -21,7 +21,7 @@ usage() {
   --skills-dir DIR  指定 Claude Code skills 目录，默认: $HOME/.claude/skills
   --repo URL        指定仓库地址，默认: $REPO_URL
   --version REF     安装指定版本，默认: latest（最新稳定 tag）
-  --force           覆盖已存在的非 git 安装目录
+  --force           覆盖已存在的非 git 安装目录，或替换冲突的本地 skill 目录
   --skip-links      仅准备安装目录，不创建 skill symlink
   --help            显示帮助
 EOF
@@ -186,10 +186,26 @@ safe_symlink() {
   local link_path="$2"
 
   if [[ -e "$link_path" && ! -L "$link_path" ]]; then
-    rm -rf "$link_path"
+    if [[ "$FORCE" == true ]]; then
+      rm -rf "$link_path"
+    else
+      echo "检测到已存在的本地目录，已停止以避免覆盖: $link_path" >&2
+      echo "如需替换为 tinypowers 提供的 symlink，请重新执行并附加 --force" >&2
+      exit 1
+    fi
   fi
 
   ln -sfn "$target" "$link_path"
+}
+
+ensure_link_path_safe() {
+  local link_path="$1"
+
+  if [[ -e "$link_path" && ! -L "$link_path" ]]; then
+    echo "检测到已存在的本地目录，已停止以避免覆盖: $link_path" >&2
+    echo "如需替换为 tinypowers 提供的 symlink，请重新执行并附加 --force" >&2
+    exit 1
+  fi
 }
 
 need_cmd git
@@ -250,6 +266,16 @@ fi
 
 if [[ "$SKIP_LINKS" == false ]]; then
   mkdir -p "$CLAUDE_SKILLS_DIR"
+
+  if [[ "$FORCE" == false ]]; then
+    ensure_link_path_safe "$CLAUDE_SKILLS_DIR/tinypowers"
+
+    for skill_dir in "$INSTALL_DIR"/skills/*; do
+      [[ -d "$skill_dir" ]] || continue
+      skill_name="$(basename "$skill_dir")"
+      ensure_link_path_safe "$CLAUDE_SKILLS_DIR/$skill_name"
+    done
+  fi
 
   safe_symlink "$INSTALL_DIR" "$CLAUDE_SKILLS_DIR/tinypowers"
 

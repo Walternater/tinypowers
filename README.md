@@ -53,6 +53,9 @@ curl -fsSL https://raw.githubusercontent.com/Walternater/tinypowers/main/install
 
 # 安装或升级到最新开发版（main）
 curl -fsSL https://raw.githubusercontent.com/Walternater/tinypowers/main/install.sh | bash -s -- --version main
+
+# 如果本地已经有同名 skill 目录，显式允许替换
+curl -fsSL https://raw.githubusercontent.com/Walternater/tinypowers/main/install.sh | bash -s -- --force
 ```
 
 ### 本地仓库安装
