@@ -200,9 +200,31 @@ output:
 
 ## 级别定义
 
+### Critical (极度严重)
+
+**定义**: 安全漏洞、资金逻辑错误、并发安全、数据丢失风险。
+
+**处理规则**:
+- 必须立即修复，CHECK-2 离开门禁失败
+- 涉及资金变更的逻辑，强制人工审查
+
+**判定标准**:
+- SQL 注入、XSS、CSRF 等安全漏洞
+- 涉及资金计算、状态流转的逻辑缺少幂等性保证
+- 并发场景下可能出现数据竞争
+- 可能导致数据丢失或不一致
+
+**示例**:
+- 资金计算使用浮点数
+- 状态变更无状态机，直接 set 字段
+- 并发更新缺少锁或乐观锁
+- 缺少权限校验的管理接口
+
+---
+
 ### BLOCK (阻断)
 
-**定义**: 严重偏离方案，可能导致功能错误、安全漏洞或架构破坏。
+**定义**: 严重偏离方案，可能导致功能错误或架构破坏。
 
 **处理规则**:
 - 必须修复后才能提交代码
@@ -212,13 +234,11 @@ output:
 **判定标准**:
 - 技术方案要求的功能未实现
 - 接口定义与实现严重不符
-- 存在安全漏洞 (SQL 注入、未授权访问等)
 - 代码变更超出需求范围
 
 **示例**:
 - spec.md 中定义的决策 D-XXX 未在代码中实现
 - API 路径、方法、参数类型与 spec 严重不符
-- 管理接口缺少权限校验
 - 实现了 PRD.md 明确排除的功能
 
 ---
@@ -279,7 +299,7 @@ output:
 生成审查报告
     |
     v
-BLOCK = 0 ?
+CRITICAL = 0 且 BLOCK = 0 ?
     |--YES--> 审查通过，允许提交
     |
     NO
@@ -297,11 +317,12 @@ BLOCK = 0 ?
 ```markdown
 ---
 tinypowers_compliance_summary:
-  decision: { pass: 3, warn: 1, block: 0 }
-  interface: { pass: 5, warn: 0, block: 0 }
-  data: { pass: 2, warn: 1, block: 1 }
-  scope: { pass: 3, warn: 0, block: 0 }
-  security: { pass: 4, warn: 2, block: 0 }
+  decision: { pass: 3, warn: 1, critical: 0, block: 0 }
+  interface: { pass: 5, warn: 0, critical: 0, block: 0 }
+  data: { pass: 2, warn: 1, critical: 0, block: 1 }
+  scope: { pass: 3, warn: 0, critical: 0, block: 0 }
+  security: { pass: 4, warn: 2, critical: 0, block: 0 }
+total_critical: 0
 total_block: 1
 total_warn: 4
 generated_at: "2026-04-09T10:30:00Z"
@@ -311,13 +332,13 @@ generated_at: "2026-04-09T10:30:00Z"
 
 ## 摘要
 
-| 维度 | 状态 | PASS | WARN | BLOCK |
-|------|------|------|------|-------|
-| 决策落地 | WARN | 3 | 1 | 0 |
-| 接口符合 | PASS | 5 | 0 | 0 |
-| 数据符合 | BLOCK | 2 | 1 | 1 |
-| 范围符合 | PASS | 3 | 0 | 0 |
-| 安全符合 | WARN | 4 | 2 | 0 |
+| 维度 | 状态 | PASS | WARN | BLOCK | CRITICAL |
+|------|------|------|------|-------|----------|
+| 决策落地 | WARN | 3 | 1 | 0 | 0 |
+| 接口符合 | PASS | 5 | 0 | 0 | 0 |
+| 数据符合 | BLOCK | 2 | 1 | 1 | 0 |
+| 范围符合 | PASS | 3 | 0 | 0 | 0 |
+| 安全符合 | WARN | 4 | 2 | 0 | 0 |
 
 **总体结论**: BLOCK (存在 BLOCK 级别问题，必须修复)
 
@@ -400,7 +421,7 @@ compliance-reviewer 执行审查
 生成审查报告
     |
     v
-BLOCK = 0? → YES → CHECK-2 通过 → 可以提交
+CRITICAL = 0 且 BLOCK = 0? → YES → CHECK-2 通过 → 可以提交
     |
     NO
     |

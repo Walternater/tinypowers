@@ -18,6 +18,23 @@ triggers: ["/tech:code"]
 
 ---
 
+## 自然语言映射
+
+当用户使用自然语言描述意图时，AI 先映射到具体动作再执行，不直接 ad-hoc 回答。
+
+| 用户说的 | 映射到 | 说明 |
+|---------|--------|------|
+| "修一下 xxx" / "改一下 xxx" | 当前任务继续执行 | 已在 tech:code 流程中，提示继续 |
+| "帮我看看代码" / "review 一下" | 触发 compliance-reviewer | 进入 Phase 4 审查 |
+| "这段逻辑对吗" | 触发 compliance-reviewer | 进入 Phase 4 审查 |
+| "跳过这个任务" / "跳过 T-xxx" | 标记任务跳过，更新 tasks.md | 需用户确认 |
+| "我完成了" / "做完了" | 触发 CHECK-2 离开门禁 | 进入 Phase 5 |
+| "中断" / "停" | 暂停流程，保存状态 | 记录当前进度到 SPEC-STATE |
+
+纯技术讨论（"这个注解怎么用"、"Dubbo 配置项含义"）不需要走命令流程，直接回答。
+
+---
+
 ## 执行流程 (5 Phase)
 
 ### Phase 1: CHECK-2 进入门禁
@@ -128,15 +145,16 @@ tinypowers 作为编排层，委托 superpowers 执行具体编码任务：
 **审查维度**:
 | 维度 | 检查内容 | 级别 |
 |------|----------|------|
-| 决策落地 | spec.md 中的 D-XXX 是否在代码中实现 | BLOCK/WARN/PASS |
-| 接口符合 | API 路径、参数、返回值是否与 spec 一致 | BLOCK/WARN/PASS |
-| 数据符合 | Entity 字段、DB 变更是否与 spec 一致 | BLOCK/WARN/PASS |
-| 范围符合 | 代码变更是否在 PRD.md 范围内 | BLOCK/WARN/PASS |
-| 安全符合 | 输入校验、SQL 注入、权限检查等 | BLOCK/WARN/PASS |
+| 决策落地 | spec.md 中的 D-XXX 是否在代码中实现 | CRITICAL/BLOCK/WARN/PASS |
+| 接口符合 | API 路径、参数、返回值是否与 spec 一致 | CRITICAL/BLOCK/WARN/PASS |
+| 数据符合 | Entity 字段、DB 变更是否与 spec 一致 | CRITICAL/BLOCK/WARN/PASS |
+| 范围符合 | 代码变更是否在 PRD.md 范围内 | CRITICAL/BLOCK/WARN/PASS |
+| 安全符合 | 输入校验、SQL 注入、权限检查等 | CRITICAL/BLOCK/WARN/PASS |
 
 **输出**: `compliance-review-report.md`
 
 **处理规则**:
+- **CRITICAL > 0**: 立即修复，涉及资金变更强制人工审查，CHECK-2 失败
 - **BLOCK = 0**: 审查通过，继续 Phase 5
 - **BLOCK > 0**: 必须修复后才能继续
 - **WARN > 0**: 建议修复，可选择接受风险
@@ -153,7 +171,7 @@ tinypowers 作为编排层，委托 superpowers 执行具体编码任务：
 
 **检查项**:
 - [x] 代码编译通过 (人工确认)
-- [x] compliance-reviewer 通过 (BLOCK = 0)
+- [x] compliance-reviewer 通过 (CRITICAL = 0 且 BLOCK = 0)
 - [x] requesting-code-review 完成 (人工确认)
 - [x] verification-before-completion 完成 (人工确认)
 - [x] 决策自查完成 (所有 D-XXX 有对应代码位置)
@@ -246,12 +264,12 @@ AI: 委托 superpowers:subagent-driven-development 执行编码...
 返回: 编码完成，变更 5 个文件
 
 AI: 执行 compliance-reviewer 审查...
-| 维度 | 状态 | BLOCK | WARN |
-| 决策落地 | PASS | 0 | 0 |
-| 接口符合 | PASS | 0 | 0 |
-| 数据符合 | PASS | 0 | 0 |
-| 范围符合 | PASS | 0 | 0 |
-| 安全符合 | WARN | 0 | 1 |
+| 维度 | 状态 | CRITICAL | BLOCK | WARN |
+| 决策落地 | PASS | 0 | 0 | 0 |
+| 接口符合 | PASS | 0 | 0 | 0 |
+| 数据符合 | PASS | 0 | 0 | 0 |
+| 范围符合 | PASS | 0 | 0 | 0 |
+| 安全符合 | WARN | 0 | 0 | 1 |
 总体结论: PASS (有 1 个 WARN)
 
 AI: 执行 CHECK-2 离开门禁检查...
