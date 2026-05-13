@@ -299,7 +299,7 @@ output:
 生成审查报告
     |
     v
-BLOCK = 0 ?
+CRITICAL = 0 且 BLOCK = 0 ?
     |--YES--> 审查通过，允许提交
     |
     NO
@@ -421,7 +421,7 @@ compliance-reviewer 执行审查
 生成审查报告
     |
     v
-BLOCK = 0? → YES → CHECK-2 通过 → 可以提交
+CRITICAL = 0 且 BLOCK = 0? → YES → CHECK-2 通过 → 可以提交
     |
     NO
     |
